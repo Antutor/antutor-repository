@@ -1,0 +1,21 @@
+# Environments
+.env
+
+# Python Cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual Environments
+venv/
+.venv/
+env/
+
+# IDE / Editors
+.vscode/
+.idea/
+
+# Database (if using sqlite for local development)
+*.db
+*.sqlite3
