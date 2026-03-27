@@ -17,12 +17,19 @@ from google import genai
 from config import (
     TARGET_CONCEPTS, CONCEPT_DICTIONARY, AZURE_PHI4_ENDPOINT, AZURE_PHI4_API_KEY, 
     PROMPTS, SECRET_KEY, ALGORITHM, ACCESS_TOKEN_EXPIRE_MINUTES,
-    GIVE_UP_KEYWORDS, NEWS_API_KEY, GEMINI_API_KEY
+    GIVE_UP_KEYWORDS, NEWS_API_KEY, GEMINI_API_KEY, GCP_PROJECT_ID, GCP_LOCATION
 )
 
 gemini_client = None
 if GEMINI_API_KEY and GEMINI_API_KEY != "YOUR_GEMINI_API_KEY_HERE":
     gemini_client = genai.Client(api_key=GEMINI_API_KEY)
+elif GCP_PROJECT_ID:
+    # Vertex AI initialization
+    gemini_client = genai.Client(
+        vertexai=True,
+        project=GCP_PROJECT_ID,
+        location=GCP_LOCATION
+    )
 
 app = FastAPI(title="Antutor Metric AI Backend", description="Sejong University Capstone Backend")
 
@@ -146,7 +153,7 @@ async def extract_atomic_propositions(user_answer: str, ground_truth: str) -> Li
     
     try:
         response = await gemini_client.aio.models.generate_content(
-            model='gemini-3-flash-preview',
+            model='publishers/google/models/gemini-2.5-flash',
             contents=prompt
         )
         raw_text = response.text.strip()
@@ -291,7 +298,7 @@ Do NOT give them the direct answer.
 """
     try:
         response = await gemini_client.aio.models.generate_content(
-            model='gemini-3-flash-preview',
+            model='publishers/google/models/gemini-2.5-flash',
             contents=prompt
         )
         return response.text.strip()
