@@ -1,5 +1,9 @@
 # Environments
 .env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
 
 # Python Cache
 __pycache__/
@@ -19,3 +23,14 @@ env/
 # Database (if using sqlite for local development)
 *.db
 *.sqlite3
+
+# Frontend (React/npm) & Misc
+node_modules/
+build/
+dist/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.DS_Store
+Thumbs.db
+
