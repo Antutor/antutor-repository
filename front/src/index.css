@@ -1,0 +1,42 @@
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap');
+
+:root {
+  --color-deep-navy: #374151; /* Dark Charcoal */
+  --color-navy-light: #4b5563; /* Lighter Charcoal */
+  --color-soft-blue: #90caf9;
+  --color-soft-gold: #fff59d;
+  --color-soft-green: #a7f3d0;
+  --color-soft-pink: #fecdd3;
+  --color-white: #ffffff;
+  --color-cream: #fdfbf7;
+  --color-bg-light: #f9fbfc;
+  --color-border: #e2e8f0;
+  
+  /* Expert Point Colors - Softened */
+  --color-expert-academic: #60a5fa; /* Soft Blue */
+  --color-expert-market: #34d399; /* Soft Green */
+  --color-expert-macro: #a78bfa; /* Soft Purple */
+  
+  --color-text-primary: #374151;
+  --color-text-secondary: #6b7280;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: 'Nunito', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: var(--color-bg-light);
+  color: var(--color-text-primary);
+}
+
+code {
+  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
+    monospace;
+}
