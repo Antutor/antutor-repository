@@ -43,8 +43,9 @@ async def call_local_llm(prompt: str, is_json: bool = False, model: Optional[str
     
     return "Local LLM Error."
 
-async def evaluate_academic_auditor(concept: str, user_answer: str, ground_truth: str) -> dict:
-    prompt = PROMPTS["experts"]["The Academic Auditor"].format(
+async def evaluate_academic_auditor(concept: str, user_answer: str, ground_truth: str, custom_prompt: Optional[str] = None) -> dict:
+    template = custom_prompt or PROMPTS["experts"]["The Academic Auditor"]
+    prompt = template.format(
         concept=concept, ground_truth=ground_truth, user_answer=user_answer
     )
     
@@ -83,8 +84,9 @@ async def retrieve_knowledge_graph(concept: str) -> str:
     await asyncio.sleep(0.5)
     return f"Knowledge Graph Node [{concept}] -> Connected to [Global Trade, Employment Rates, Inflation]. Policy changes directly impact these connected nodes."
 
-async def call_expert_agent(persona: str, concept: str, user_answer: str, context: Optional[str] = None) -> Dict[str, Any]:
-    prompt = PROMPTS["experts"][persona].format(concept=concept, user_answer=user_answer, context=context)
+async def call_expert_agent(persona: str, concept: str, user_answer: str, context: Optional[str] = None, custom_prompt: Optional[str] = None) -> Dict[str, Any]:
+    template = custom_prompt or PROMPTS["experts"][persona]
+    prompt = template.format(concept=concept, user_answer=user_answer, context=context)
     
     try:
         feedback = await call_local_llm(prompt, is_json=False)
@@ -101,10 +103,21 @@ async def call_expert_agent(persona: str, concept: str, user_answer: str, contex
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"[{persona} Connection Error] Failed to generate feedback: {str(e)}")
 
-async def generate_moderator_guidance_message(user_answer: str, lowest_persona: str, expert_results: List[Dict]) -> str:
+async def generate_moderator_guidance_message(user_answer: str, lowest_persona: str, expert_results: List[Dict], custom_prompt: Optional[str] = None) -> str:
     lowest_feedback = next((res["feedback"] for res in expert_results if res["persona"] == lowest_persona), "")
     
-    prompt = f"""
+    if custom_prompt:
+        try:
+            prompt = custom_prompt.format(
+                user_answer=user_answer,
+                lowest_persona=lowest_persona,
+                lowest_feedback=lowest_feedback
+            )
+        except KeyError:
+            # Fallback if formatting fails due to missing keys in custom prompt
+            prompt = custom_prompt 
+    else:
+        prompt = f"""
 You are the friendly Lead Tutor guiding a student. 
 The student provided this answer: "{user_answer}"
 The expert '{lowest_persona}' evaluated the answer and gave this feedback: "{lowest_feedback}"
