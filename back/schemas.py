@@ -1,9 +1,9 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional, List, Dict, Any
 
 class UserCreate(BaseModel):
-    username: str
-    password: str
+    username: str = Field(..., pattern=r"^[A-Za-z0-9]{4,}$")
+    password: str = Field(..., pattern=r"^[A-Za-z0-9]{4,}$")
 
 class ChatRequest(BaseModel):
     session_id: str

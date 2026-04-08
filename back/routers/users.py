@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from datetime import timedelta
+import re
 
 from schemas import UserCreate
 from auth import get_password_hash, create_access_token, verify_password
@@ -12,6 +13,9 @@ router = APIRouter()
 @router.get("/check-username")
 async def check_username(username: str):
     """지정된 아이디(username)가 이미 데이터베이스에 존재하는지 실시간으로 확인합니다."""
+    if not re.match(r"^[A-Za-z0-9]{4,}$", username):
+        raise HTTPException(status_code=400, detail="아이디는 영어 또는 숫자로만 4자리 이상 입력해야 합니다.")
+        
     if username in users_db:
         return {"available": False, "message": "Username already exists."}
     return {"available": True, "message": "Username is available."}
