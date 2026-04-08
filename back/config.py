@@ -77,6 +77,8 @@ CONCEPT_DICTIONARY = {
 LOCAL_LLM_ENDPOINT = os.getenv("LOCAL_LLM_ENDPOINT", "http://localhost:11434/api/chat")
 LOCAL_LLM_MODEL = os.getenv("LOCAL_LLM_MODEL", "gemma3:12b")
 NEWS_API_KEY = os.getenv("NEWS_API_KEY", "")
+DEEPL_API_KEY = os.getenv("DEEPL_API_KEY", "")
+ENABLE_KOREAN_TRANSLATION = os.getenv("ENABLE_KOREAN_TRANSLATION", "true").lower() == "true"
 
 PROMPTS = {
     "experts": {

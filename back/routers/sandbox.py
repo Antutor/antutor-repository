@@ -15,6 +15,7 @@ from services.llm_agent import (
     evaluate_academic_auditor,
     generate_moderator_guidance_message
 )
+from services.translator import translate_ko_to_en
 from config import LOCAL_LLM_MODEL, LOCAL_LLM_ENDPOINT
 from dependencies import get_current_user
 
@@ -120,11 +121,13 @@ async def test_agent_sandbox(request: AgentSandboxRequest, current_user: str = D
     """
     try:
         persona = request.persona
+        eval_user_answer = await translate_ko_to_en(request.user_answer)
+        
         req_data = request.dict() if hasattr(request, 'dict') else request.model_dump()
         if persona == "The Academic Auditor":
             if not request.ground_truth:
                 return {"status": "error", "detail": "ground_truth is required for The Academic Auditor"}
-            result = await evaluate_academic_auditor(request.concept, request.user_answer, request.ground_truth, custom_prompt=request.custom_prompt)
+            result = await evaluate_academic_auditor(request.concept, eval_user_answer, request.ground_truth, custom_prompt=request.custom_prompt)
             response_data = {"status": "success", "persona": persona, "result": result}
             save_sandbox_log(req_data, response_data, "agent_test")
             return response_data
@@ -138,7 +141,7 @@ async def test_agent_sandbox(request: AgentSandboxRequest, current_user: str = D
                 elif persona == "The Macro-Connector":
                     context = await retrieve_knowledge_graph(request.concept)
             
-            result = await call_expert_agent(persona, request.concept, request.user_answer, context=context, custom_prompt=request.custom_prompt)
+            result = await call_expert_agent(persona, request.concept, eval_user_answer, context=context, custom_prompt=request.custom_prompt)
             response_data = {"status": "success", "persona": persona, "context_used": context, "result": result}
             save_sandbox_log(req_data, response_data, "agent_test")
             return response_data
@@ -151,8 +154,9 @@ async def test_moderator_sandbox(request: ModeratorSandboxRequest, current_user:
     여러 에이전트의 피드백 결과를 종합하여 제공하는 모더레이터 메시지를 테스트합니다.
     """
     try:
+        eval_user_answer = await translate_ko_to_en(request.user_answer)
         guidance = await generate_moderator_guidance_message(
-            request.user_answer, 
+            eval_user_answer, 
             request.lowest_persona, 
             request.expert_results,
             custom_prompt=request.custom_prompt

@@ -13,6 +13,7 @@ from services.llm_agent import (
     call_expert_agent,
     generate_moderator_guidance_message
 )
+from services.translator import translate_en_to_ko, translate_ko_to_en
 
 router = APIRouter()
 
@@ -35,7 +36,7 @@ async def start_session(concept: str, current_user: str = Depends(get_current_us
     return {
         "session_id": session_id,
         "concept": concept,
-        "initial_question": TARGET_CONCEPTS[concept]["initial_question"]
+        "initial_question": await translate_en_to_ko(TARGET_CONCEPTS[concept]["initial_question"])
     }
 
 @router.post("/chat")
@@ -50,7 +51,10 @@ async def chat(request: ChatRequest, current_user: str = Depends(get_current_use
     concept = request.concept
     ground_truth = TARGET_CONCEPTS[concept]["definition"]
     
-    is_give_up = any(kw in request.user_answer.lower() for kw in GIVE_UP_KEYWORDS)
+    # === 사용자 입력값을 AI 처리를 위해 영어로 번역 ===
+    eval_user_answer = await translate_ko_to_en(request.user_answer)
+    
+    is_give_up = any(kw in eval_user_answer.lower() for kw in GIVE_UP_KEYWORDS)
     is_contradiction = False
     
     if is_give_up:
@@ -60,7 +64,7 @@ async def chat(request: ChatRequest, current_user: str = Depends(get_current_use
         expert_results = [{"persona": "System", "score": 0.0, "feedback": "User requested help."}]
         lowest_persona = "System"
     else:
-        academic_result = await evaluate_academic_auditor(concept, request.user_answer, ground_truth)
+        academic_result = await evaluate_academic_auditor(concept, eval_user_answer, ground_truth)
         is_contradiction = academic_result.get("is_contradiction", False)
         antutor_score = academic_result.get("score", 0.0)
         
@@ -78,8 +82,8 @@ async def chat(request: ChatRequest, current_user: str = Depends(get_current_use
             )
 
             tasks = [
-                call_expert_agent("The Market Practitioner", concept, request.user_answer, context=news_context),
-                call_expert_agent("The Macro-Connector", concept, request.user_answer, context=kg_context)
+                call_expert_agent("The Market Practitioner", concept, eval_user_answer, context=news_context),
+                call_expert_agent("The Macro-Connector", concept, eval_user_answer, context=kg_context)
             ]
             
             other_expert_results = list(await asyncio.gather(*tasks))
@@ -141,7 +145,7 @@ async def chat(request: ChatRequest, current_user: str = Depends(get_current_use
             }
         else:
             moderator_action = "proceed"
-            guidance_message = await generate_moderator_guidance_message(request.user_answer, lowest_persona, expert_results)
+            guidance_message = await generate_moderator_guidance_message(eval_user_answer, lowest_persona, expert_results)
             
             scaffold_plan = {
                 "step": "Guidance Prompt",
@@ -158,8 +162,21 @@ async def chat(request: ChatRequest, current_user: str = Depends(get_current_use
         "action": moderator_action
     })
 
+    # === 통신 최말단 탈부착식 번역 계층 통과 ===
+    translated_propositions = [await translate_en_to_ko(p) for p in propositions]
+    
+    for expert in expert_results:
+        if expert.get("feedback"):
+            expert["feedback"] = await translate_en_to_ko(expert["feedback"])
+            
+    if scaffold_plan:
+        if scaffold_plan.get("message"):
+            scaffold_plan["message"] = await translate_en_to_ko(scaffold_plan["message"])
+        if scaffold_plan.get("definition"):
+            scaffold_plan["definition"] = await translate_en_to_ko(scaffold_plan["definition"])
+
     return {
-        "atomic_propositions": propositions,
+        "atomic_propositions": translated_propositions,
         "expert_average_score": raw_avg_score,
         "is_contradiction_override": is_contradiction,
         "expert_feedback": expert_results,
@@ -211,9 +228,13 @@ async def end_session(request: EndSessionRequest, current_user: str = Depends(ge
         
     radar_payload = session["radar_data"]
     
+    # 번역 계층 통과
+    translated_insights = await translate_en_to_ko(educational_insights)
+    translated_message = await translate_en_to_ko("Session terminated successfully.")
+    
     return {
-        "message": "Session terminated successfully.",
-        "educational_insights": educational_insights,
+        "message": translated_message,
+        "educational_insights": translated_insights,
         "is_first_time": is_first_time,
         "growth_visualization": radar_payload
     }
