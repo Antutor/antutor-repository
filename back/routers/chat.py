@@ -1,11 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException
 import asyncio
-import uuid
 
 from schemas import ChatRequest, EndSessionRequest
-from database import session_memory, users_db
+from database import supabase
 from dependencies import get_current_user
-from config import TARGET_CONCEPTS, CONCEPT_DICTIONARY, GIVE_UP_KEYWORDS
+from config import GIVE_UP_KEYWORDS
 from services.llm_agent import (
     evaluate_academic_auditor,
     retrieve_news_rag,
@@ -18,42 +17,65 @@ from services.translator import translate_en_to_ko, translate_ko_to_en
 router = APIRouter()
 
 @router.get("/start/{concept}")
-async def start_session(concept: str, current_user: str = Depends(get_current_user)):
-    if concept not in TARGET_CONCEPTS:
+async def start_session(concept: str, current_user: dict = Depends(get_current_user)):
+    user_id = current_user["user_id"]
+    
+    # 1. 지원하는 개념 DB 확인
+    concept_res = supabase.table("concepts").select("*").eq("concept_id", concept).execute()
+    if not concept_res.data:
         raise HTTPException(status_code=404, detail="Target Concept is not supported.")
+        
+    # 2. 동일 개념 과거 완료/학습 이력 확인
+    resume_available = False
+    last_ai_response = ""
     
-    session_id = str(uuid.uuid4())
-    
-    session_memory[session_id] = {
-        "user_id": current_user,
-        "concept": concept,
-        "scaffold_level": 0,  
-        "scaffold_count": 0,
-        "history": [],
-        "radar_data": {"Academic": [], "Market": [], "Macro": []}
+    prev_sessions = supabase.table("sessions").select("session_id").eq("user_id", user_id).eq("concept_id", concept).execute()
+    if prev_sessions.data:
+        session_ids = [s["session_id"] for s in prev_sessions.data]
+        logs_res = supabase.table("chat_logs").select("ai_response").in_("session_id", session_ids).order("created_at", desc=True).limit(1).execute()
+        if logs_res.data and logs_res.data[0].get("ai_response"):
+            resume_available = True
+            last_ai_response = logs_res.data[0]["ai_response"]
+
+    # 3. 신규 세션 DB 생성
+    new_session = {
+        "user_id": user_id,
+        "concept_id": concept,
+        "status": "IN_PROGRESS"
     }
+    insert_res = supabase.table("sessions").insert(new_session).execute()
+    session_id = str(insert_res.data[0]["session_id"]) # string formatting
+    
+    initial_question_korean = await translate_en_to_ko(f"How would you explain {concept}?")
+    resume_prompt = await translate_en_to_ko("이전 학습의 마지막 질문부터 이어서 학습하시겠습니까, 아니면 처음부터 다시 학습하시겠습니까?") if resume_available else ""
     
     return {
         "session_id": session_id,
         "concept": concept,
-        "initial_question": await translate_en_to_ko(TARGET_CONCEPTS[concept]["initial_question"])
+        "initial_question": initial_question_korean,
+        "resume_available": resume_available,
+        "resume_prompt": resume_prompt,
+        "last_ai_response": last_ai_response
     }
 
 @router.post("/chat")
-async def chat(request: ChatRequest, current_user: str = Depends(get_current_user)):
-    if request.session_id not in session_memory:
+async def chat(request: ChatRequest, current_user: dict = Depends(get_current_user)):
+    user_id = current_user["user_id"]
+    
+    sess_res = supabase.table("sessions").select("*").eq("session_id", int(request.session_id)).execute()
+    if not sess_res.data:
         raise HTTPException(status_code=404, detail="Invalid Session ID.")
-        
-    session = session_memory[request.session_id]
-    if session["user_id"] != current_user:
+    session = sess_res.data[0]
+    
+    if session["user_id"] != user_id:
         raise HTTPException(status_code=403, detail="Not authorized to access this session.")
         
-    concept = request.concept
-    ground_truth = TARGET_CONCEPTS[concept]["definition"]
+    concept_id = session["concept_id"]
+    concept_res = supabase.table("concepts").select("*").eq("concept_id", concept_id).execute()
+    concept_data = concept_res.data[0]
+    ground_truth = concept_data["definition"]
     
-    # === 사용자 입력값을 AI 처리를 위해 영어로 번역 ===
     eval_user_answer = await translate_ko_to_en(request.user_answer)
-    
     is_give_up = any(kw in eval_user_answer.lower() for kw in GIVE_UP_KEYWORDS)
     is_contradiction = False
     
@@ -64,7 +86,7 @@ async def chat(request: ChatRequest, current_user: str = Depends(get_current_use
         expert_results = [{"persona": "System", "score": 0.0, "feedback": "User requested help."}]
         lowest_persona = "System"
     else:
-        academic_result = await evaluate_academic_auditor(concept, eval_user_answer, ground_truth)
+        academic_result = await evaluate_academic_auditor(concept_id, eval_user_answer, ground_truth)
         is_contradiction = academic_result.get("is_contradiction", False)
         antutor_score = academic_result.get("score", 0.0)
         
@@ -77,13 +99,13 @@ async def chat(request: ChatRequest, current_user: str = Depends(get_current_use
             propositions = ["(Atomic extraction skipped: Evaluated by LLM-as-a-judge in one go)"]
             
             news_context, kg_context = await asyncio.gather(
-                retrieve_news_rag(concept),
-                retrieve_knowledge_graph(concept)
+                retrieve_news_rag(concept_id),
+                retrieve_knowledge_graph(concept_id)
             )
 
             tasks = [
-                call_expert_agent("The Market Practitioner", concept, eval_user_answer, context=news_context),
-                call_expert_agent("The Macro-Connector", concept, eval_user_answer, context=kg_context)
+                call_expert_agent("The Market Practitioner", concept_id, eval_user_answer, context=news_context),
+                call_expert_agent("The Macro-Connector", concept_id, eval_user_answer, context=kg_context)
             ]
             
             other_expert_results = list(await asyncio.gather(*tasks))
@@ -109,39 +131,51 @@ async def chat(request: ChatRequest, current_user: str = Depends(get_current_use
 
     moderator_action = "proceed"
     scaffold_plan = None
-    current_scaffold_level = session["scaffold_level"]
-
+    
+    current_idk_count = session["idk_count"]
+    
+    guidance_message = "" # DB 저장을 위해 기본값 설정
+    
     if is_give_up:
-        session["scaffold_count"] += 1
+        current_idk_count += 1
+        supabase.table("sessions").update({"idk_count": current_idk_count}).eq("session_id", session["session_id"]).execute()
         moderator_action = "scaffold"
-        if current_scaffold_level == 0:
-            session["scaffold_level"] = 1
+        
+        backtrack_id = concept_data.get("backtrack_id")
+        
+        if current_idk_count == 1:
+            backtrack_question = f"Before we proceed, can you explain what {backtrack_id} is?"
+            guidance_message = backtrack_question
             scaffold_plan = {
                 "step": "Sub-concept Nudge",
-                "message": TARGET_CONCEPTS[concept]["sub_concept_question"]
+                "message": backtrack_question
             }
-        elif current_scaffold_level >= 1:
-            session["scaffold_level"] = 2
-            term_key = TARGET_CONCEPTS[concept]["dictionary_link"].split("/")[-1]
-            dict_info = CONCEPT_DICTIONARY.get(term_key, {})
+        else:
+            # 2번 연속 idk 시 (기본 개념 사전 보여줌)
+            backtrack_concept_res = supabase.table("concepts").select("*").eq("concept_id", backtrack_id).execute()
+            dict_content = backtrack_concept_res.data[0].get("dict_content", "") if backtrack_concept_res.data else ""
+            
+            guidance_message = "It looks like you need help. Here is the concept dictionary link."
             scaffold_plan = {
                 "step": "Concept Dictionary Link",
-                "message": "It looks like you need help. Here is the concept dictionary link.",
-                "dictionary_link": TARGET_CONCEPTS[concept]["dictionary_link"],
-                "definition": dict_info.get("simple_definition", "")
+                "message": guidance_message,
+                "dictionary_link": f"/dictionary/{backtrack_id}",
+                "definition": dict_content
             }
     else:
         if raw_avg_score >= 85:
             moderator_action = "suggest_termination"
+            guidance_message = "You have achieved a high level of mastery. Would you like to terminate the session? (Yes/No)"
             scaffold_plan = {
                 "step": "Termination Suggestion",
-                "message": "You have achieved a high level of mastery. Would you like to terminate the session? (Yes/No)"
+                "message": guidance_message
             }
         elif is_contradiction:
             moderator_action = "retry"
+            guidance_message = "Your answer seems to contradict the core facts. Please review the concept once more or ask for a 'hint'!"
             scaffold_plan = {
                 "step": "Retry Prompt",
-                "message": "Your answer seems to contradict the core facts. Please review the concept once more or ask for a 'hint'!"
+                "message": guidance_message
             }
         else:
             moderator_action = "proceed"
@@ -152,17 +186,24 @@ async def chat(request: ChatRequest, current_user: str = Depends(get_current_use
                 "message": guidance_message
             }
 
-    session["radar_data"]["Academic"].append(antutor_score * 100)
-    session["radar_data"]["Market"].append(expert_scores.get("The Market Practitioner", 0) * 100)
-    session["radar_data"]["Macro"].append(expert_scores.get("The Macro-Connector", 0) * 100)
-    
-    session["history"].append({
-        "user_answer": request.user_answer,
-        "nli_score": antutor_score,
-        "action": moderator_action
-    })
+    # 현재 턴 수 계산
+    logs_count_res = supabase.table("chat_logs").select("log_id", count="exact").eq("session_id", session["session_id"]).execute()
+    turn_number = logs_count_res.count + 1 if logs_count_res.count is not None else 1
 
-    # === 통신 최말단 탈부착식 번역 계층 통과 ===
+    chat_log_payload = {
+        "session_id": session["session_id"],
+        "turn_number": turn_number,
+        "user_message": request.user_answer,
+        "score_concept": antutor_score,
+        "score_logic": expert_scores.get("The Market Practitioner", 0),
+        "score_skeptic": expert_scores.get("The Macro-Connector", 0),
+        "selected_agent": lowest_persona,
+        "ai_response": guidance_message
+    }
+    
+    # DB 제약조건 회피 처리를 위해 ai_response 번역이 일어나기 전 원문 저장 (ai_response is the english generation generated by llms)
+    supabase.table("chat_logs").insert(chat_log_payload).execute()
+    
     translated_propositions = [await translate_en_to_ko(p) for p in propositions]
     
     for expert in expert_results:
@@ -188,23 +229,31 @@ async def chat(request: ChatRequest, current_user: str = Depends(get_current_use
     }
 
 @router.post("/end_session")
-async def end_session(request: EndSessionRequest, current_user: str = Depends(get_current_user)):
-    """
-    Terminates the learning session, calculates final score including bonuses,
-    and returns educational insights and growth visualization.
-    """
-    if request.session_id not in session_memory:
+async def end_session(request: EndSessionRequest, current_user: dict = Depends(get_current_user)):
+    user_id = current_user["user_id"]
+    
+    sess_res = supabase.table("sessions").select("*").eq("session_id", int(request.session_id)).execute()
+    if not sess_res.data:
         raise HTTPException(status_code=404, detail="Invalid Session ID.")
-        
-    session = session_memory[request.session_id]
-    if session["user_id"] != current_user:
+    session = sess_res.data[0]
+    
+    if session["user_id"] != user_id:
         raise HTTPException(status_code=403, detail="Not authorized to access this session.")
         
-    nudge_count = session.get("scaffold_count", 0)
-    academic_scores = session["radar_data"]["Academic"]
-    market_scores = session["radar_data"]["Market"]
-    macro_scores = session["radar_data"]["Macro"]
+    supabase.table("sessions").update({"status": "ENDED"}).eq("session_id", session["session_id"]).execute()
+        
+    nudge_count = session["idk_count"]
+    logs_res = supabase.table("chat_logs").select("*").eq("session_id", session["session_id"]).order("turn_number").execute()
     
+    academic_scores = []
+    market_scores = []
+    macro_scores = []
+    
+    for log in logs_res.data:
+        academic_scores.append(float(log["score_concept"] or 0) * 100)
+        market_scores.append(float(log["score_logic"] or 0) * 100)
+        macro_scores.append(float(log["score_skeptic"] or 0) * 100)
+        
     last_academic = academic_scores[-1] if academic_scores else 0
     last_market = market_scores[-1] if market_scores else 0
     last_macro = macro_scores[-1] if macro_scores else 0
@@ -218,17 +267,12 @@ async def end_session(request: EndSessionRequest, current_user: str = Depends(ge
         final_score = latest_avg
         educational_insights = f"Your score is {latest_avg:.1f}. You received help from the agent {nudge_count} times. Try harder next time for a bonus score!"
         
-    user_data = users_db[current_user]
-    concept = session["concept"]
-    completed = user_data.get("completed_concepts", [])
+    # 과거 ENDED 된 동종 concept 이력이 있는지 검사
+    past_sessions_res = supabase.table("sessions").select("session_id").eq("user_id", user_id).eq("concept_id", session["concept_id"]).eq("status", "ENDED").execute()
+    is_first_time = len(past_sessions_res.data) <= 1 # 현재 방금 ENDED 시킨 세션이 포함되어 있으므로 <= 1
     
-    is_first_time = concept not in completed
-    if is_first_time:
-        user_data["completed_concepts"].append(concept)
-        
-    radar_payload = session["radar_data"]
+    radar_payload = {"Academic": academic_scores, "Market": market_scores, "Macro": macro_scores}
     
-    # 번역 계층 통과
     translated_insights = await translate_en_to_ko(educational_insights)
     translated_message = await translate_en_to_ko("Session terminated successfully.")
     

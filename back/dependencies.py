@@ -3,7 +3,7 @@ from fastapi.security import OAuth2PasswordBearer
 import jwt
 
 from config import SECRET_KEY, ALGORITHM
-from database import users_db
+from database import supabase
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
@@ -20,6 +20,9 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
             raise credentials_exception
     except jwt.PyJWTError:
         raise credentials_exception
-    if username not in users_db:
+        
+    response = supabase.table("users").select("*").eq("username", username).execute()
+    if not response.data:
         raise credentials_exception
-    return username
+        
+    return response.data[0]
