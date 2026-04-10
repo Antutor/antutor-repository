@@ -9,3 +9,7 @@ PyJWT
 python-multipart
 python-dotenv
 supabase
+langchain-core
+langchain-community
+langgraph
+langchain-ollama

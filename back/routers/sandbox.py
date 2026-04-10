@@ -6,8 +6,10 @@ from datetime import datetime
 from schemas import (
     PromptTuningSandboxRequest,
     AgentSandboxRequest,
-    ModeratorSandboxRequest
+    ModeratorSandboxRequest,
+    GraphSandboxRequest
 )
+from multi_agent.graph import debate_graph
 from services.llm_agent import (
     retrieve_news_rag,
     retrieve_knowledge_graph,
@@ -167,3 +169,49 @@ async def test_moderator_sandbox(request: ModeratorSandboxRequest, current_user:
         return response_data
     except Exception as e:
         return {"status": "error", "detail": str(e)}
+
+@router.post("/ai/test/graph", tags=["Sandbox"])
+async def test_graph_sandbox(request: GraphSandboxRequest, current_user: str = Depends(get_current_user)):
+    """
+    전체 랭그래프(debate_graph) 파이프라인(초안 -> 교차검증 -> 최종요약)을 테스트합니다.
+    """
+    import asyncio
+    try:
+        eval_user_answer = await translate_ko_to_en(request.user_answer)
+        
+        # 실제 RAG/KG 컨텍스트 연동 여부
+        news_context = ""
+        kg_context = ""
+        if request.use_real_context:
+            news_context, kg_context = await asyncio.gather(
+                retrieve_news_rag(request.concept),
+                retrieve_knowledge_graph(request.concept)
+            )
+            
+        initial_state = {
+            "concept": request.concept,
+            "user_answer": eval_user_answer,
+            "ground_truth": request.ground_truth,
+            "news_context": news_context,
+            "kg_context": kg_context,
+            "draft_reviews": {},
+            "critiques": [],
+            "raw_scores": {},
+            "is_contradiction": False,
+            "final_synthesis": "",
+            "debate_count": 0,
+            "moderator_action": ""
+        }
+        
+        final_state = await debate_graph.ainvoke(initial_state)
+        
+        req_data = request.dict() if hasattr(request, 'dict') else request.model_dump()
+        save_sandbox_log(req_data, final_state, "graph_test")
+        
+        return {
+            "status": "success",
+            "final_state": final_state
+        }
+    except Exception as e:
+        return {"status": "error", "detail": str(e)}
+

@@ -6,13 +6,35 @@ from database import supabase
 from dependencies import get_current_user
 from config import GIVE_UP_KEYWORDS
 from services.llm_agent import (
-    evaluate_academic_auditor,
     retrieve_news_rag,
-    retrieve_knowledge_graph,
-    call_expert_agent,
-    generate_moderator_guidance_message
+    retrieve_knowledge_graph
 )
+from multi_agent.graph import debate_graph
 from services.translator import translate_en_to_ko, translate_ko_to_en
+from datetime import datetime
+import json
+import os
+
+def save_debate_log(session_id, concept, user_answer, draft_reviews, critiques, final_synthesis):
+    try:
+        log_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "logs")
+        os.makedirs(log_dir, exist_ok=True)
+        log_path = os.path.join(log_dir, "debate_logs.jsonl")
+        
+        log_entry = {
+            "timestamp": datetime.now().isoformat(),
+            "session_id": session_id,
+            "concept": concept,
+            "user_answer": user_answer,
+            "draft_reviews": draft_reviews,
+            "critiques": critiques,
+            "final_synthesis": final_synthesis
+        }
+        
+        with open(log_path, "a", encoding="utf-8") as f:
+            f.write(json.dumps(log_entry, ensure_ascii=False) + "\n")
+    except Exception as e:
+        print(f"Failed to save debate log: {e}")
 
 router = APIRouter()
 
@@ -21,15 +43,17 @@ async def start_session(concept: str, current_user: dict = Depends(get_current_u
     user_id = current_user["user_id"]
     
     # 1. 지원하는 개념 DB 확인
-    concept_res = supabase.table("concepts").select("*").eq("concept_id", concept).execute()
+    concept_res = supabase.table("concepts").select("*").eq("name", concept).execute()
     if not concept_res.data:
         raise HTTPException(status_code=404, detail="Target Concept is not supported.")
+        
+    db_concept_id = concept_res.data[0]["concept_id"]
         
     # 2. 동일 개념 과거 완료/학습 이력 확인
     resume_available = False
     last_ai_response = ""
     
-    prev_sessions = supabase.table("sessions").select("session_id").eq("user_id", user_id).eq("concept_id", concept).execute()
+    prev_sessions = supabase.table("sessions").select("session_id").eq("user_id", user_id).eq("concept_id", db_concept_id).execute()
     if prev_sessions.data:
         session_ids = [s["session_id"] for s in prev_sessions.data]
         logs_res = supabase.table("chat_logs").select("ai_response").in_("session_id", session_ids).order("created_at", desc=True).limit(1).execute()
@@ -40,7 +64,7 @@ async def start_session(concept: str, current_user: dict = Depends(get_current_u
     # 3. 신규 세션 DB 생성
     new_session = {
         "user_id": user_id,
-        "concept_id": concept,
+        "concept_id": db_concept_id,
         "status": "IN_PROGRESS"
     }
     insert_res = supabase.table("sessions").insert(new_session).execute()
@@ -60,6 +84,7 @@ async def start_session(concept: str, current_user: dict = Depends(get_current_u
 
 @router.post("/chat")
 async def chat(request: ChatRequest, current_user: dict = Depends(get_current_user)):
+    print(f"\n[DEBUG] 📩 유저로부터 /chat 요청 도착! (답변: {request.user_answer[:30]}...)", flush=True)
     user_id = current_user["user_id"]
     
     sess_res = supabase.table("sessions").select("*").eq("session_id", int(request.session_id)).execute()
@@ -70,9 +95,12 @@ async def chat(request: ChatRequest, current_user: dict = Depends(get_current_us
     if session["user_id"] != user_id:
         raise HTTPException(status_code=403, detail="Not authorized to access this session.")
         
-    concept_id = session["concept_id"]
-    concept_res = supabase.table("concepts").select("*").eq("concept_id", concept_id).execute()
+    db_concept_id = session["concept_id"]
+    concept_res = supabase.table("concepts").select("*").eq("concept_id", db_concept_id).execute()
+    if not concept_res.data:
+        raise HTTPException(status_code=404, detail="Target Concept is not supported.")
     concept_data = concept_res.data[0]
+    concept_name = concept_data["name"]
     ground_truth = concept_data["definition"]
     
     eval_user_answer = await translate_ko_to_en(request.user_answer)
@@ -86,42 +114,64 @@ async def chat(request: ChatRequest, current_user: dict = Depends(get_current_us
         expert_results = [{"persona": "System", "score": 0.0, "feedback": "User requested help."}]
         lowest_persona = "System"
     else:
-        academic_result = await evaluate_academic_auditor(concept_id, eval_user_answer, ground_truth)
-        is_contradiction = academic_result.get("is_contradiction", False)
-        antutor_score = academic_result.get("score", 0.0)
+        propositions = ["(Evaluated by Multi-Agent Debate Graph)"]
+        
+        news_context, kg_context = await asyncio.gather(
+            retrieve_news_rag(concept_name),
+            retrieve_knowledge_graph(concept_name)
+        )
+
+        initial_state = {
+            "concept": concept_name,
+            "user_answer": eval_user_answer,
+            "ground_truth": ground_truth,
+            "news_context": news_context,
+            "kg_context": kg_context,
+            "draft_reviews": {},
+            "critiques": [],
+            "raw_scores": {},
+            "is_contradiction": False,
+            "final_synthesis": "",
+            "debate_count": 0,
+            "moderator_action": ""
+        }
+        
+        print(f"👉 [ChatRouter] 랭그래프 호출 진입 전... (RAG 완료, State 준비 완료)", flush=True)
+        final_state = await debate_graph.ainvoke(initial_state)
+
+        expert_results = []
+        expert_scores_raw = final_state["raw_scores"]
+        
+        antutor_score = expert_scores_raw.get("The Academic Auditor", 0.0)
+        is_contradiction = final_state.get("is_contradiction", False)
+        
+        for persona, review in final_state["draft_reviews"].items():
+            expert_results.append({
+                "persona": persona,
+                "score": expert_scores_raw.get(persona, 0.75),
+                "feedback": review
+            })
+            
+        expert_scores = expert_scores_raw
+        
+        # 교차 검증 로그를 파일로 저장
+        save_debate_log(
+            session_id=session["session_id"],
+            concept=concept_name,
+            user_answer=eval_user_answer,
+            draft_reviews=final_state["draft_reviews"],
+            critiques=final_state.get("critiques", []),
+            final_synthesis=final_state.get("final_synthesis", "")
+        )
         
         if is_contradiction:
             antutor_score = 0.0
             propositions = ["Local LLM Blocked: Explicit contradiction found."]
             expert_results = [{"persona": "System", "score": 0.0, "feedback": "Answer contradicts the ground truth."}]
             expert_scores = {"System": 0.0, "The Market Practitioner": 0.0, "The Macro-Connector": 0.0, "The Academic Auditor": 0.0}
+            lowest_persona = "System"
         else:
-            propositions = ["(Atomic extraction skipped: Evaluated by LLM-as-a-judge in one go)"]
-            
-            news_context, kg_context = await asyncio.gather(
-                retrieve_news_rag(concept_id),
-                retrieve_knowledge_graph(concept_id)
-            )
-
-            tasks = [
-                call_expert_agent("The Market Practitioner", concept_id, eval_user_answer, context=news_context),
-                call_expert_agent("The Macro-Connector", concept_id, eval_user_answer, context=kg_context)
-            ]
-            
-            other_expert_results = list(await asyncio.gather(*tasks))
-
-            expert_results = [
-                {"persona": "The Academic Auditor", "score": antutor_score, "feedback": academic_result.get("feedback", "")}
-            ] + other_expert_results
-
-            expert_scores_raw = {"The Academic Auditor": antutor_score}
-            for res in other_expert_results:
-                res["score"] = res.get("score") if res.get("score") is not None else 0.75
-                expert_scores_raw[res["persona"]] = res["score"]
-                    
-            expert_scores = expert_scores_raw
-            
-        lowest_persona = min(expert_scores.keys(), key=lambda k: expert_scores[k])
+            lowest_persona = min(expert_scores.keys(), key=lambda k: expert_scores[k])
         
     raw_avg_score = (
         expert_scores.get("The Academic Auditor", 0) * 100 +
@@ -143,8 +193,15 @@ async def chat(request: ChatRequest, current_user: dict = Depends(get_current_us
         
         backtrack_id = concept_data.get("backtrack_id")
         
+        # backtrack_id로 실제 단어 이름(name) 조회 (만약 backtrack_id가 실제 name과 같다면 최적화 가능)
+        backtrack_res = supabase.table("concepts").select("*").eq("name", backtrack_id).execute()
+        if not backtrack_res.data:
+            backtrack_res = supabase.table("concepts").select("*").eq("concept_id", backtrack_id).execute()
+            
+        backtrack_name = backtrack_res.data[0]["name"] if backtrack_res.data else backtrack_id
+        
         if current_idk_count == 1:
-            backtrack_question = f"Before we proceed, can you explain what {backtrack_id} is?"
+            backtrack_question = f"Before we proceed, can you explain what {backtrack_name} is?"
             guidance_message = backtrack_question
             scaffold_plan = {
                 "step": "Sub-concept Nudge",
@@ -152,14 +209,13 @@ async def chat(request: ChatRequest, current_user: dict = Depends(get_current_us
             }
         else:
             # 2번 연속 idk 시 (기본 개념 사전 보여줌)
-            backtrack_concept_res = supabase.table("concepts").select("*").eq("concept_id", backtrack_id).execute()
-            dict_content = backtrack_concept_res.data[0].get("dict_content", "") if backtrack_concept_res.data else ""
+            dict_content = backtrack_res.data[0].get("dict_content", "") if backtrack_res.data else ""
             
             guidance_message = "It looks like you need help. Here is the concept dictionary link."
             scaffold_plan = {
                 "step": "Concept Dictionary Link",
                 "message": guidance_message,
-                "dictionary_link": f"/dictionary/{backtrack_id}",
+                "dictionary_link": f"/dictionary/{backtrack_name}",
                 "definition": dict_content
             }
     else:
@@ -179,7 +235,7 @@ async def chat(request: ChatRequest, current_user: dict = Depends(get_current_us
             }
         else:
             moderator_action = "proceed"
-            guidance_message = await generate_moderator_guidance_message(eval_user_answer, lowest_persona, expert_results)
+            guidance_message = final_state.get("final_synthesis", "Good job, but let's explore more deeply.")
             
             scaffold_plan = {
                 "step": "Guidance Prompt",
@@ -194,9 +250,9 @@ async def chat(request: ChatRequest, current_user: dict = Depends(get_current_us
         "session_id": session["session_id"],
         "turn_number": turn_number,
         "user_message": request.user_answer,
-        "score_concept": antutor_score,
-        "score_logic": expert_scores.get("The Market Practitioner", 0),
-        "score_skeptic": expert_scores.get("The Macro-Connector", 0),
+        "score_academic": antutor_score,
+        "score_market": expert_scores.get("The Market Practitioner", 0),
+        "score_macro": expert_scores.get("The Macro-Connector", 0),
         "selected_agent": lowest_persona,
         "ai_response": guidance_message
     }
@@ -250,9 +306,9 @@ async def end_session(request: EndSessionRequest, current_user: dict = Depends(g
     macro_scores = []
     
     for log in logs_res.data:
-        academic_scores.append(float(log["score_concept"] or 0) * 100)
-        market_scores.append(float(log["score_logic"] or 0) * 100)
-        macro_scores.append(float(log["score_skeptic"] or 0) * 100)
+        academic_scores.append(float(log["score_academic"] or 0) * 100)
+        market_scores.append(float(log["score_market"] or 0) * 100)
+        macro_scores.append(float(log["score_macro"] or 0) * 100)
         
     last_academic = academic_scores[-1] if academic_scores else 0
     last_market = market_scores[-1] if market_scores else 0

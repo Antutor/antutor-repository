@@ -34,3 +34,9 @@ class ModeratorSandboxRequest(BaseModel):
     lowest_persona: str
     expert_results: List[Dict[str, Any]]
     custom_prompt: Optional[str] = None
+
+class GraphSandboxRequest(BaseModel):
+    concept: str
+    user_answer: str
+    ground_truth: str
+    use_real_context: Optional[bool] = False

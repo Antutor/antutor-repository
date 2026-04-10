@@ -1,8 +1,8 @@
 import os
 from dotenv import load_dotenv
 
-# .env 파일의 환경 변수를 불러옵니다.
-load_dotenv()
+# .env 파일의 환경 변수를 불러옵니다. (override=True로 핫리로드 시 즉각 반영)
+load_dotenv(override=True)
 # --- Authentication Configuration ---
 SECRET_KEY = os.getenv("SECRET_KEY", "your-very-secure-secret-key-capstone-2026")
 ALGORITHM = "HS256"
