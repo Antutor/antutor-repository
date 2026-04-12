@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 # Import standard routers
-from routers import users, dictionary, chat, sandbox
+from routers import users, dictionary, chat, sandbox, benchmark
 
 app = FastAPI(title="Antutor Metric AI Backend", description="Sejong University Capstone Backend")
 
@@ -23,3 +23,4 @@ app.include_router(users.router)
 app.include_router(dictionary.router)
 app.include_router(chat.router)
 app.include_router(sandbox.router)
+app.include_router(benchmark.router)

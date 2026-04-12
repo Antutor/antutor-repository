@@ -5,13 +5,13 @@ import re
 from langchain_core.messages import SystemMessage, HumanMessage
 from multi_agent.state import AgentState
 from multi_agent.prompts import (
-    ACADEMIC_DRAFT_SYSTEM_PROMPT,
-    MARKET_DRAFT_SYSTEM_PROMPT,
-    MACRO_DRAFT_SYSTEM_PROMPT,
-    AGENT_REBUTTAL_PROMPT,
-    SYNTHESIS_SYSTEM_PROMPT
+    NEW_ACADEMIC_DRAFT_PROMPT,
+    NEW_MARKET_DRAFT_PROMPT,
+    NEW_MACRO_DRAFT_PROMPT,
+    NEW_MODERATOR_AGENT_PROMPT,
+    AGENT_REBUTTAL_PROMPT
 )
-from multi_agent.llm_config import llm, creative_llm, gpu_semaphore
+from multi_agent.llm_config import draft_llm, debate_llm, synthesis_llm, gpu_semaphore
 
 def extract_json(text: str) -> dict:
     try:
@@ -47,6 +47,27 @@ def extract_float_score(text: str) -> float:
             pass
     return 0.75 # 기본 점수
 
+async def call_academic(concept, ground_truth, user_answer):
+    async with gpu_semaphore:
+        sys_msg = NEW_ACADEMIC_DRAFT_PROMPT.format(concept=concept, ground_truth=ground_truth, user_answer=user_answer)
+        res = await draft_llm.ainvoke([SystemMessage(content=sys_msg)])
+        data = extract_json(res.content)
+        return "The Academic Auditor", data
+
+async def call_market(concept, news_context, user_answer):
+    async with gpu_semaphore:
+        sys_msg = NEW_MARKET_DRAFT_PROMPT.format(concept=concept, news_context=news_context, user_answer=user_answer)
+        res = await draft_llm.ainvoke([SystemMessage(content=sys_msg)])
+        data = extract_json(res.content)
+        return "The Market Practitioner", data
+
+async def call_macro(concept, kg_context, user_answer):
+    async with gpu_semaphore:
+        sys_msg = NEW_MACRO_DRAFT_PROMPT.format(concept=concept, kg_context=kg_context, user_answer=user_answer)
+        res = await draft_llm.ainvoke([SystemMessage(content=sys_msg)])
+        data = extract_json(res.content)
+        return "The Macro-Connector", data
+
 async def drafting_node(state: AgentState):
     """
     1회차 초안 노드: 각 전문가(Academic, Market, Macro)가 독립적으로 평가를 수행합니다.
@@ -61,40 +82,23 @@ async def drafting_node(state: AgentState):
     print(f"\n[LangGraph] 🚀 1. Drafting Node 진행 중... (개념: {concept})", flush=True)
     print(f"  - 3명의 에이전트(Academic, Market, Macro)가 초안을 작성 중입니다...", flush=True)
     
-    async def call_academic():
-        async with gpu_semaphore:
-            sys_msg = ACADEMIC_DRAFT_SYSTEM_PROMPT.format(concept=concept, ground_truth=ground_truth, user_answer=user_answer)
-            res = await llm.ainvoke([SystemMessage(content=sys_msg)])
-            data = extract_json(res.content)
-            # 1B 모델의 할루시네이션(무조건 true 반환)을 방지하기 위해 강제로 False 처리 (디버깅용)
-            is_contra = False
-            return "The Academic Auditor", res.content, data.get("score", 0.0), is_contra
-
-    async def call_market():
-        async with gpu_semaphore:
-            sys_msg = MARKET_DRAFT_SYSTEM_PROMPT.format(concept=concept, news_context=news_context, user_answer=user_answer)
-            res = await llm.ainvoke([SystemMessage(content=sys_msg)])
-            score = extract_float_score(res.content)
-            return "The Market Practitioner", res.content, score, False
-
-    async def call_macro():
-        async with gpu_semaphore:
-            sys_msg = MACRO_DRAFT_SYSTEM_PROMPT.format(concept=concept, kg_context=kg_context, user_answer=user_answer)
-            res = await llm.ainvoke([SystemMessage(content=sys_msg)])
-            score = extract_float_score(res.content)
-            return "The Macro-Connector", res.content, score, False
-
-    results = await asyncio.gather(call_academic(), call_market(), call_macro())
+    results = await asyncio.gather(
+        call_academic(concept, ground_truth, user_answer), 
+        call_market(concept, news_context, user_answer), 
+        call_macro(concept, kg_context, user_answer)
+    )
     
     draft_reviews = {}
     raw_scores = {}
     is_contradict = False
     
-    for agent_name, feedback, score, contra in results:
-        draft_reviews[agent_name] = feedback
-        raw_scores[agent_name] = score
-        if contra:
-            is_contradict = True
+    for agent_name, data in results:
+        draft_reviews[agent_name] = data
+        raw_scores[agent_name] = data.get("score", 0.0)
+        # Academic Agent 가 모순을 감지했는지 확인
+        if agent_name == "The Academic Auditor":
+            if data.get("type") == "contradiction" or data.get("retry_needed"):
+                is_contradict = True
         
     print(f"  ✅ Drafting Node 완료! (모순 감지 여부: {is_contradict})", flush=True)
     
@@ -105,6 +109,20 @@ async def drafting_node(state: AgentState):
         "debate_count": 0,
         "critiques": []
     }
+
+async def call_rebuttal(persona, concept, user_answer, drafts):
+    async with gpu_semaphore:
+        # 본인을 제외한 다른 에이전트들의 리뷰만 취합
+        other_reviews = "\n".join([f"[{p}] \n{rev}\n" for p, rev in drafts.items() if p != persona])
+        
+        sys_msg = AGENT_REBUTTAL_PROMPT.format(
+            persona=persona, 
+            concept=concept, 
+            user_answer=user_answer, 
+            other_reviews=other_reviews
+        )
+        res = await debate_llm.ainvoke([SystemMessage(content=sys_msg)])
+        return f"[{persona}] \n{res.content}"
 
 async def cross_review_node(state: AgentState):
     """
@@ -119,24 +137,10 @@ async def cross_review_node(state: AgentState):
     
     drafts = state.get("draft_reviews", {})
     
-    async def call_rebuttal(persona):
-        async with gpu_semaphore:
-            # 본인을 제외한 다른 에이전트들의 리뷰만 취합
-            other_reviews = "\n".join([f"[{p}] \n{rev}\n" for p, rev in drafts.items() if p != persona])
-            
-            sys_msg = AGENT_REBUTTAL_PROMPT.format(
-                persona=persona, 
-                concept=concept, 
-                user_answer=user_answer, 
-                other_reviews=other_reviews
-            )
-            res = await llm.ainvoke([SystemMessage(content=sys_msg)])
-            return f"[{persona}] \n{res.content}"
-    
     tasks = [
-        call_rebuttal("The Academic Auditor"),
-        call_rebuttal("The Market Practitioner"),
-        call_rebuttal("The Macro-Connector")
+        call_rebuttal("The Academic Auditor", concept, user_answer, drafts),
+        call_rebuttal("The Market Practitioner", concept, user_answer, drafts),
+        call_rebuttal("The Macro-Connector", concept, user_answer, drafts)
     ]
     
     rebuttals = await asyncio.gather(*tasks)
@@ -166,24 +170,30 @@ async def moderator_check_node(state: AgentState):
 
 async def synthesis_node(state: AgentState):
     """
-    최종 중재 노드: 그동안의 모든 초안, 비판을 종합하여 하나의 피드백을 작성합니다.
+    최종 중재 노드: 에이전트들의 JSON 결과를 종합하여 모더레이터가 최종 피드백을 작성합니다.
     """
     concept = state["concept"]
-    user_answer = state["user_answer"]
+    drafts = state.get("draft_reviews", {})
     
-    print(f"\n[LangGraph] 📝 3. Synthesis Node 진행 중...", flush=True)
-    print("  - 모더레이터가 전문가들의 의견을 바탕으로 학생을 위한 최종 피드백을 요약합니다...", flush=True)
+    print(f"\n[LangGraph] ⚖️ 3. Synthesis (Moderator) Node 진행 중...", flush=True)
     
-    critiques_str = "\n".join(state.get("critiques", []))
+    # 각 에이전트의 결과를 JSON 문자열로 변환하여 프롬프트에 주입
+    academic_res = json.dumps(drafts.get("The Academic Auditor", {}), ensure_ascii=False, indent=2)
+    market_res = json.dumps(drafts.get("The Market Practitioner", {}), ensure_ascii=False, indent=2)
+    macro_res = json.dumps(drafts.get("The Macro-Connector", {}), ensure_ascii=False, indent=2)
     
-    sys_msg = SYNTHESIS_SYSTEM_PROMPT.format(
+    sys_msg = NEW_MODERATOR_AGENT_PROMPT.format(
         concept=concept,
-        user_answer=user_answer,
-        critiques=critiques_str
+        academic_result=academic_res,
+        market_result=market_res,
+        macro_result=macro_res
     )
     
     async with gpu_semaphore:
-        res = await creative_llm.ainvoke([SystemMessage(content=sys_msg)])
+        res = await synthesis_llm.ainvoke([SystemMessage(content=sys_msg)])
+    
+    moderator_data = extract_json(res.content)
+    final_message = moderator_data.get("message", res.content)
     
     print("  ✅ Synthesis Node 완료! 최종 피드백 산출 완료 🎉\n", flush=True)
-    return {"final_synthesis": res.content}
+    return {"final_synthesis": final_message}

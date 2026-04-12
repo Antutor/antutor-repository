@@ -1,4 +1,4 @@
-from typing import TypedDict, List, Dict, Annotated
+from typing import TypedDict, List, Dict, Annotated, Any
 import operator
 
 class AgentState(TypedDict):
@@ -8,8 +8,8 @@ class AgentState(TypedDict):
     news_context: str
     kg_context: str
     
-    # 1회차 초안: 각 에이전트의 피드백 (딕셔너리 형태 {"The Academic Auditor": "...", ...})
-    draft_reviews: Dict[str, str]
+    # 1회차 초안: 각 에이전트의 피드백 (JSON 객체 형태 {"The Academic Auditor": {...}, ...})
+    draft_reviews: Dict[str, Any]
     
     # 교차 검증 내용 누적: 리스트에 추가 (add 연산자로 합쳐짐)
     critiques: Annotated[List[str], operator.add]

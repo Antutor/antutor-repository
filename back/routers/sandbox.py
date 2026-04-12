@@ -129,7 +129,14 @@ async def test_agent_sandbox(request: AgentSandboxRequest, current_user: str = D
         if persona == "The Academic Auditor":
             if not request.ground_truth:
                 return {"status": "error", "detail": "ground_truth is required for The Academic Auditor"}
-            result = await evaluate_academic_auditor(request.concept, eval_user_answer, request.ground_truth, custom_prompt=request.custom_prompt)
+            result = await evaluate_academic_auditor(
+                request.concept, 
+                eval_user_answer, 
+                request.ground_truth, 
+                custom_prompt=request.custom_prompt,
+                model=request.model,
+                temperature=request.temperature
+            )
             response_data = {"status": "success", "persona": persona, "result": result}
             save_sandbox_log(req_data, response_data, "agent_test")
             return response_data
@@ -143,7 +150,16 @@ async def test_agent_sandbox(request: AgentSandboxRequest, current_user: str = D
                 elif persona == "The Macro-Connector":
                     context = await retrieve_knowledge_graph(request.concept)
             
-            result = await call_expert_agent(persona, request.concept, eval_user_answer, context=context, custom_prompt=request.custom_prompt)
+            
+            result = await call_expert_agent(
+                persona, 
+                request.concept, 
+                eval_user_answer, 
+                context=context, 
+                custom_prompt=request.custom_prompt,
+                model=request.model,
+                temperature=request.temperature
+            )
             response_data = {"status": "success", "persona": persona, "context_used": context, "result": result}
             save_sandbox_log(req_data, response_data, "agent_test")
             return response_data
@@ -161,7 +177,9 @@ async def test_moderator_sandbox(request: ModeratorSandboxRequest, current_user:
             eval_user_answer, 
             request.lowest_persona, 
             request.expert_results,
-            custom_prompt=request.custom_prompt
+            custom_prompt=request.custom_prompt,
+            model=request.model,
+            temperature=request.temperature
         )
         response_data = {"status": "success", "guidance_message": guidance}
         req_data = request.dict() if hasattr(request, 'dict') else request.model_dump()

@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 import asyncio
 
-from schemas import ChatRequest, EndSessionRequest
+from schemas import ChatRequest, EndSessionRequest, ResumeDecisionRequest
 from database import supabase
 from dependencies import get_current_user
 from config import GIVE_UP_KEYWORDS
@@ -48,6 +48,7 @@ async def start_session(concept: str, current_user: dict = Depends(get_current_u
         raise HTTPException(status_code=404, detail="Target Concept is not supported.")
         
     db_concept_id = concept_res.data[0]["concept_id"]
+    initial_question_korean = await translate_en_to_ko(f"How would you explain {concept}?")
         
     # 2. 동일 개념 과거 완료/학습 이력 확인
     resume_available = False
@@ -59,27 +60,80 @@ async def start_session(concept: str, current_user: dict = Depends(get_current_u
         logs_res = supabase.table("chat_logs").select("ai_response").in_("session_id", session_ids).order("created_at", desc=True).limit(1).execute()
         if logs_res.data and logs_res.data[0].get("ai_response"):
             resume_available = True
-            last_ai_response = logs_res.data[0]["ai_response"]
+            last_ai_response = await translate_en_to_ko(logs_res.data[0]["ai_response"])
 
-    # 3. 신규 세션 DB 생성
+    # 3. 만약 이력이 있다면, 세션을 미리 생성하지 않고 "재개 여부" 정보만 반환
+    if resume_available:
+        resume_prompt = await translate_en_to_ko("이전 학습의 마지막 질문부터 이어서 학습하시겠습니까, 아니면 처음부터 다시 학습하시겠습니까?")
+        return {
+            "session_id": None, # 아직 생성 안됨
+            "concept": concept,
+            "resume_available": True,
+            "resume_prompt": resume_prompt,
+            "last_ai_response": last_ai_response,
+            "initial_question": initial_question_korean
+        }
+    
+    # 4. 이력이 없다면 즉시 신규 세션 생성
     new_session = {
         "user_id": user_id,
         "concept_id": db_concept_id,
         "status": "IN_PROGRESS"
     }
     insert_res = supabase.table("sessions").insert(new_session).execute()
-    session_id = str(insert_res.data[0]["session_id"]) # string formatting
-    
-    initial_question_korean = await translate_en_to_ko(f"How would you explain {concept}?")
-    resume_prompt = await translate_en_to_ko("이전 학습의 마지막 질문부터 이어서 학습하시겠습니까, 아니면 처음부터 다시 학습하시겠습니까?") if resume_available else ""
+    session_id = str(insert_res.data[0]["session_id"])
     
     return {
         "session_id": session_id,
         "concept": concept,
         "initial_question": initial_question_korean,
-        "resume_available": resume_available,
-        "resume_prompt": resume_prompt,
-        "last_ai_response": last_ai_response
+        "resume_available": False,
+        "resume_prompt": "",
+        "last_ai_response": ""
+    }
+
+@router.post("/resolve_resume")
+async def resolve_resume(request: ResumeDecisionRequest, current_user: dict = Depends(get_current_user)):
+    """
+    사용자의 재개 여부 결정(resume/fresh)에 따라 세션을 생성하고 첫 질문을 반환합니다.
+    """
+    user_id = current_user["user_id"]
+    concept = request.concept
+    decision = request.decision # "resume" or "fresh"
+    
+    # 1. 개념 정보 조회
+    concept_res = supabase.table("concepts").select("*").eq("name", concept).execute()
+    if not concept_res.data:
+        raise HTTPException(status_code=404, detail="Concept not found.")
+    db_concept_id = concept_res.data[0]["concept_id"]
+    
+    # 2. 신규 세션 생성
+    new_session = {
+        "user_id": user_id,
+        "concept_id": db_concept_id,
+        "status": "IN_PROGRESS"
+    }
+    insert_res = supabase.table("sessions").insert(new_session).execute()
+    session_id = str(insert_res.data[0]["session_id"])
+    
+    # 3. 결정에 따른 첫 질문 결정
+    if decision == "resume":
+        prev_sessions = supabase.table("sessions").select("session_id").eq("user_id", user_id).eq("concept_id", db_concept_id).execute()
+        # 현재 생성한 세션 제외
+        other_session_ids = [s["session_id"] for s in prev_sessions.data if str(s["session_id"]) != session_id]
+        
+        logs_res = supabase.table("chat_logs").select("ai_response").in_("session_id", other_session_ids).order("created_at", desc=True).limit(1).execute()
+        
+        if logs_res.data and logs_res.data[0].get("ai_response"):
+            question = await translate_en_to_ko(logs_res.data[0]["ai_response"])
+        else:
+            question = await translate_en_to_ko(f"How would you explain {concept}?")
+    else:
+        question = await translate_en_to_ko(f"How would you explain {concept}?")
+        
+    return {
+        "session_id": session_id,
+        "question": question
     }
 
 @router.post("/chat")
@@ -104,7 +158,8 @@ async def chat(request: ChatRequest, current_user: dict = Depends(get_current_us
     ground_truth = concept_data["definition"]
     
     eval_user_answer = await translate_ko_to_en(request.user_answer)
-    is_give_up = any(kw in eval_user_answer.lower() for kw in GIVE_UP_KEYWORDS)
+    # Check both original (Korean) and translated (English) for keywords
+    is_give_up = any(kw in request.user_answer.lower() or kw in eval_user_answer.lower() for kw in GIVE_UP_KEYWORDS)
     is_contradiction = False
     
     if is_give_up:
@@ -263,8 +318,17 @@ async def chat(request: ChatRequest, current_user: dict = Depends(get_current_us
     translated_propositions = [await translate_en_to_ko(p) for p in propositions]
     
     for expert in expert_results:
-        if expert.get("feedback"):
-            expert["feedback"] = await translate_en_to_ko(expert["feedback"])
+        raw_feedback = expert.get("feedback")
+        if isinstance(raw_feedback, dict):
+            # JSON 객체인 경우 실제 텍스트 피드백만 추출
+            actual_text = raw_feedback.get("feedback", "")
+            if actual_text:
+                expert["feedback"] = await translate_en_to_ko(actual_text)
+            else:
+                expert["feedback"] = ""
+        elif isinstance(raw_feedback, str):
+            # 이미 문자열인 경우 그대로 번역
+            expert["feedback"] = await translate_en_to_ko(raw_feedback)
             
     if scaffold_plan:
         if scaffold_plan.get("message"):

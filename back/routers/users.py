@@ -31,8 +31,7 @@ async def register(user: UserCreate):
     
     new_user_data = {
         "username": user.username,
-        "password_hash": get_password_hash(user.password),
-        "email": f"{user.username}@antutor.test" # 사용하지 않으므로 더미값
+        "password_hash": get_password_hash(user.password)
     }
     supabase.table("users").insert(new_user_data).execute()
     

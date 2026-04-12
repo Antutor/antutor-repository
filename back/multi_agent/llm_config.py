@@ -6,24 +6,42 @@ import asyncio
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from langchain_ollama import ChatOllama
-from config import LOCAL_LLM_MODEL, LOCAL_LLM_ENDPOINT
+from config import LOCAL_LLM_MODEL, LOCAL_LLM_ENDPOINT, DRAFT_LLM_MODEL, DEBATE_LLM_MODEL
 
 # 포트 제외한 base_url 추출 (ex: http://localhost:11434)
 # LOCAL_LLM_ENDPOINT 는 обычно "http://localhost:11434/api/chat"
 base_url = LOCAL_LLM_ENDPOINT.split("/api")[0]
 
-llm = ChatOllama(
-    model=LOCAL_LLM_MODEL,
+# 1. 초안 생성용 기초 모델 (qwen2.5:7b, low temperature)
+draft_llm = ChatOllama(
+    model=DRAFT_LLM_MODEL,
     base_url=base_url,
-    temperature=0.0
+    temperature=0.0,
+    num_predict=2048,
+    num_ctx=8192
 )
 
-# 토론 등의 다양성을 원하면 temperature=0.7로 세팅한 별도 모델 사용도 가능
-creative_llm = ChatOllama(
-    model=LOCAL_LLM_MODEL,
+# 2. 토론 및 반론용 모델 (qwen3:8b, low temperature)
+debate_llm = ChatOllama(
+    model=DEBATE_LLM_MODEL,
     base_url=base_url,
-    temperature=0.5
+    temperature=0.0,
+    num_predict=2048,
+    num_ctx=8192
 )
 
-# GPU VRAM 보호를 위한 세마포어 (로컬 테스트용 1, vLLM 도입 시 상향)
-gpu_semaphore = asyncio.Semaphore(1)
+# 3. 최종 요약 및 중재용 모델 (qwen3:8b, consistent temperature)
+synthesis_llm = ChatOllama(
+    model=DEBATE_LLM_MODEL,
+    base_url=base_url,
+    temperature=0.0,
+    num_predict=2048,
+    num_ctx=8192
+)
+
+# Legacy compatibility (optional, but keep for safety if used elsewhere)
+llm = draft_llm
+creative_llm = synthesis_llm
+
+# GPU VRAM 보호를 위한 세마포어 (vLLM 또는 다수 에이전트 병렬 처리 시 상향)
+gpu_semaphore = asyncio.Semaphore(3)

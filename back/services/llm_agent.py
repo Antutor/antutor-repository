@@ -6,11 +6,17 @@ from typing import Optional, Dict, Any, List
 from fastapi import HTTPException
 
 from config import (
-    LOCAL_LLM_ENDPOINT, LOCAL_LLM_MODEL, 
-    PROMPTS, NEWS_API_KEY
+    LOCAL_LLM_ENDPOINT, LOCAL_LLM_MODEL,
+    NEWS_API_KEY
+)
+from services.knowledge_graph import retrieve_knowledge_graph  # noqa: F401 — re-exported
+from multi_agent.prompts import (
+    NEW_ACADEMIC_DRAFT_PROMPT,
+    NEW_MARKET_DRAFT_PROMPT,
+    NEW_MACRO_DRAFT_PROMPT
 )
 
-async def call_local_llm(prompt: str, is_json: bool = False, model: Optional[str] = None) -> str:
+async def call_local_llm(prompt: str, is_json: bool = False, model: Optional[str] = None, temperature: Optional[float] = None) -> str:
     """Helper to call local LLM API (e.g., Ollama)"""
     model_name = model or LOCAL_LLM_MODEL
     
@@ -19,6 +25,9 @@ async def call_local_llm(prompt: str, is_json: bool = False, model: Optional[str
         "messages": [
             {"role": "user", "content": prompt}
         ],
+        "options": {
+            "temperature": temperature if temperature is not None else 0.0
+        },
         "stream": False
     }
     
@@ -43,13 +52,13 @@ async def call_local_llm(prompt: str, is_json: bool = False, model: Optional[str
     
     return "Local LLM Error."
 
-async def evaluate_academic_auditor(concept: str, user_answer: str, ground_truth: str, custom_prompt: Optional[str] = None) -> dict:
-    template = custom_prompt or PROMPTS["experts"]["The Academic Auditor"]
+async def evaluate_academic_auditor(concept: str, user_answer: str, ground_truth: str, custom_prompt: Optional[str] = None, model: Optional[str] = None, temperature: Optional[float] = None) -> dict:
+    template = custom_prompt or NEW_ACADEMIC_DRAFT_PROMPT
     prompt = template.format(
         concept=concept, ground_truth=ground_truth, user_answer=user_answer
     )
     
-    raw_response = await call_local_llm(prompt, is_json=True)
+    raw_response = await call_local_llm(prompt, is_json=True, model=model, temperature=temperature)
     try:
         return json.loads(raw_response)
     except Exception:
@@ -79,17 +88,23 @@ async def retrieve_news_rag(concept: str) -> str:
     
     raise HTTPException(status_code=500, detail=f"Failed to retrieve news context for {concept}.")
 
-async def retrieve_knowledge_graph(concept: str) -> str:
-    # Simulating a Knowledge Graph retrieval
-    await asyncio.sleep(0.5)
-    return f"Knowledge Graph Node [{concept}] -> Connected to [Global Trade, Employment Rates, Inflation]. Policy changes directly impact these connected nodes."
+# retrieve_knowledge_graph 는 services/knowledge_graph.py 에서 import 되어
+# 이 모듈의 네임스페이스로 re-export 됩니다.
+# benchmark.py 등 기존 import 경로(from services.llm_agent import retrieve_knowledge_graph)는
+# 그대로 동작합니다.
 
-async def call_expert_agent(persona: str, concept: str, user_answer: str, context: Optional[str] = None, custom_prompt: Optional[str] = None) -> Dict[str, Any]:
-    template = custom_prompt or PROMPTS["experts"][persona]
+async def call_expert_agent(persona: str, concept: str, user_answer: str, context: Optional[str] = None, custom_prompt: Optional[str] = None, model: Optional[str] = None, temperature: Optional[float] = None) -> Dict[str, Any]:
+    # Persona mapping to constants
+    prompt_map = {
+        "The Academic Auditor": NEW_ACADEMIC_DRAFT_PROMPT,
+        "The Market Practitioner": NEW_MARKET_DRAFT_PROMPT,
+        "The Macro-Connector": NEW_MACRO_DRAFT_PROMPT
+    }
+    template = custom_prompt or prompt_map.get(persona, NEW_ACADEMIC_DRAFT_PROMPT)
     prompt = template.format(concept=concept, user_answer=user_answer, context=context)
     
     try:
-        feedback = await call_local_llm(prompt, is_json=False)
+        feedback = await call_local_llm(prompt, is_json=False, model=model, temperature=temperature)
         score = None
         match = re.search(r'\[\s*(0\.\d+|1\.00?)\s*\]', feedback)
         if match:
@@ -103,7 +118,7 @@ async def call_expert_agent(persona: str, concept: str, user_answer: str, contex
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"[{persona} Connection Error] Failed to generate feedback: {str(e)}")
 
-async def generate_moderator_guidance_message(user_answer: str, lowest_persona: str, expert_results: List[Dict], custom_prompt: Optional[str] = None) -> str:
+async def generate_moderator_guidance_message(user_answer: str, lowest_persona: str, expert_results: List[Dict], custom_prompt: Optional[str] = None, model: Optional[str] = None, temperature: Optional[float] = None) -> str:
     lowest_feedback = next((res["feedback"] for res in expert_results if res["persona"] == lowest_persona), "")
     
     if custom_prompt:
@@ -127,4 +142,4 @@ Write a short, encouraging message in English (1-3 sentences) directly replying 
 2. End with a follow-up question to help them think about that missing aspect.
 Do NOT give them the direct answer.
 """
-    return await call_local_llm(prompt, is_json=False)
+    return await call_local_llm(prompt, is_json=False, model=model, temperature=temperature)
