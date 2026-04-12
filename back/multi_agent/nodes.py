@@ -122,7 +122,15 @@ async def call_rebuttal(persona, concept, user_answer, drafts):
             other_reviews=other_reviews
         )
         res = await debate_llm.ainvoke([SystemMessage(content=sys_msg)])
-        return f"[{persona}] \n{res.content}"
+        
+        # JSON 기반 파싱 및 형식화
+        data = extract_json(res.content)
+        insight = data.get("unique_insight", "N/A")
+        point = data.get("rebuttal_point", "N/A")
+        question = data.get("rebuttal_question", "N/A")
+        
+        formatted = f"[{persona}]\n- Insight: {insight}\n- Rebuttal: {point}\n- Question: {question}"
+        return formatted
 
 async def cross_review_node(state: AgentState):
     """
@@ -158,8 +166,8 @@ async def moderator_check_node(state: AgentState):
     """
     count = state.get("debate_count", 0) + 1
     
-    # 실제 프로덕션에서는 너무 오랜 토론을 방지하기 위해 1번만 교차검토 수행하지만, 테스트를 위해 2회로 늘렸습니다.
-    if count >= 2:
+    # 1회만 교차검토를 수행하도록 제한합니다.
+    if count >= 1:
         action = "synthesis"
         print(f"\n[LangGraph] ⚖️ Moderator Check: 충분히 토론했습니다. (총 {count}회) 최종 요약으로 넘어갑니다.", flush=True)
     else:
@@ -182,11 +190,16 @@ async def synthesis_node(state: AgentState):
     market_res = json.dumps(drafts.get("The Market Practitioner", {}), ensure_ascii=False, indent=2)
     macro_res = json.dumps(drafts.get("The Macro-Connector", {}), ensure_ascii=False, indent=2)
     
+    # 교차 검증(토론) 내역 취합
+    critiques = state.get("critiques", [])
+    rebuttals_str = "\n\n".join(critiques) if critiques else "No specific rebuttals were made."
+    
     sys_msg = NEW_MODERATOR_AGENT_PROMPT.format(
         concept=concept,
         academic_result=academic_res,
         market_result=market_res,
-        macro_result=macro_res
+        macro_result=macro_res,
+        rebuttals=rebuttals_str
     )
     
     async with gpu_semaphore:

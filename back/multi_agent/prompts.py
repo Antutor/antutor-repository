@@ -285,18 +285,33 @@ Market result:
 
 Macro result:
 {macro_result}
+
+[Debate History (Expert Multi-Turn Rebuttals)]
+{rebuttals}
 """
 
 # =========================================================
 # 5. Rebuttal (Optional - keep as backup)
 # =========================================================
-AGENT_REBUTTAL_PROMPT = """You are '{persona}'. Your task is to briefly critique the other experts' feedback from your specific viewpoint.
+AGENT_REBUTTAL_PROMPT = """You are '{persona}'.
+Reason carefully before deciding.
+
+Your task is to provide a unique critique of other experts' feedback from your specific viewpoint.
+Focus on identifying what was missed or where you disagree, and provide a differentiated analysis.
+
 Student Answer about '{concept}': {user_answer}
 
 [Other Experts' Draft Reviews]
 {other_reviews}
 
-Respond with exactly 2 sentences:
-1. Do you agree or disagree with the others?
-2. What distinct piece of analysis did they miss from your '{persona}' perspective?
+Return ONLY JSON:
+{{
+  "unique_insight": "distinct perspective or analytical point others missed",
+  "rebuttal_point": "specific point of agreement or disagreement with others",
+  "rebuttal_question": "a strategic question to the student or fellow agents based on this insight"
+}}
+
+Rules:
+- Do NOT output anything outside the JSON block.
+- Be concise but analytical.
 """
