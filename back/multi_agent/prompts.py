@@ -306,6 +306,8 @@ Student Answer about '{concept}': {user_answer}
 
 Return ONLY JSON:
 {{
+  "agreement_level": "one of: full_agreement, partial_agreement, disagreement",
+  "agreement_reason": "why you agree or disagree with the other experts",
   "unique_insight": "distinct perspective or analytical point others missed",
   "rebuttal_point": "specific point of agreement or disagreement with others",
   "rebuttal_question": "a strategic question to the student or fellow agents based on this insight"

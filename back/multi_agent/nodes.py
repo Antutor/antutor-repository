@@ -125,11 +125,13 @@ async def call_rebuttal(persona, concept, user_answer, drafts):
         
         # JSON 기반 파싱 및 형식화
         data = extract_json(res.content)
+        level = data.get("agreement_level", "N/A")
+        reason = data.get("agreement_reason", "N/A")
         insight = data.get("unique_insight", "N/A")
         point = data.get("rebuttal_point", "N/A")
         question = data.get("rebuttal_question", "N/A")
         
-        formatted = f"[{persona}]\n- Insight: {insight}\n- Rebuttal: {point}\n- Question: {question}"
+        formatted = f"[{persona}]\n- Level: {level}\n- Reason: {reason}\n- Insight: {insight}\n- Rebuttal: {point}\n- Question: {question}"
         return formatted
 
 async def cross_review_node(state: AgentState):
