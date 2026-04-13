@@ -14,6 +14,9 @@ class AgentState(TypedDict):
     # 교차 검증 내용 누적: 리스트에 추가 (add 연산자로 합쳐짐)
     critiques: Annotated[List[str], operator.add]
     
+    # Rebuttal 결과: 각 에이전트의 JSON 딕셔너리 목록 (moderator에게 전달)
+    rebuttal_results: List[Dict[str, Any]]
+    
     # 점수 저장: DB 저장을 위해 파싱된 numeric 점수를 따로 가지고 있음
     raw_scores: Dict[str, float]
     

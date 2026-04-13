@@ -123,16 +123,16 @@ async def call_rebuttal(persona, concept, user_answer, drafts):
         )
         res = await debate_llm.ainvoke([SystemMessage(content=sys_msg)])
         
-        # JSON 기반 파싱 및 형식화
+        # JSON 기반 파싱: 필드 추출 후 dict로 반환
         data = extract_json(res.content)
-        level = data.get("agreement_level", "N/A")
-        reason = data.get("agreement_reason", "N/A")
-        insight = data.get("unique_insight", "N/A")
-        point = data.get("rebuttal_point", "N/A")
-        question = data.get("rebuttal_question", "N/A")
-        
-        formatted = f"[{persona}]\n- Level: {level}\n- Reason: {reason}\n- Insight: {insight}\n- Rebuttal: {point}\n- Question: {question}"
-        return formatted
+        return {
+            "persona": persona,
+            "agreement_level": data.get("agreement_level", "N/A"),
+            "agreement_reason": data.get("agreement_reason", "N/A"),
+            "unique_insight": data.get("unique_insight", "N/A"),
+            "rebuttal_point": data.get("rebuttal_point", "N/A"),
+            "rebuttal_question": data.get("rebuttal_question", "N/A")
+        }
 
 async def cross_review_node(state: AgentState):
     """
@@ -154,11 +154,18 @@ async def cross_review_node(state: AgentState):
     ]
     
     rebuttals = await asyncio.gather(*tasks)
+    rebuttal_list = list(rebuttals)  # tuple → list 변환
     
-    new_critique = f"--- Round {current_round} Rebuttals ---\n" + "\n\n".join(rebuttals)
+    # 기존 formatted string critiques 유지 (하위 호환)
+    new_critique = f"--- Round {current_round} Rebuttals ---\n" + "\n\n".join(
+        [f"[{r['persona']}]\n- Level: {r['agreement_level']}\n- Reason: {r['agreement_reason']}\n- Insight: {r['unique_insight']}\n- Rebuttal: {r['rebuttal_point']}\n- Question: {r['rebuttal_question']}" for r in rebuttal_list]
+    )
     
     print("  ✅ Cross Review Node 완료!", flush=True)
-    return {"critiques": [new_critique]} # List 덧셈 (operator.add)
+    return {
+        "critiques": [new_critique],        # List 덧셈 (operator.add)
+        "rebuttal_results": rebuttal_list   # Moderator에 전달될 구조화된 데이터
+    }
 
 async def moderator_check_node(state: AgentState):
     """
@@ -183,6 +190,7 @@ async def synthesis_node(state: AgentState):
     최종 중재 노드: 에이전트들의 JSON 결과를 종합하여 모더레이터가 최종 피드백을 작성합니다.
     """
     concept = state["concept"]
+    user_answer = state["user_answer"]
     drafts = state.get("draft_reviews", {})
     
     print(f"\n[LangGraph] ⚖️ 3. Synthesis (Moderator) Node 진행 중...", flush=True)
@@ -192,16 +200,17 @@ async def synthesis_node(state: AgentState):
     market_res = json.dumps(drafts.get("The Market Practitioner", {}), ensure_ascii=False, indent=2)
     macro_res = json.dumps(drafts.get("The Macro-Connector", {}), ensure_ascii=False, indent=2)
     
-    # 교차 검증(토론) 내역 취합
-    critiques = state.get("critiques", [])
-    rebuttals_str = "\n\n".join(critiques) if critiques else "No specific rebuttals were made."
+    # 각 에이전트의 rebuttal 결과를 JSON 배열 문자열로 변환
+    rebuttal_results = state.get("rebuttal_results", [])
+    rebuttal_results_str = json.dumps(rebuttal_results, ensure_ascii=False, indent=2)
     
     sys_msg = NEW_MODERATOR_AGENT_PROMPT.format(
         concept=concept,
+        user_answer=user_answer,
         academic_result=academic_res,
         market_result=market_res,
         macro_result=macro_res,
-        rebuttals=rebuttals_str
+        rebuttal_results=rebuttal_results_str
     )
     
     async with gpu_semaphore:
