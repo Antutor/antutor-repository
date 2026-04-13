@@ -99,7 +99,7 @@ def post_benchmark(client, endpoint: str, scenario: dict, name: str):
         json=payload,
         name=name,
         catch_response=True,
-        timeout=300,
+        timeout=900,
     ) as resp:
         if resp.status_code == 200:
             try:
@@ -195,12 +195,11 @@ class StepLoadShape(LoadTestShape):
     ※ --headless 없이 실행하면 Web UI(localhost:8089)에서 실시간 모니터링 가능.
     """
 
-    # (누적 경과 시간(초), 목표 동시접속자 수, spawn_rate 명/초)
     stages = [
-        {"duration":  60, "users":  1, "spawn_rate": 1},   # Baseline
-        {"duration": 180, "users":  5, "spawn_rate": 2},   # Low
-        {"duration": 300, "users": 10, "spawn_rate": 2},   # Medium
-        {"duration": 420, "users": 20, "spawn_rate": 4},   # High
+        {"duration":  300, "users":  1, "spawn_rate": 1},   # Baseline (300s)
+        {"duration": 1200, "users":  5, "spawn_rate": 2},   # Low (900s 추가)
+        {"duration": 2100, "users": 10, "spawn_rate": 2},   # Medium (900s 추가)
+        {"duration": 3000, "users": 20, "spawn_rate": 4},   # High (900s 추가)
     ]
 
     def tick(self):

@@ -46,4 +46,4 @@ creative_llm = synthesis_llm
 # GPU/RAM 보호를 위한 세마포어
 # - 모델 크기(4.5 GiB)가 가용 메모리보다 클 경우 1로 설정하여 동시 LLM 호출을 제한
 # - 메모리가 충분할 경우 2~3으로 높이면 gather 병렬처리 이점 회복 가능
-gpu_semaphore = asyncio.Semaphore(1)
+gpu_semaphore = asyncio.Semaphore(3)
