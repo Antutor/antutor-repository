@@ -17,7 +17,7 @@ const missionConcepts = [
         initMsg: "환영합니다! 인플레이션에 대해 이야기해 봅시다. 물가 상승이 소비자의 구매력에 어떤 영향을 미치는지 설명할 수 있나요?"
     },
     {
-        id: 'Interest Rate',
+        id: 'Base Interest Rate',
         title: '기준금리',
         icon: Landmark,
         initMsg: "환영합니다! 중앙은행이 방금 기준금리를 인상했습니다. 이것이 기업 투자와 주식 시장에 어떤 영향을 미친다고 생각하시나요?"
@@ -94,6 +94,7 @@ function App() {
     const [selectedMission, setSelectedMission] = useState(null);
     const [hoveredMission, setHoveredMission] = useState(null);
     const [sessionId, setSessionId] = useState(null);
+    const [isResumePending, setIsResumePending] = useState(false);
 
     // Chat & Scaffolding States
     const [messages, setMessages] = useState([]);
@@ -235,12 +236,16 @@ function App() {
         try {
             const response = await studyAPI.startSession(mission.id);
             setSessionId(response.data.session_id);
+            setIsResumePending(response.data.resume_available || false);
             setSelectedMission(mission.id);
             setActiveNodeId('strategic');
-            let startText = response.data.initial_question || mission.initMsg;
+            
+            // Fix translation fallback: prioritize hardcoded Korean text
+            let startText = mission.initMsg || response.data.initial_question;
             if (response.data.resume_available) {
-                startText = `${response.data.resume_prompt}\n\n${response.data.last_ai_response}`;
+                startText = `${response.data.resume_prompt}\n\n(마지막 질문: ${response.data.last_ai_response})`;
             }
+            
             setMessages([{ id: Date.now(), sender: 'moderator', text: startText }]);
             setHoveredMission(null);
             setHelpCountLevel1(0);
@@ -251,6 +256,34 @@ function App() {
         } catch (error) {
             console.error("Failed to start session:", error);
             alert("세션 시작에 실패했습니다.");
+        }
+    };
+
+    const handleResumeDecision = async (decision) => {
+        if (!selectedMission) return;
+        setIsThinking(true);
+        try {
+            const response = await studyAPI.resolveResume({ concept: selectedMission, decision });
+            setSessionId(response.data.session_id);
+            setIsResumePending(false);
+            setMessages(prev => [...prev, { id: Date.now(), sender: 'user', text: decision === 'resume' ? '이어서 학습하기' : '처음부터 다시하기' }]);
+            
+            // Add the real initial question/resumed question
+            setTimeout(() => {
+                let finalQuestion = response.data.question;
+                if (decision === 'fresh') {
+                    const missionObj = missionConcepts.find(m => m.id.toLowerCase() === selectedMission.toLowerCase());
+                    if (missionObj && missionObj.initMsg) {
+                        finalQuestion = missionObj.initMsg;
+                    }
+                }
+                setMessages(prev => [...prev, { id: Date.now() + 1, sender: 'moderator', text: finalQuestion }]);
+                setIsThinking(false);
+            }, 500);
+        } catch (error) {
+            console.error("Failed to resolve resume:", error);
+            alert("세션 재개 처리에 실패했습니다.");
+            setIsThinking(false);
         }
     };
 
@@ -375,10 +408,25 @@ function App() {
                             <div ref={messagesEndRef} />
                         </div>
                         <div className="chat-input-area">
-                            <div className="input-wrapper">
-                                <input type="text" value={inputValue} onChange={(e) => setInputValue(e.target.value)} onKeyDown={handleKeyDown} placeholder="답변을 입력하세요..." />
-                                <button className="send-btn" onClick={handleSendMessage}><Send size={18} /></button>
-                            </div>
+                            {isResumePending ? (
+                                <div style={{ display: 'flex', gap: '10px', width: '100%', justifyContent: 'center' }}>
+                                    <button 
+                                        onClick={() => handleResumeDecision('resume')}
+                                        style={{ padding: '10px 20px', backgroundColor: 'var(--color-primary)', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}>
+                                        이어서 학습하기
+                                    </button>
+                                    <button 
+                                        onClick={() => handleResumeDecision('fresh')}
+                                        style={{ padding: '10px 20px', backgroundColor: 'var(--color-bg-light)', border: '1px solid var(--color-border)', color: 'var(--color-deep-navy)', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}>
+                                        처음부터 다시하기
+                                    </button>
+                                </div>
+                            ) : (
+                                <div className="input-wrapper">
+                                    <input type="text" value={inputValue} onChange={(e) => setInputValue(e.target.value)} onKeyDown={handleKeyDown} placeholder="답변을 입력하세요..." disabled={isResumePending} />
+                                    <button className="send-btn" onClick={handleSendMessage} disabled={isResumePending}><Send size={18} /></button>
+                                </div>
+                            )}
                         </div>
                     </section>
                 )}
