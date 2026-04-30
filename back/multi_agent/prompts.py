@@ -108,7 +108,7 @@ Recent news context:
 
 --- Internal Steps (do NOT output) ---
 
-Step 1. Segment the student answer into clauses.
+Step 1. Read the student answer as a whole and identify key claims.
 
 Step 2. For each clause, check for real-world market meaning.
 Real-world signals (any of these counts):
@@ -173,17 +173,15 @@ Knowledge Graph Context:
 
 --- Internal Steps (do NOT output) ---
 
-Step 1. Segment the student answer into clauses.
+Step 1. Read the student answer as a whole and identify key claims.
 
 Step 2. For each clause, check for macroeconomic meaning.
 Macro signals (any of these counts):
   inflation, base interest rate, exchange rate,
-  opportunity cost, compound interest,
-  and their cross-concept relationships:
-    - how base interest rate responds to inflation
-    - how exchange rate is affected by interest rate or inflation
-    - opportunity cost in the context of monetary or investment decisions
-    - compound interest in relation to monetary policy or savings behavior
+  opportunity cost, compound interest
+
+Use the Knowledge Graph Context provided above to identify
+cross-concept relationships present in the student answer.
 
 Step 3. Final type decision:
   - No clause contains any macro signal                             → type = "irrelevant"
