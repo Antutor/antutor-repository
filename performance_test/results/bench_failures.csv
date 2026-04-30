@@ -1,0 +1,4 @@
+Method,Name,Error,Occurrences
+POST,/benchmark/sync,CatchResponseError('HTTP 0'),7
+POST,/benchmark/async,CatchResponseError('HTTP 0'),5
+POST,/benchmark/sync [fixed],CatchResponseError('HTTP 0'),2
