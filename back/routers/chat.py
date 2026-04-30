@@ -162,6 +162,7 @@ async def chat(request: ChatRequest, current_user: dict = Depends(get_current_us
     is_give_up = any(kw in request.user_answer.lower() or kw in eval_user_answer.lower() for kw in GIVE_UP_KEYWORDS)
     is_contradiction = False
     
+    any_fallback = False
     if is_give_up:
         antutor_score = 0.0
         expert_scores = {"The Market Practitioner": 0.0, "The Macro-Connector": 0.0, "The Academic Auditor": 0.0}
@@ -201,10 +202,15 @@ async def chat(request: ChatRequest, current_user: dict = Depends(get_current_us
         is_contradiction = final_state.get("is_contradiction", False)
         
         for persona, review in final_state["draft_reviews"].items():
+            fallback_flag = review.get("is_fallback", False) if isinstance(review, dict) else False
+            if fallback_flag:
+                any_fallback = True
+                
             expert_results.append({
                 "persona": persona,
                 "score": expert_scores_raw.get(persona, 0.75),
-                "feedback": review
+                "feedback": review,
+                "is_fallback": fallback_flag
             })
             
         expert_scores = expert_scores_raw
@@ -341,6 +347,7 @@ async def chat(request: ChatRequest, current_user: dict = Depends(get_current_us
         "expert_average_score": raw_avg_score,
         "is_contradiction_override": is_contradiction,
         "expert_feedback": expert_results,
+        "is_fallback": any_fallback,
         "moderator_decision": {
             "status": moderator_action,
             "lowest_performing_area": lowest_persona,

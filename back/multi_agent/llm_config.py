@@ -6,38 +6,72 @@ import asyncio
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from langchain_ollama import ChatOllama
-from config import LOCAL_LLM_MODEL, LOCAL_LLM_ENDPOINT, DRAFT_LLM_MODEL, DEBATE_LLM_MODEL
-
-# 포트 제외한 base_url 추출 (ex: http://localhost:11434)
-# LOCAL_LLM_ENDPOINT 는 обычно "http://localhost:11434/api/chat"
-base_url = LOCAL_LLM_ENDPOINT.split("/api")[0]
-
-# 1. 초안 생성용 기초 모델 (qwen2.5:7b, low temperature)
-draft_llm = ChatOllama(
-    model=DRAFT_LLM_MODEL,
-    base_url=base_url,
-    temperature=0.0,
-    num_predict=2048,
-    num_ctx=8192
+from langchain_openai import ChatOpenAI
+from config import (
+    LOCAL_LLM_MODEL, 
+    LOCAL_LLM_ENDPOINT, 
+    DRAFT_LLM_MODEL, 
+    DEBATE_LLM_MODEL,
+    LLM_BACKEND_TYPE,
+    VLLM_API_KEY
 )
 
-# 2. 토론 및 반론용 모델 (qwen3:8b, low temperature)
-debate_llm = ChatOllama(
-    model=DEBATE_LLM_MODEL,
-    base_url=base_url,
-    temperature=0.0,
-    num_predict=2048,
-    num_ctx=8192
-)
+if LLM_BACKEND_TYPE.lower() == "vllm":
+    # 1. vLLM 기반 OpenAI 호환 API (RunPod 등)
+    # vLLM endpoint usually ends with /v1
+    base_url = LOCAL_LLM_ENDPOINT if LOCAL_LLM_ENDPOINT.endswith("/v1") else LOCAL_LLM_ENDPOINT + "/v1"
+    
+    draft_llm = ChatOpenAI(
+        model=DRAFT_LLM_MODEL,
+        base_url=base_url,
+        api_key=VLLM_API_KEY or "empty", # vLLM often accepts any string if no auth is set
+        temperature=0.0,
+        max_tokens=2048,
+    )
+    
+    debate_llm = ChatOpenAI(
+        model=DEBATE_LLM_MODEL,
+        base_url=base_url,
+        api_key=VLLM_API_KEY or "empty",
+        temperature=0.0,
+        max_tokens=2048,
+    )
+    
+    synthesis_llm = ChatOpenAI(
+        model=DEBATE_LLM_MODEL,
+        base_url=base_url,
+        api_key=VLLM_API_KEY or "empty",
+        temperature=0.0,
+        max_tokens=2048,
+    )
+else:
+    # 2. 로컬 Ollama 구동 (기존)
+    # 포트 제외한 base_url 추출 (ex: http://localhost:11434)
+    base_url = LOCAL_LLM_ENDPOINT.split("/api")[0]
+    
+    draft_llm = ChatOllama(
+        model=DRAFT_LLM_MODEL,
+        base_url=base_url,
+        temperature=0.0,
+        num_predict=2048,
+        num_ctx=8192
+    )
 
-# 3. 최종 요약 및 중재용 모델 (qwen3:8b, consistent temperature)
-synthesis_llm = ChatOllama(
-    model=DEBATE_LLM_MODEL,
-    base_url=base_url,
-    temperature=0.0,
-    num_predict=2048,
-    num_ctx=8192
-)
+    debate_llm = ChatOllama(
+        model=DEBATE_LLM_MODEL,
+        base_url=base_url,
+        temperature=0.0,
+        num_predict=2048,
+        num_ctx=8192
+    )
+
+    synthesis_llm = ChatOllama(
+        model=DEBATE_LLM_MODEL,
+        base_url=base_url,
+        temperature=0.0,
+        num_predict=2048,
+        num_ctx=8192
+    )
 
 # Legacy compatibility (optional, but keep for safety if used elsewhere)
 llm = draft_llm
