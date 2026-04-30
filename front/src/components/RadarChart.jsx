@@ -1,31 +1,50 @@
 import React from 'react';
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, ResponsiveContainer } from 'recharts';
 
-function RadarScoreChart({ scores }) {
-    // Return a message if no data is provided
-    if (!scores) return <div>No data available.</div>;
+function RadarScoreChart({ scores, isSidebar = false }) {
+    if (!scores) return <div className="chart-placeholder">데이터가 없습니다.</div>;
 
-    // Convert backend data into chart format, filtering out 'Independence'
+    // 한국어 라벨 맵핑
+    const labelMap = {
+        Academic: '정확성',
+        Market: '현실성',
+        Macro: '통찰력'
+    };
+
     const data = Object.keys(scores)
         .filter(key => key !== 'Independence')
         .map(key => ({
-            subject: key,
+            subject: labelMap[key] || key,
             A: scores[key],
             fullMark: 100,
         }));
 
+    const height = isSidebar ? 220 : 350;
+    const outerRadius = isSidebar ? "60%" : "80%";
+
     return (
-        <div style={{ width: '100%', height: '350px' }}>
+        <div className={`radar-chart-container ${isSidebar ? 'sidebar-chart' : ''}`} style={{ width: '100%', height: `${height}px` }}>
             <ResponsiveContainer width="100%" height="100%">
-                <RadarChart cx="50%" cy="50%" outerRadius="80%" data={data}>
-                    <PolarGrid />
-                    <PolarAngleAxis dataKey="subject" />
+                <RadarChart cx="50%" cy="50%" outerRadius={outerRadius} data={data}>
+                    <defs>
+                        <linearGradient id="sidebarRadarGradient" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.7}/>
+                            <stop offset="95%" stopColor="#10b981" stopOpacity={0.4}/>
+                        </linearGradient>
+                    </defs>
+                    <PolarGrid stroke="#e2e8f0" />
+                    <PolarAngleAxis 
+                        dataKey="subject" 
+                        tick={{ fill: 'var(--color-text-secondary)', fontSize: isSidebar ? 10 : 12, fontWeight: 600 }}
+                    />
                     <Radar
                         name="Score"
                         dataKey="A"
-                        stroke="#8884d8"
-                        fill="#8884d8"
-                        fillOpacity={0.6}
+                        stroke="var(--color-expert-academic)"
+                        strokeWidth={2}
+                        fill="url(#sidebarRadarGradient)"
+                        fillOpacity={0.7}
+                        isAnimationActive={true}
                     />
                 </RadarChart>
             </ResponsiveContainer>

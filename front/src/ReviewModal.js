@@ -19,26 +19,26 @@ const ReviewModal = ({ isOpen, onClose, node }) => {
     <div className={`review-overlay ${isOpen ? 'active' : ''}`} onClick={onClose}>
       <div className="review-modal-card" onClick={(e) => e.stopPropagation()}>
         <div className="review-modal-header">
-          <h2 style={{margin: 0, fontSize: '1.25rem', color: 'var(--color-text-primary)'}}>Concept Review: {node.title}</h2>
+          <h2 style={{margin: 0, fontSize: '1.25rem', color: 'var(--color-text-primary)'}}>개념 복습: {node.title}</h2>
           <button className="close-btn" onClick={onClose}><X size={20} /></button>
         </div>
         
         <div className="review-modal-body">
           {/* Character visual injection */}
           <div className="review-character-container">
-            <img src="/images/ant.jpg" alt="Ant-y Book Review" className="review-character" />
+            <img src="/images/antutor%20standup.png" alt="Ant-y Book Review" className="review-character" />
           </div>
 
           <div className="review-text-content">
             <div style={{marginBottom: '15px'}}>
-              <h4 style={{margin: '0 0 8px 0', color: 'var(--color-soft-blue)'}}>Quick Refresher</h4>
+              <h4 style={{margin: '0 0 8px 0', color: 'var(--color-soft-blue)'}}>핵심 요약</h4>
               <p style={{margin: 0, color: 'var(--color-text-secondary)', lineHeight: 1.6}}>
-                 {node.summary || "The fundamental principles of economics cover supply and demand, explaining how resources are allocated dynamically based on human incentives."}
+                 {node.summary || "경제학의 기본 원칙은 수요와 공급에 대해 다루며, 인간의 동기에 따라 자원이 어떻게 동적으로 할당되는지를 설명합니다."}
               </p>
             </div>
             
             <p className="insight" style={{margin: 0, fontStyle: 'italic', fontWeight: 'bold', color: 'var(--color-text-primary)'}}>
-               Take a moment to carefully read over these notes before jumping back into the conversation.
+               채팅으로 돌아가기 전에 이 메모를 주의 깊게 읽어보세요.
             </p>
           </div>
         </div>
@@ -49,7 +49,7 @@ const ReviewModal = ({ isOpen, onClose, node }) => {
             style={{width: 'auto', padding: '12px 24px', borderRadius: '12px', gap: '8px', fontSize: '1rem', fontWeight: 700}} 
             onClick={onClose}
           >
-             <Check size={18} /> Got it!
+             <Check size={18} /> 확인했어요!
           </button>
         </div>
       </div>

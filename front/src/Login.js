@@ -1,40 +1,49 @@
 import React, { useState } from 'react';
 import { Mail, Lock, ArrowRight, User } from 'lucide-react';
+import { authAPI } from './api/services';
 import './Login.css';
 
-const Login = ({ onLogin }) => {
+const Login = ({ onLogin, onGoToRegister }) => {
   const [userId, setUserId] = useState('');
   const [password, setPassword] = useState('');
   const [isFadingOut, setIsFadingOut] = useState(false);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if(userId && password) {
-      setIsFadingOut(true);
-      setTimeout(() => {
-        onLogin();
-      }, 500); // 500ms coordinates with the CSS transition length
+    if (userId && password) {
+      try {
+        const response = await authAPI.login({ username: userId, password });
+        if (response.data.access_token) {
+          localStorage.setItem('access_token', response.data.access_token);
+        }
+        setIsFadingOut(true);
+        setTimeout(() => {
+          onLogin();
+        }, 500); // 500ms coordinates with the CSS transition length
+      } catch (error) {
+        alert("Login failed! Please check your credentials.");
+      }
     }
   };
 
   return (
     <div className={`login-page ${isFadingOut ? 'fade-out' : ''}`}>
       <div className="login-card">
-        
+
         <div className="login-header">
-          <img src="/images/reading_ant.png" alt="Antutor" className="login-logo-img" />
-          <h2>Welcome to Antutor</h2>
-          <p>Login to access your personalized learning dashboard.</p>
+          <img src="/images/antutor%20standup.png" alt="Antutor" className="login-logo-img" />
+          <h2>Antutor에 오신 것을 환영합니다</h2>
+          <p>학습 대시보드에 접속하려면 로그인하세요.</p>
         </div>
 
         <form onSubmit={handleSubmit} className="login-form">
           <div className="input-group">
-            <label>ID</label>
+            <label>아이디</label>
             <div className="input-field">
               <User size={18} className="input-icon" />
-              <input 
-                type="text" 
-                placeholder="Enter your ID"
+              <input
+                type="text"
+                placeholder="아이디를 입력하세요"
                 value={userId}
                 onChange={(e) => setUserId(e.target.value)}
                 required
@@ -43,12 +52,12 @@ const Login = ({ onLogin }) => {
           </div>
 
           <div className="input-group">
-            <label>Password</label>
+            <label>비밀번호</label>
             <div className="input-field">
               <Lock size={18} className="input-icon" />
-              <input 
-                type="password" 
-                placeholder="Enter password"
+              <input
+                type="password"
+                placeholder="비밀번호를 입력하세요"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
@@ -57,13 +66,13 @@ const Login = ({ onLogin }) => {
           </div>
 
           <button type="submit" className="login-submit-btn">
-            <span>Sign In</span>
+            <span>로그인</span>
             <ArrowRight size={18} />
           </button>
         </form>
 
         <div className="login-footer">
-          Don't have an account? <span className="signup-link">Sign up</span>
+          계정이 없으신가요? <span className="signup-link" onClick={onGoToRegister}>회원가입</span>
         </div>
       </div>
     </div>

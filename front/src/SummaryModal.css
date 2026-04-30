@@ -74,8 +74,8 @@
 
 .summary-header {
   padding: 30px;
-  background: linear-gradient(135deg, rgba(237, 233, 254, 0.8) 0%, rgba(219, 234, 254, 0.6) 50%, rgba(220, 252, 231, 0.4) 100%);
-  border-bottom: 2px solid rgba(167, 139, 250, 0.25);
+  background: linear-gradient(135deg, rgba(245, 243, 255, 0.7) 0%, rgba(239, 246, 255, 0.5) 50%, rgba(240, 253, 244, 0.3) 100%);
+  border-bottom: 2px solid rgba(147, 197, 253, 0.2);
   text-align: center;
 }
 
@@ -122,7 +122,7 @@
   position: absolute;
   top: 0; left: 0; right: 0;
   height: 6px;
-  background: linear-gradient(90deg, #60a5fa, #34d399, #a78bfa);
+  background: linear-gradient(90deg, #93c5fd, #6ee7b7, #c4b5fd);
   opacity: 0.9;
 }
 
@@ -182,7 +182,7 @@
 }
 
 .support-counters .counter-box:nth-child(1) .counter-value {
-  color: #3b82f6;
+  color: #60a5fa;
 }
 
 .support-counters .counter-box:nth-child(2) {
@@ -191,7 +191,7 @@
 }
 
 .support-counters .counter-box:nth-child(2) .counter-value {
-  color: #8b5cf6;
+  color: #a78bfa;
 }
 
 .counter-label {
@@ -226,7 +226,7 @@
 
 .bonus-card.earned {
   background: linear-gradient(135deg, rgba(209, 250, 229, 0.6), rgba(255, 255, 255, 0.9));
-  border-color: #34d399;
+  border-color: #6ee7b7;
   box-shadow: 0 10px 20px rgba(52, 211, 153, 0.15);
 }
 

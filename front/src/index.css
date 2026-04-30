@@ -1,24 +1,24 @@
 @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap');
 
 :root {
-  --color-deep-navy: #374151; /* Dark Charcoal */
-  --color-navy-light: #4b5563; /* Lighter Charcoal */
-  --color-soft-blue: #90caf9;
-  --color-soft-gold: #fff59d;
-  --color-soft-green: #a7f3d0;
-  --color-soft-pink: #fecdd3;
+  --color-deep-navy: #4b5563; /* Softened Charcoal */
+  --color-navy-light: #6b7280; /* Lighter Grey */
+  --color-soft-blue: #bfdbfe;
+  --color-soft-gold: #fef3c7;
+  --color-soft-green: #d1fae5;
+  --color-soft-pink: #ffe4e6;
   --color-white: #ffffff;
   --color-cream: #fdfbf7;
   --color-bg-light: #f9fbfc;
   --color-border: #e2e8f0;
   
   /* Expert Point Colors - Softened */
-  --color-expert-academic: #60a5fa; /* Soft Blue */
-  --color-expert-market: #34d399; /* Soft Green */
-  --color-expert-macro: #a78bfa; /* Soft Purple */
+  --color-expert-academic: #93c5fd; /* Softened Blue */
+  --color-expert-market: #6ee7b7; /* Softened Green */
+  --color-expert-macro: #c4b5fd; /* Softened Purple */
   
-  --color-text-primary: #374151;
-  --color-text-secondary: #6b7280;
+  --color-text-primary: #4b5563;
+  --color-text-secondary: #9ca3af;
 }
 
 * {

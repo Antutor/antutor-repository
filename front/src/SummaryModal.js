@@ -5,15 +5,26 @@ import {
 import { X, Award, AlertCircle, ArrowRight } from 'lucide-react';
 import './SummaryModal.css';
 
-const radarData = [
-  { subject: 'Accuracy', value: 85, fullMark: 100 },
-  { subject: 'Reality', value: 70, fullMark: 100 },
-  { subject: 'Insight', value: 90, fullMark: 100 },
-];
-
-const SummaryModal = ({ isOpen, onClose, helpCountLevel1, helpCountLevel2 }) => {
+const SummaryModal = ({ isOpen, onClose, helpCountLevel1, helpCountLevel2, reportData }) => {
   const [shouldRender, setShouldRender] = useState(false);
   const [isActive, setIsActive] = useState(false);
+
+  let radarData = [
+    { subject: '정확성', value: 0, fullMark: 100 },
+    { subject: '현실성', value: 0, fullMark: 100 },
+    { subject: '통찰력', value: 0, fullMark: 100 },
+  ];
+  let insightText = "아직 평가 데이터가 없습니다.";
+
+  if (reportData && reportData.growth_visualization) {
+      const gv = reportData.growth_visualization;
+      radarData = [
+        { subject: '정확성', value: gv.Academic ? gv.Academic[gv.Academic.length - 1] : 0, fullMark: 100 },
+        { subject: '현실성', value: gv.Market ? gv.Market[gv.Market.length - 1] : 0, fullMark: 100 },
+        { subject: '통찰력', value: gv.Macro ? gv.Macro[gv.Macro.length - 1] : 0, fullMark: 100 },
+      ];
+      insightText = reportData.educational_insights || insightText;
+  }
 
   // Handle animation mounting/unmounting
   useEffect(() => {
@@ -39,14 +50,14 @@ const SummaryModal = ({ isOpen, onClose, helpCountLevel1, helpCountLevel2 }) => 
         </button>
 
         <div className="summary-header">
-          <h2>Learning Summary</h2>
-          <p>Your progress and learning style analysis</p>
+          <h2>학습 요약</h2>
+          <p>학습 성취도 및 스타일 분석</p>
         </div>
 
         <div className="summary-grid">
           {/* Radar Chart Section */}
           <div className="summary-section radar-section">
-            <h3>Knowledge Dimensions</h3>
+            <h3>지식 수준 지표</h3>
             <div className="chart-container">
               <ResponsiveContainer width="100%" height={260}>
                 <RadarChart cx="50%" cy="50%" outerRadius="70%" data={radarData}>
@@ -80,57 +91,39 @@ const SummaryModal = ({ isOpen, onClose, helpCountLevel1, helpCountLevel2 }) => 
           <div className="summary-details">
             {/* Scaffolding Metrics */}
             <div className="summary-section metric-cards">
-              <h3>Learning Support</h3>
+              <h3>학습 지원 요약</h3>
               
               <div className="support-counters">
                 <div className="counter-box">
-                  <span className="counter-label">Level 1 Help</span>
+                  <span className="counter-label">1단계 힌트</span>
                   <span className="counter-value">{helpCountLevel1}</span>
                 </div>
                 <div className="counter-box">
-                  <span className="counter-label">Level 2 Help</span>
+                  <span className="counter-label">2단계 힌트</span>
                   <span className="counter-value">{helpCountLevel2}</span>
                 </div>
               </div>
 
               <div className="bonus-score-section">
-                <h3>Self-Directed Bonus</h3>
+                <h3>자기 주도 보너스</h3>
                 <div className={`bonus-card ${(helpCountLevel1 + helpCountLevel2) === 0 ? 'earned' : 'missed'}`}>
                   <div className="bonus-points">+{(helpCountLevel1 + helpCountLevel2) === 0 ? 50 : 0}</div>
-                  <div className="bonus-caption">Complete the session without help to earn +50 points!</div>
+                  <div className="bonus-caption">도움 없이 세션을 완료하면 50점을 추가로 획득할 수 있습니다!</div>
                 </div>
               </div>
             </div>
 
             {/* Educational Insights */}
             <div className="summary-section">
-              <h3>Educational Insights</h3>
+              <h3>학습 인사이트</h3>
               
               <div className="insight-badge">
                 <div className="badge-icon">
                   <Award size={24} color="#f59e0b" />
                 </div>
-                <div className="badge-text">
-                  <h4>Cautious Analyst</h4>
-                  <p>High theoretical accuracy, but relies heavily on moderator guidance.</p>
-                </div>
-              </div>
-
-              <div className="reverse-learning-guide">
-                <div className="guide-header">
-                  <AlertCircle size={18} color="var(--color-expert-market)" />
-                  <h4>Reverse Learning Guide</h4>
-                </div>
-                <p>Your Practical (Reality) score is slightly behind. To balance your knowledge, we recommend reviewing these foundational areas:</p>
-                <div className="node-suggestions">
-                  <button className="suggestion-btn">
-                    <span>Market Dynamics</span>
-                    <ArrowRight size={14} />
-                  </button>
-                  <button className="suggestion-btn">
-                    <span>Real-world Case Studies</span>
-                    <ArrowRight size={14} />
-                  </button>
+                <div className="badge-text" style={{ flex: 1 }}>
+                  <h4>평가 결과</h4>
+                  <p style={{ whiteSpace: 'pre-line' }}>{insightText}</p>
                 </div>
               </div>
             </div>
