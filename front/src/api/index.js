@@ -5,7 +5,7 @@ import axios from 'axios';
 const api = axios.create({
     // baseURL: 'https://elbert-expressible-deliciously.ngrok-free.dev', // 원격 서버 사용 시
     baseURL: 'http://localhost:8000', // 로컬 서버 사용 시
-    timeout: 120000, // 120초 (AI 답변 생성 대기 시간 고려)
+    timeout: 600000, // 600초 (고성능 모델 토론 대기 위해 10분으로 연장)
 });
 
 
