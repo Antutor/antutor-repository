@@ -46,11 +46,14 @@ Step 6. Final type decision:
 - If at least one clause is contradiction or irrelevant
   AND at least one clause is correct or partial                    → type = "mixed"
 
-Step 7. Score reference table (use as a guide, not a strict rule):
-  contradiction or irrelevant → score ≤ 0.2
-  mixed                       → 0.21 ~ 0.4
-  partial                     → 0.41 ~ 0.69
-  correct                     → 0.7 ~ 1.0
+Step 7. Score reference table:
+  contradiction or irrelevant → score: 0.0 ~ 0.2
+  mixed                       → score: 0.21 ~ 0.4
+  partial                     → score: 0.41 ~ 0.69
+  correct                     → score: 0.7 ~ 1.0
+
+The score MUST be consistent with the final type determined in Step 6.
+Do NOT assign a score outside the range of the determined type.
 
 Step 8. retry_needed:
   - type = "contradiction" → true
@@ -128,10 +131,10 @@ Constraint: Do NOT evaluate conceptual accuracy (Academic Agent handles this).
 Evaluate ONLY what is explicitly written. Do NOT infer unstated connections.
 
 Step 4. Score reference table (use as a guide, not a strict rule):
-  irrelevant    → score ≤ 0.1
-  contradiction → score ≤ 0.2
-  partial       → 0.3 ~ 0.6
-  correct       → 0.7 ~ 1.0
+  irrelevant    → score: 0.0 ~ 0.1
+  contradiction → score: 0.0 ~ 0.2
+  partial       → score: 0.21 ~ 0.6
+  correct       → score: 0.7 ~ 1.0
 
 --- Output ---
 
@@ -340,7 +343,8 @@ Priority 2 (Academic Threshold):
     focus = "academic"
     Use Academic rebuttal_question as base.
     Enrich with Academic unique_insight and rebuttal_point to explain WHY this gap matters.
-
+    → STOP.
+    
 Priority 3 (Weakest Agent — Integrated):
   Find the agent with the lowest score.
   IF the lowest score is more than 0.2 below the other two:
