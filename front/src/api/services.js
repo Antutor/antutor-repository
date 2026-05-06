@@ -22,6 +22,7 @@ export const dictionaryAPI = {
 
 export const studyAPI = {
     startSession: (concept) => api.get(`/start/${concept}`), // 3.1 학습 세션 시작
+    resolveResume: (data) => api.post('/resolve_resume', data), // 3.1.5 세션 재개 결정
     sendChat: (data) => api.post('/chat', data), // 3.2 챗봇 답변 제출 및 평가
     endSession: (data) => api.post('/end_session', data), // 3.3 학습 세션 종료 및 통계 반환
 };
