@@ -218,12 +218,11 @@ async def moderator_check_node(state: AgentState):
         
     return {"debate_count": count, "moderator_action": action}
 
-@with_retry_and_fallback(max_retries=3, fallback_value="System fallback: Unable to generate final synthesis due to timeout.")
+@with_retry_and_fallback(max_retries=3, fallback_value='{"message": "System fallback: Unable to generate final synthesis due to timeout.", "hint_provided": false}')
 async def call_synthesis(sys_msg):
     async with gpu_semaphore:
         res = await synthesis_llm.ainvoke([SystemMessage(content=sys_msg)])
-    moderator_data = extract_json(res.content)
-    return moderator_data.get("message", res.content)
+    return res.content
 
 async def synthesis_node(state: AgentState):
     """
@@ -242,18 +241,25 @@ async def synthesis_node(state: AgentState):
     
     # 각 에이전트의 rebuttal 결과를 JSON 배열 문자열로 변환
     rebuttal_results = state.get("rebuttal_results", [])
-    rebuttal_results_str = json.dumps(rebuttal_results, ensure_ascii=False, indent=2)
+    rebuttals_str = json.dumps(rebuttal_results, ensure_ascii=False, indent=2)
+    
+    session_context_str = f"consecutive_high_score_count: {state.get('consecutive_high_score_count', 0)}"
     
     sys_msg = NEW_MODERATOR_AGENT_PROMPT.format(
         concept=concept,
         user_answer=user_answer,
+        session_context=session_context_str,
         academic_result=academic_res,
         market_result=market_res,
         macro_result=macro_res,
-        rebuttal_results=rebuttal_results_str
+        rebuttal_results=rebuttals_str
     )
     
-    final_message = await call_synthesis(sys_msg)
+    res_content = await call_synthesis(sys_msg)
+    
+    moderator_data = extract_json(res_content)
+    final_message = moderator_data.get("message", res_content)
+    hint_provided = moderator_data.get("hint_provided", False)
     
     print("  ✅ Synthesis Node 완료! 최종 피드백 산출 완료 🎉\n", flush=True)
-    return {"final_synthesis": final_message}
+    return {"final_synthesis": final_message, "hint_provided": hint_provided}

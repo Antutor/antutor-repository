@@ -189,7 +189,9 @@ async def chat(request: ChatRequest, current_user: dict = Depends(get_current_us
             "is_contradiction": False,
             "final_synthesis": "",
             "debate_count": 0,
-            "moderator_action": ""
+            "moderator_action": "",
+            "consecutive_high_score_count": session.get("consecutive_high_score_count", 0),
+            "hint_provided": False
         }
         
         print(f"👉 [ChatRouter] 랭그래프 호출 진입 전... (RAG 완료, State 준비 완료)", flush=True)
@@ -200,6 +202,11 @@ async def chat(request: ChatRequest, current_user: dict = Depends(get_current_us
         
         antutor_score = expert_scores_raw.get("The Academic Auditor", 0.0)
         is_contradiction = final_state.get("is_contradiction", False)
+        hint_provided = final_state.get("hint_provided", False)
+        
+        if hint_provided:
+            current_scaffold_count = session.get("scaffolding_counter", 0)
+            supabase.table("sessions").update({"scaffolding_counter": current_scaffold_count + 1}).eq("session_id", session["session_id"]).execute()
         
         for persona, review in final_state["draft_reviews"].items():
             fallback_flag = review.get("is_fallback", False) if isinstance(review, dict) else False

@@ -31,3 +31,6 @@ class AgentState(TypedDict):
     
     # 모더레이터의 결정 (proceed, scaffold, retry 등)
     moderator_action: str
+    
+    consecutive_high_score_count: int   # Mastery 모드 판단용
+    hint_provided: bool                 # Scaffolding Counter 집계용
