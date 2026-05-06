@@ -375,9 +375,9 @@ Priority 4 (Integrated):
 
 Return ONLY this JSON:
 {{
+  "message": "",
   "mode": "",
   "focus": "",
-  "message": "",
   "hint": "",
   "hint_provided": false
 }}
@@ -405,4 +405,25 @@ Macro draft result:
 
 Rebuttal results:
 {rebuttal_results}
+"""
+
+# ====================================================================
+# Recovery Flow Prompts (Give-Up Scaffolding)
+# ====================================================================
+
+RECOVERY_NUDGE_PROMPT = """
+The student is struggling to explain the concept '{concept_name}'. 
+Definition: '{ground_truth}'
+Facts: '{kg_context}'
+
+Write a 1-2 sentence hint (Nudge) to gently guide them to understand the concept without directly giving the exact answer. Be encouraging. 
+Return ONLY the JSON format: {{"message": "your hint text"}}
+"""
+
+RECOVERY_FILL_BLANK_PROMPT = """
+The student is still struggling to explain the concept '{concept_name}'. 
+Definition: '{ground_truth}'
+
+Create a simple fill-in-the-blank sentence explaining the concept, where 1 or 2 key terms are replaced with '____'. 
+Return ONLY the JSON format: {{"message": "your fill-in-the-blank sentence"}}
 """

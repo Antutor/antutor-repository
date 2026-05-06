@@ -1,6 +1,7 @@
 import json
 import asyncio
 import re
+from functools import wraps
 
 from langchain_core.messages import SystemMessage, HumanMessage
 from multi_agent.state import AgentState
@@ -47,6 +48,25 @@ def extract_float_score(text: str) -> float:
             pass
     return 0.75 # 기본 점수
 
+def with_retry_and_fallback(max_retries=3, fallback_value=None):
+    def decorator(func):
+        @wraps(func)
+        async def wrapper(*args, **kwargs):
+            for attempt in range(max_retries):
+                try:
+                    return await func(*args, **kwargs)
+                except Exception as e:
+                    print(f"⚠️ [Retry] {func.__name__} failed (attempt {attempt + 1}/{max_retries}): {str(e)}", flush=True)
+                    if attempt == max_retries - 1:
+                        if fallback_value is not None:
+                            print(f"🛡️ [Fallback] {func.__name__} returning safe fallback.", flush=True)
+                            return fallback_value
+                        raise e
+                    await asyncio.sleep(1.0)
+        return wrapper
+    return decorator
+
+@with_retry_and_fallback(max_retries=3, fallback_value=("The Academic Auditor", {"score": 0.5, "feedback": "System fallback due to timeout or error.", "is_contradiction": False, "is_fallback": True}))
 async def call_academic(concept, ground_truth, user_answer):
     async with gpu_semaphore:
         sys_msg = NEW_ACADEMIC_DRAFT_PROMPT.format(concept=concept, ground_truth=ground_truth, user_answer=user_answer)
@@ -54,6 +74,7 @@ async def call_academic(concept, ground_truth, user_answer):
         data = extract_json(res.content)
         return "The Academic Auditor", data
 
+@with_retry_and_fallback(max_retries=3, fallback_value=("The Market Practitioner", {"score": 0.5, "feedback": "System fallback due to timeout or error.", "is_contradiction": False, "is_fallback": True}))
 async def call_market(concept, news_context, user_answer):
     async with gpu_semaphore:
         sys_msg = NEW_MARKET_DRAFT_PROMPT.format(concept=concept, news_context=news_context, user_answer=user_answer)
@@ -61,6 +82,7 @@ async def call_market(concept, news_context, user_answer):
         data = extract_json(res.content)
         return "The Market Practitioner", data
 
+@with_retry_and_fallback(max_retries=3, fallback_value=("The Macro-Connector", {"score": 0.5, "feedback": "System fallback due to timeout or error.", "is_contradiction": False, "is_fallback": True}))
 async def call_macro(concept, kg_context, user_answer):
     async with gpu_semaphore:
         sys_msg = NEW_MACRO_DRAFT_PROMPT.format(concept=concept, kg_context=kg_context, user_answer=user_answer)
@@ -110,6 +132,17 @@ async def drafting_node(state: AgentState):
         "critiques": []
     }
 
+@with_retry_and_fallback(
+    max_retries=3, 
+    fallback_value={
+        "persona": "Fallback Agent",
+        "agreement_level": "N/A",
+        "agreement_reason": "System fallback due to timeout or error.",
+        "unique_insight": "N/A",
+        "rebuttal_point": "N/A",
+        "rebuttal_question": "N/A"
+    }
+)
 async def call_rebuttal(persona, concept, user_answer, drafts):
     async with gpu_semaphore:
         # 본인을 제외한 다른 에이전트들의 리뷰만 취합
@@ -185,6 +218,12 @@ async def moderator_check_node(state: AgentState):
         
     return {"debate_count": count, "moderator_action": action}
 
+@with_retry_and_fallback(max_retries=3, fallback_value='{"message": "System fallback: Unable to generate final synthesis due to timeout.", "hint_provided": false}')
+async def call_synthesis(sys_msg):
+    async with gpu_semaphore:
+        res = await synthesis_llm.ainvoke([SystemMessage(content=sys_msg)])
+    return res.content
+
 async def synthesis_node(state: AgentState):
     """
     최종 중재 노드: 에이전트들의 JSON 결과를 종합하여 모더레이터가 최종 피드백을 작성합니다.
@@ -202,22 +241,25 @@ async def synthesis_node(state: AgentState):
     
     # 각 에이전트의 rebuttal 결과를 JSON 배열 문자열로 변환
     rebuttal_results = state.get("rebuttal_results", [])
-    rebuttal_results_str = json.dumps(rebuttal_results, ensure_ascii=False, indent=2)
+    rebuttals_str = json.dumps(rebuttal_results, ensure_ascii=False, indent=2)
+    
+    session_context_str = f"consecutive_high_score_count: {state.get('consecutive_high_score_count', 0)}"
     
     sys_msg = NEW_MODERATOR_AGENT_PROMPT.format(
         concept=concept,
         user_answer=user_answer,
+        session_context=session_context_str,
         academic_result=academic_res,
         market_result=market_res,
         macro_result=macro_res,
-        rebuttal_results=rebuttal_results_str
+        rebuttal_results=rebuttals_str
     )
     
-    async with gpu_semaphore:
-        res = await synthesis_llm.ainvoke([SystemMessage(content=sys_msg)])
+    res_content = await call_synthesis(sys_msg)
     
-    moderator_data = extract_json(res.content)
-    final_message = moderator_data.get("message", res.content)
+    moderator_data = extract_json(res_content)
+    final_message = moderator_data.get("message", res_content)
+    hint_provided = moderator_data.get("hint_provided", False)
     
     print("  ✅ Synthesis Node 완료! 최종 피드백 산출 완료 🎉\n", flush=True)
-    return {"final_synthesis": final_message}
+    return {"final_synthesis": final_message, "hint_provided": hint_provided}

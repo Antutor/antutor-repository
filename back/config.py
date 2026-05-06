@@ -10,7 +10,9 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7 # 1 week expiration
 
 # --- Constants are now managed in DB ---
 
+LLM_BACKEND_TYPE = os.getenv("LLM_BACKEND_TYPE", "ollama")
 LOCAL_LLM_ENDPOINT = os.getenv("LOCAL_LLM_ENDPOINT", "http://localhost:11434/api/chat")
+VLLM_API_KEY = os.getenv("VLLM_API_KEY", "")
 LOCAL_LLM_MODEL = os.getenv("LOCAL_LLM_MODEL", "qwen2.5:7b")
 DRAFT_LLM_MODEL = os.getenv("DRAFT_LLM_MODEL", "qwen2.5:7b")
 DEBATE_LLM_MODEL = os.getenv("DEBATE_LLM_MODEL", "qwen3:8b")
