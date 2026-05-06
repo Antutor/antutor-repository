@@ -493,8 +493,7 @@ async def websocket_chat(websocket: WebSocket):
 
         # 2. 8X  P pt0 pȌ
 
-        await websocket.send_json({"type": "status", "message": "=
- Checking session data..."})
+        await websocket.send_json({"type": "status", "message": "Checking session data..."})
 
         
 
