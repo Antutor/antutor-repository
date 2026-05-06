@@ -27,7 +27,7 @@ if LLM_BACKEND_TYPE.lower() == "vllm":
         api_key=VLLM_API_KEY or "empty", # vLLM often accepts any string if no auth is set
         temperature=0.0,
         max_tokens=2048,
-    )
+    ).with_config({"tags": ["draft_llm"]})
     
     debate_llm = ChatOpenAI(
         model=DEBATE_LLM_MODEL,
@@ -35,7 +35,7 @@ if LLM_BACKEND_TYPE.lower() == "vllm":
         api_key=VLLM_API_KEY or "empty",
         temperature=0.0,
         max_tokens=2048,
-    )
+    ).with_config({"tags": ["debate_llm"]})
     
     synthesis_llm = ChatOpenAI(
         model=DEBATE_LLM_MODEL,
@@ -43,7 +43,7 @@ if LLM_BACKEND_TYPE.lower() == "vllm":
         api_key=VLLM_API_KEY or "empty",
         temperature=0.0,
         max_tokens=2048,
-    )
+    ).with_config({"tags": ["synthesis_llm"]})
 else:
     # 2. 로컬 Ollama 구동 (기존)
     # 포트 제외한 base_url 추출 (ex: http://localhost:11434)
@@ -55,7 +55,7 @@ else:
         temperature=0.0,
         num_predict=2048,
         num_ctx=8192
-    )
+    ).with_config({"tags": ["draft_llm"]})
 
     debate_llm = ChatOllama(
         model=DEBATE_LLM_MODEL,
@@ -63,7 +63,7 @@ else:
         temperature=0.0,
         num_predict=2048,
         num_ctx=8192
-    )
+    ).with_config({"tags": ["debate_llm"]})
 
     synthesis_llm = ChatOllama(
         model=DEBATE_LLM_MODEL,
@@ -71,7 +71,7 @@ else:
         temperature=0.0,
         num_predict=2048,
         num_ctx=8192
-    )
+    ).with_config({"tags": ["synthesis_llm"]})
 
 # Legacy compatibility (optional, but keep for safety if used elsewhere)
 llm = draft_llm

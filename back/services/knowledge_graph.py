@@ -40,16 +40,16 @@ ACTION_KR_MAP = {
 }
 
 _CYPHER_QUERY = """
-MATCH (a:EconomicConcept {name_kr: $keyword})-[r]-(b:EconomicConcept)
-RETURN startNode(r).name_kr AS Subject,
+MATCH (a:EconomicConcept {name: $keyword})-[r]-(b:EconomicConcept)
+RETURN startNode(r).name AS Subject,
        type(r)              AS Action,
-       endNode(r).name_kr  AS Object
+       endNode(r).name  AS Object
 """
 
 
 async def get_economic_facts(keyword: str) -> str:
     """
-    keyword: 한글 경제 개념명 (예: '기준금리')
+    keyword: 영문 경제 개념명 (예: 'opportunity cost')
     Returns: 팩트 문장들을 개행으로 이어붙인 문자열.
              매칭 결과가 없으면 안내 문자열 반환.
     """

@@ -64,7 +64,7 @@ async def test_list_concepts():
     print("\n" + "="*55)
     print("  [2] 저장된 EconomicConcept 노드 목록 (최대 20개)")
     print("="*55)
-    query = "MATCH (n:EconomicConcept) RETURN n.name_kr AS name ORDER BY name LIMIT 20"
+    query = "MATCH (n:EconomicConcept) RETURN n.name AS name ORDER BY name LIMIT 20"
     async with driver() as d:
         async with d.session() as s:
             result = await s.run(query)
@@ -91,10 +91,10 @@ async def test_keyword_facts(keyword: str):
         "AFFECTS":    "영향을 미친다",
     }
     query = """
-    MATCH (a:EconomicConcept {name_kr: $keyword})-[r]-(b:EconomicConcept)
-    RETURN startNode(r).name_kr AS Subject,
+    MATCH (a:EconomicConcept {name: $keyword})-[r]-(b:EconomicConcept)
+    RETURN startNode(r).name AS Subject,
            type(r)              AS Action,
-           endNode(r).name_kr  AS Object
+           endNode(r).name  AS Object
     """
     async with driver() as d:
         async with d.session() as s:
@@ -103,7 +103,7 @@ async def test_keyword_facts(keyword: str):
 
     if not records:
         print(f"  ⚠️  '{keyword}'에 연결된 관계가 없습니다.")
-        print(f"     → name_kr 값이 정확한지 확인하세요. (위 [2]번 목록 참고)")
+        print(f"     → name 값이 정확한지 확인하세요. (위 [2]번 목록 참고)")
     else:
         print(f"  ✅ {len(records)}개 관계 발견:")
         for r in records:
@@ -141,7 +141,7 @@ async def main():
     await test_list_concepts()
 
     # 여기서 확인하고 싶은 키워드를 바꿔가며 테스트하세요
-    test_keywords = ["기준금리", "물가지수", "환율"]
+    test_keywords = ["opportunity cost", "inflation", "exchange rate"]
     for kw in test_keywords:
         await test_keyword_facts(kw)
 
