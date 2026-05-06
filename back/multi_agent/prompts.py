@@ -344,7 +344,7 @@ Priority 2 (Academic Threshold):
     Use Academic rebuttal_question as base.
     Enrich with Academic unique_insight and rebuttal_point to explain WHY this gap matters.
     → STOP.
-    
+
 Priority 3 (Weakest Agent — Integrated):
   Find the agent with the lowest score.
   IF the lowest score is more than 0.2 below the other two:
@@ -374,6 +374,10 @@ Priority 4 (Integrated):
 - Do NOT mechanically concatenate three questions. Synthesize into ONE natural question.
 - Normal mode message MUST end with "?".
 - Retry mode message MUST include hint naturally embedded.
+- Korean question MUST use natural interrogative endings such as:
+  "~할까요?", "~어떻게 될까요?", "~설명해볼 수 있을까요?", "~어떤 영향을 미칠까요?"
+- Do NOT end with "~해야 합니다?" or statement-style sentences followed by "?".
+- Keep the question to 2~3 sentences maximum.
 
 --- Output ---
 
