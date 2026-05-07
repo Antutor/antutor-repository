@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import './App.css';
-import { Menu, Send, BookOpen, TrendingUp, Gem, Radar, X, Library, CheckCircle, Lock, Star, Globe, Tag, Landmark, Scale, Circle, AlertCircle } from 'lucide-react';
+import { Menu, Send, BookOpen, TrendingUp, Gem, Radar, X, Library, CheckCircle, Lock, Star, Globe, Tag, Landmark, Scale, Circle, AlertCircle, Lightbulb, Info } from 'lucide-react';
 import SummaryModal from './SummaryModal';
 import ConceptDictionary from './ConceptDictionary';
 import ReviewModal from './ReviewModal';
@@ -108,6 +108,7 @@ function App() {
     const [highlightedSubNode, setHighlightedSubNode] = useState(null);
     const [academicGlow, setAcademicGlow] = useState(false);
     const [newFeedback, setNewFeedback] = useState({ academic: false, market: false, macro: false });
+    const [currentScaffold, setCurrentScaffold] = useState(null);
 
     // 2. 차트에 표시할 실제 점수 데이터 (여기에 저장하면 됩니다)
     const [userScores, setUserScores] = useState({
@@ -144,10 +145,7 @@ function App() {
     }, [messages, isThinking]);
 
     const handleSendMessage = async (retryText = null) => {
-        // If it's an event (e.g. from onClick, e.type usually exists), reset retryText to null. 
-        // But since we define it as `retryText = null`, if an event is passed it's an object.
         const actualRetryText = typeof retryText === 'string' ? retryText : null;
-        
         const textToSend = actualRetryText || inputValue.trim();
         if (!textToSend || isThinking || !sessionId) return;
         
@@ -155,100 +153,151 @@ function App() {
             const userMessage = { id: Date.now(), sender: 'user', text: textToSend };
             setMessages(prev => [...prev, userMessage]);
             setInputValue('');
+            setCurrentScaffold(null); // 답변 전송 시 Scaffolding 상태 초기화
         }
         setIsThinking(true);
         setNewFeedback({ academic: true, market: true, macro: true });
+        setThinkingText("연결 중입니다...");
 
-        // Rolling thinking text logic
-        const thinkingMessages = [
-            "질문을 분석 중입니다...",
-            "학술 교정관이 개념을 대조하고 있습니다...",
-            "시장 전문가가 최신 뉴스를 훑어보는 중...",
-            "매크로 분석가가 글로벌 지표를 연관 짓는 중...",
-            "모더레이터가 최종 피드백을 요약하고 있습니다..."
-        ];
-        let msgIndex = 0;
-        setThinkingText(thinkingMessages[0]);
-        const thinkingInterval = setInterval(() => {
-            msgIndex = (msgIndex + 1) % thinkingMessages.length;
-            setThinkingText(thinkingMessages[msgIndex]);
-        }, 3500);
+        const token = localStorage.getItem('access_token');
+        // 백엔드 주소에 맞춰 WebSocket URL 설정 (기존 baseURL 기반으로 유추)
+        const wsUrl = `ws://localhost:8000/ws/chat`;
+        const ws = new WebSocket(wsUrl);
 
-        let success = false;
-        let currentAttempt = 0;
-        const MAX_RETRIES = 2; // 무한 재시도 시 UI가 먹통이 되므로 최대 2회로 제한
+        let accumulatedString = "";
+        let moderatorMessageId = Date.now() + 1;
+        let hasAddedModeratorMessage = false;
 
-        while (currentAttempt < MAX_RETRIES && !success) {
+        ws.onopen = () => {
+            ws.send(JSON.stringify({
+                token: token,
+                session_id: sessionId,
+                user_answer: textToSend
+            }));
+        };
+
+        ws.onmessage = (event) => {
             try {
-                const response = await studyAPI.sendChat({
-                    session_id: sessionId,
-                    concept: selectedMission,
-                    user_answer: textToSend
-                });
-                const data = response.data;
+                const data = JSON.parse(event.data);
 
-                // Handle Fallback Response
-                if (data.is_fallback) {
-                    setFallbackToast(true);
-                    setTimeout(() => setFallbackToast(false), 5000);
-                }
-
-                if (data.expert_feedback) {
-                    setExpertFeedbackData(data.expert_feedback);
+                if (data.type === "status") {
+                    // 에이전트들의 상태 업데이트
+                    setThinkingText(data.message);
+                } 
+                else if (data.type === "stream") {
+                    // 실시간 메시지 스트리밍
+                    accumulatedString += data.chunk;
                     
-                    // 전문가별 점수 매핑 및 업데이트
-                    const newScores = { ...userScores };
-                    data.expert_feedback.forEach(f => {
-                        if (f.persona === 'The Academic Auditor') newScores.Academic = Math.round(f.score * 100);
-                        if (f.persona === 'The Market Practitioner') newScores.Market = Math.round(f.score * 100);
-                        if (f.persona === 'The Macro-Connector') newScores.Macro = Math.round(f.score * 100);
-                    });
-                    setUserScores(newScores);
-                }
-                
-                const decision = data?.moderator_decision;
-                let moderatorText = decision?.message || "피드백이 수신되었습니다.";
-                
-                const plan = decision?.scaffold_plan || decision?.scaffolding_plan;
-                if (plan && plan.message) {
-                    moderatorText = plan.message;
-                }
-
-                if (decision?.status === "scaffold") {
-                    if (plan?.step === "Concept Dictionary Link" || String(plan?.step) === "1") {
-                        setHelpCountLevel1(prev => prev + 1);
-                    } else {
-                        setHelpCountLevel2(prev => prev + 1);
+                    // 백엔드 가이드의 정규식을 사용하여 텍스트 추출
+                    const match = accumulatedString.match(/"message"\s*:\s*"([^"]*)/);
+                    if (match && match[1]) {
+                        // 유니코드 이스케이프 및 개행 문자 처리
+                        const typingText = match[1]
+                            .replace(/\\n/g, '\n')
+                            .replace(/\\"/g, '"')
+                            .replace(/\\u([0-9a-fA-F]{4})/g, (match, grp) => String.fromCharCode(parseInt(grp, 16)));
+                        
+                        if (!hasAddedModeratorMessage) {
+                            setMessages(prev => [...prev, { id: moderatorMessageId, sender: 'moderator', text: typingText }]);
+                            hasAddedModeratorMessage = true;
+                        } else {
+                            setMessages(prev => prev.map(m => m.id === moderatorMessageId ? { ...m, text: typingText } : m));
+                        }
                     }
-                }
-                
-                setMessages(prev => [...prev, { id: Date.now() + 1, sender: 'moderator', text: moderatorText }]);
-                success = true;
-            } catch (error) {
-                currentAttempt++;
-                console.error(`Chat communication error (attempt ${currentAttempt}):`, error);
-                
-                // 4xx 에러(예: 422 Validation Error)인 경우 즉시 에러 모달을 띄우고 루프 중단
-                if (error.response && error.response.status >= 400 && error.response.status < 500 && error.response.status !== 408) {
+                } 
+                else if (data.type === "final_result") {
+                    // 최종 결과 처리 (기존 Axios 응답과 동일한 구조)
+                    const finalData = data.data;
+
+                    if (finalData.expert_feedback) {
+                        setExpertFeedbackData(finalData.expert_feedback);
+                        
+                        const newScores = { ...userScores };
+                        finalData.expert_feedback.forEach(f => {
+                            if (f.persona === 'The Academic Auditor') newScores.Academic = Math.round(f.score * 100);
+                            if (f.persona === 'The Market Practitioner') newScores.Market = Math.round(f.score * 100);
+                            if (f.persona === 'The Macro-Connector') newScores.Macro = Math.round(f.score * 100);
+                        });
+                        setUserScores(newScores);
+                    }
+                    
+                    const decision = finalData?.moderator_decision;
+                    let moderatorText = decision?.message || "";
+                    const plan = decision?.scaffold_plan || decision?.scaffolding_plan;
+                    
+                    if (plan && plan.message) {
+                        moderatorText = plan.message;
+                    }
+
+                    if (decision?.status === "scaffold") {
+                        const step = plan?.step;
+                        if (step === "Concept Dictionary Link" || String(step) === "1") {
+                            setHelpCountLevel1(prev => prev + 1);
+                        } else {
+                            setHelpCountLevel2(prev => prev + 1);
+                        }
+
+                        // Scaffolding UI 상태 업데이트
+                        if (step === "Sub-concept Nudge" || step === "Fill-in-the-Blank") {
+                            setCurrentScaffold({
+                                type: step,
+                                message: plan.message
+                            });
+                        }
+                    } else {
+                        setCurrentScaffold(null);
+                    }
+
+                    // 최종 텍스트로 업데이트
+                    if (moderatorText) {
+                        setMessages(prev => {
+                            const exists = prev.find(m => m.id === moderatorMessageId);
+                            const msgWithScaffold = { 
+                                id: moderatorMessageId, 
+                                sender: 'moderator', 
+                                text: moderatorText,
+                                scaffold: decision?.status === "scaffold" ? plan : null 
+                            };
+                            if (exists) {
+                                return prev.map(m => m.id === moderatorMessageId ? msgWithScaffold : m);
+                            } else {
+                                return [...prev, msgWithScaffold];
+                            }
+                        });
+                    }
+
+                    // Handle Fallback Response
+                    if (finalData.is_fallback) {
+                        setFallbackToast(true);
+                        setTimeout(() => setFallbackToast(false), 5000);
+                    }
+
+                    setIsThinking(false);
+                    ws.close();
+                } 
+                else if (data.type === "error") {
+                    console.error("Server Error via WebSocket:", data.message);
                     setFailedUserMessage(textToSend);
                     setIsErrorModalOpen(true);
-                    break;
+                    setIsThinking(false);
+                    ws.close();
                 }
-                
-                if (currentAttempt < MAX_RETRIES) {
-                    // 5xx 등 서버/네트워크 에러 시 잠깐 대기 후 재시도
-                    await new Promise(resolve => setTimeout(resolve, 3000));
-                } else {
-                    // 최대 재시도 횟수 초과 시 에러 모달 노출 및 UI 락 해제
-                    setFailedUserMessage(textToSend);
-                    setIsErrorModalOpen(true);
-                }
+            } catch (err) {
+                console.error("Error parsing WebSocket message:", err);
             }
-        }
-        
-        
-        clearInterval(thinkingInterval);
-        setIsThinking(false);
+        };
+
+        ws.onerror = (error) => {
+            console.error("WebSocket Connection Error:", error);
+            setFailedUserMessage(textToSend);
+            setIsErrorModalOpen(true);
+            setIsThinking(false);
+        };
+
+        ws.onclose = (event) => {
+            console.log("WebSocket connection closed:", event.code);
+            setIsThinking(false);
+        };
     };
 
     const handleKeyDown = (e) => { if (e.key === 'Enter') { e.preventDefault(); handleSendMessage(); } };
@@ -433,7 +482,15 @@ function App() {
                         <div className="chat-history">
                             {messages.map((msg) => (
                                 <div key={msg.id} className={`message ${msg.sender}`}>
-                                    <div className="message-bubble">{msg.text}</div>
+                                    <div className="message-bubble">
+                                        {msg.text}
+                                        {msg.scaffold?.step === "Sub-concept Nudge" && (
+                                            <div className="scaffold-hint-badge">
+                                                <Lightbulb size={14} />
+                                                <span>전문가 힌트가 포함되어 있습니다</span>
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
                             ))}
                             {isThinking && (
@@ -455,6 +512,7 @@ function App() {
                         <div className="chat-input-area">
                             {isResumePending ? (
                                 <div style={{ display: 'flex', gap: '20px', width: '100%', justifyContent: 'center', padding: '20px 0', animation: 'fadeInUp 0.5s ease-out' }}>
+                                    {/* ... 기존 버튼들 ... */}
                                     <button 
                                         onClick={() => handleResumeDecision('resume')}
                                         style={{ 
@@ -499,9 +557,26 @@ function App() {
                                     </button>
                                 </div>
                             ) : (
-                                <div className="input-wrapper">
-                                    <input type="text" value={inputValue} onChange={(e) => setInputValue(e.target.value)} onKeyDown={handleKeyDown} placeholder="답변을 입력하세요..." disabled={isResumePending} />
-                                    <button className="send-btn" onClick={handleSendMessage} disabled={isResumePending}><Send size={18} /></button>
+                                <div style={{ width: '100%' }}>
+                                    {currentScaffold && (
+                                        <div className={`scaffold-info-banner ${currentScaffold.type === 'Fill-in-the-Blank' ? 'fill-mode' : 'nudge-mode'}`}>
+                                            <div className="scaffold-info-content">
+                                                {currentScaffold.type === 'Fill-in-the-Blank' ? <Info size={16} /> : <Lightbulb size={16} />}
+                                                <span>{currentScaffold.type === 'Fill-in-the-Blank' ? '아래 문장의 빈칸을 채워주세요.' : '힌트를 참고하여 답변을 완성해 보세요.'}</span>
+                                            </div>
+                                        </div>
+                                    )}
+                                    <div className={`input-wrapper ${currentScaffold?.type === 'Fill-in-the-Blank' ? 'highlight-input' : ''}`}>
+                                        <input 
+                                            type="text" 
+                                            value={inputValue} 
+                                            onChange={(e) => setInputValue(e.target.value)} 
+                                            onKeyDown={handleKeyDown} 
+                                            placeholder={currentScaffold?.type === 'Fill-in-the-Blank' ? '빈칸에 들어갈 내용을 입력하세요...' : '답변을 입력하세요...'} 
+                                            disabled={isResumePending} 
+                                        />
+                                        <button className="send-btn" onClick={handleSendMessage} disabled={isResumePending}><Send size={18} /></button>
+                                    </div>
                                 </div>
                             )}
                         </div>

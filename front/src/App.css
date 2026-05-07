@@ -1338,3 +1338,61 @@
 .fallback-toast-alert span {
   font-size: 0.95rem;
 }
+
+/* Scaffolding UI Styles */
+.scaffold-hint-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+  padding: 6px 12px;
+  background-color: rgba(245, 158, 11, 0.1);
+  color: #d97706;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  border: 1px solid rgba(245, 158, 11, 0.2);
+}
+
+.scaffold-info-banner {
+  margin-bottom: 12px;
+  padding: 10px 20px;
+  border-radius: 14px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  animation: fadeInDown 0.3s ease-out;
+}
+
+.scaffold-info-banner.fill-mode {
+  background-color: rgba(59, 130, 246, 0.1);
+  color: #2563eb;
+  border: 1px solid rgba(59, 130, 246, 0.2);
+}
+
+.scaffold-info-banner.nudge-mode {
+  background-color: rgba(245, 158, 11, 0.1);
+  color: #d97706;
+  border: 1px solid rgba(245, 158, 11, 0.2);
+}
+
+.scaffold-info-content {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.input-wrapper.highlight-input {
+  border-color: #3b82f6;
+  box-shadow: 0 0 15px rgba(59, 130, 246, 0.15);
+}
+
+@keyframes fadeInDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
