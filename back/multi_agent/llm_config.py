@@ -29,7 +29,7 @@ if LLM_BACKEND_TYPE.lower() == "vllm":
         api_key=VLLM_API_KEY or "empty",
         temperature=0.0,
         max_tokens=2048,
-        timeout=300,
+        timeout=600,
         default_headers={"ngrok-skip-browser-warning": "true"}
     ).with_config({"tags": ["draft_llm"]})
     
@@ -39,7 +39,7 @@ if LLM_BACKEND_TYPE.lower() == "vllm":
         api_key=VLLM_API_KEY or "empty",
         temperature=0.0,
         max_tokens=2048,
-        timeout=300,
+        timeout=600,
         default_headers={"ngrok-skip-browser-warning": "true"}
     ).with_config({"tags": ["debate_llm"]})
     
@@ -49,7 +49,7 @@ if LLM_BACKEND_TYPE.lower() == "vllm":
         api_key=VLLM_API_KEY or "empty",
         temperature=0.0,
         max_tokens=2048,
-        timeout=300,
+        timeout=600,
         default_headers={"ngrok-skip-browser-warning": "true"}
     ).with_config({"tags": ["synthesis_llm"]})
 else:
