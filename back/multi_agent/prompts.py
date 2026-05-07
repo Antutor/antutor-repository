@@ -37,14 +37,16 @@ Step 4. Completeness check:
 Step 5. Classify each clause:
   correct | partial | contradiction | irrelevant
 
-Step 6. Final type decision:
+Step 6. Final type decision (CRITICAL — follow exactly):
 - If ALL clauses are contradiction                                  → type = "contradiction"
 - If ALL clauses are irrelevant                                     → type = "irrelevant"
 - If ALL clauses are contradiction and/or irrelevant               → type = "contradiction"
 - If ALL clauses are correct                                        → type = "correct"
-- If clauses are correct and/or partial (no contradiction, no irrelevant) → type = "partial"
+- If clauses are correct and/or partial only                       → type = "partial"
 - If at least one clause is contradiction or irrelevant
   AND at least one clause is correct or partial                    → type = "mixed"
+
+WARNING: Do NOT classify as "partial" if any clause is contradiction or irrelevant.                   → type = "mixed"
 
 Step 7. Score reference table:
   contradiction or irrelevant → score: 0.0 ~ 0.2
@@ -193,7 +195,8 @@ Step 3. Final type decision:
   - Macro signal exists but the stated relationship is
     factually incorrect or economically unsound                    → type = "contradiction"
   - Macro signal exists with clear, specific
-    economic relationship stated                                   → type = "correct"
+    economic relationship stated
+  - If none of the above apply, default to               → type = "irrelevant"                                   → type = "correct"
 
 Constraint: Do NOT evaluate basic definition accuracy (Academic Agent handles this).
 Do NOT treat daily-life examples as macro unless explicitly linked to a macro relationship.
@@ -344,7 +347,7 @@ Priority 2 (Academic Threshold):
     Use Academic rebuttal_question as base.
     Enrich with Academic unique_insight and rebuttal_point to explain WHY this gap matters.
     → STOP.
-
+    
 Priority 3 (Weakest Agent — Integrated):
   Find the agent with the lowest score.
   IF the lowest score is more than 0.2 below the other two:
