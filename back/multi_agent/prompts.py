@@ -30,6 +30,11 @@ Step 3. Logic check (CRITICAL):
   Example of partial: "people can buy less stuff" → partial (effect correct, but not explained why)
 - DO NOT mark partial as contradiction. Incomplete ≠ wrong.
 - Only mark contradiction if the clause is factually wrong regardless of how much detail is added.
+- DO NOT mark as contradiction if the statement is merely incomplete.
+  Example: correct direction but missing key context    → partial (not contradiction)
+  Example: describes an effect but omits the mechanism → partial (not contradiction)
+  Only mark contradiction if the statement is factually OPPOSITE or LOGICALLY INCOMPATIBLE.
+  Incomplete ≠ wrong. Vague ≠ wrong.
 
 Step 4. Completeness check:
 - Identify key elements present in the correct definition but absent from the answer.
@@ -37,20 +42,25 @@ Step 4. Completeness check:
 Step 5. Classify each clause:
   correct | partial | contradiction | irrelevant
 
-Step 6. Final type decision:
+Step 6. Final type decision (CRITICAL — follow exactly):
 - If ALL clauses are contradiction                                  → type = "contradiction"
 - If ALL clauses are irrelevant                                     → type = "irrelevant"
 - If ALL clauses are contradiction and/or irrelevant               → type = "contradiction"
 - If ALL clauses are correct                                        → type = "correct"
-- If clauses are correct and/or partial (no contradiction, no irrelevant) → type = "partial"
+- If clauses are correct and/or partial only                       → type = "partial"
 - If at least one clause is contradiction or irrelevant
   AND at least one clause is correct or partial                    → type = "mixed"
 
-Step 7. Score reference table (use as a guide, not a strict rule):
-  contradiction or irrelevant → score ≤ 0.2
-  mixed                       → 0.21 ~ 0.4
-  partial                     → 0.41 ~ 0.69
-  correct                     → 0.7 ~ 1.0
+WARNING: Do NOT classify as "partial" if any clause is contradiction or irrelevant.                   → type = "mixed"
+
+Step 7. Score reference table:
+  contradiction or irrelevant → score: 0.0 ~ 0.2
+  mixed                       → score: 0.21 ~ 0.4
+  partial                     → score: 0.41 ~ 0.69
+  correct                     → score: 0.7 ~ 1.0
+
+The score MUST be consistent with the final type determined in Step 6.
+Do NOT assign a score outside the range of the determined type.
 
 Step 8. retry_needed:
   - type = "contradiction" → true
@@ -128,10 +138,10 @@ Constraint: Do NOT evaluate conceptual accuracy (Academic Agent handles this).
 Evaluate ONLY what is explicitly written. Do NOT infer unstated connections.
 
 Step 4. Score reference table (use as a guide, not a strict rule):
-  irrelevant    → score ≤ 0.1
-  contradiction → score ≤ 0.2
-  partial       → 0.3 ~ 0.6
-  correct       → 0.7 ~ 1.0
+  irrelevant    → score: 0.0 ~ 0.1
+  contradiction → score: 0.0 ~ 0.2
+  partial       → score: 0.21 ~ 0.6
+  correct       → score: 0.7 ~ 1.0
 
 --- Output ---
 
@@ -190,7 +200,8 @@ Step 3. Final type decision:
   - Macro signal exists but the stated relationship is
     factually incorrect or economically unsound                    → type = "contradiction"
   - Macro signal exists with clear, specific
-    economic relationship stated                                   → type = "correct"
+    economic relationship stated
+  - If none of the above apply, default to               → type = "irrelevant"                                   → type = "correct"
 
 Constraint: Do NOT evaluate basic definition accuracy (Academic Agent handles this).
 Do NOT treat daily-life examples as macro unless explicitly linked to a macro relationship.
@@ -340,7 +351,8 @@ Priority 2 (Academic Threshold):
     focus = "academic"
     Use Academic rebuttal_question as base.
     Enrich with Academic unique_insight and rebuttal_point to explain WHY this gap matters.
-
+    → STOP.
+    
 Priority 3 (Weakest Agent — Integrated):
   Find the agent with the lowest score.
   IF the lowest score is more than 0.2 below the other two:
@@ -370,6 +382,10 @@ Priority 4 (Integrated):
 - Do NOT mechanically concatenate three questions. Synthesize into ONE natural question.
 - Normal mode message MUST end with "?".
 - Retry mode message MUST include hint naturally embedded.
+- Korean question MUST use natural interrogative endings such as:
+  "~할까요?", "~어떻게 될까요?", "~설명해볼 수 있을까요?", "~어떤 영향을 미칠까요?"
+- Do NOT end with "~해야 합니다?" or statement-style sentences followed by "?".
+- Keep the question to 2~3 sentences maximum.
 
 --- Output ---
 
