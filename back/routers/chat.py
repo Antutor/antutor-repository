@@ -124,6 +124,7 @@ async def start_session(concept: str, current_user: dict = Depends(get_current_u
         "last_ai_response": ""
     }
 
+
 @router.post("/resolve_resume")
 async def resolve_resume(request: ResumeDecisionRequest, current_user: dict = Depends(get_current_user)):
     """
