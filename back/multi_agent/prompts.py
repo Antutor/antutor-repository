@@ -30,6 +30,11 @@ Step 3. Logic check (CRITICAL):
   Example of partial: "people can buy less stuff" → partial (effect correct, but not explained why)
 - DO NOT mark partial as contradiction. Incomplete ≠ wrong.
 - Only mark contradiction if the clause is factually wrong regardless of how much detail is added.
+- DO NOT mark as contradiction if the statement is merely incomplete.
+  Example: correct direction but missing key context    → partial (not contradiction)
+  Example: describes an effect but omits the mechanism → partial (not contradiction)
+  Only mark contradiction if the statement is factually OPPOSITE or LOGICALLY INCOMPATIBLE.
+  Incomplete ≠ wrong. Vague ≠ wrong.
 
 Step 4. Completeness check:
 - Identify key elements present in the correct definition but absent from the answer.
@@ -37,14 +42,16 @@ Step 4. Completeness check:
 Step 5. Classify each clause:
   correct | partial | contradiction | irrelevant
 
-Step 6. Final type decision:
+Step 6. Final type decision (CRITICAL — follow exactly):
 - If ALL clauses are contradiction                                  → type = "contradiction"
 - If ALL clauses are irrelevant                                     → type = "irrelevant"
 - If ALL clauses are contradiction and/or irrelevant               → type = "contradiction"
 - If ALL clauses are correct                                        → type = "correct"
-- If clauses are correct and/or partial (no contradiction, no irrelevant) → type = "partial"
+- If clauses are correct and/or partial only                       → type = "partial"
 - If at least one clause is contradiction or irrelevant
   AND at least one clause is correct or partial                    → type = "mixed"
+
+WARNING: Do NOT classify as "partial" if any clause is contradiction or irrelevant.                   → type = "mixed"
 
 Step 7. Score reference table:
   contradiction or irrelevant → score: 0.0 ~ 0.2
@@ -193,7 +200,8 @@ Step 3. Final type decision:
   - Macro signal exists but the stated relationship is
     factually incorrect or economically unsound                    → type = "contradiction"
   - Macro signal exists with clear, specific
-    economic relationship stated                                   → type = "correct"
+    economic relationship stated
+  - If none of the above apply, default to               → type = "irrelevant"                                   → type = "correct"
 
 Constraint: Do NOT evaluate basic definition accuracy (Academic Agent handles this).
 Do NOT treat daily-life examples as macro unless explicitly linked to a macro relationship.
@@ -374,6 +382,10 @@ Priority 4 (Integrated):
 - Do NOT mechanically concatenate three questions. Synthesize into ONE natural question.
 - Normal mode message MUST end with "?".
 - Retry mode message MUST include hint naturally embedded.
+- Korean question MUST use natural interrogative endings such as:
+  "~할까요?", "~어떻게 될까요?", "~설명해볼 수 있을까요?", "~어떤 영향을 미칠까요?"
+- Do NOT end with "~해야 합니다?" or statement-style sentences followed by "?".
+- Keep the question to 2~3 sentences maximum.
 
 --- Output ---
 
