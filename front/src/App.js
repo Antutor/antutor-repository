@@ -388,7 +388,7 @@ function App() {
                             <div style={{ flex: 1 }}></div> {/* 스페이서로 공간 확보 */}
                             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '20px', borderTop: '1px solid var(--color-border)', backgroundColor: 'rgba(255,255,255,0.5)', marginBottom: '20px' }}>
                                 <img src="/images/antutor%20standup.png" alt="Studying Ant" className="bobbing-character" style={{ width: '120px', height: '120px', objectFit: 'contain' }} />
-                                <div style={{ marginTop: '8px', fontSize: '0.9rem', fontWeight: 'bold', color: 'var(--color-expert-academic)' }}>정말 잘하고 있어요!</div>
+                                <div style={{ marginTop: '8px', fontSize: '0.9rem', fontWeight: 'bold', color: '#000000' }}>정말 잘하고 있어요!</div>
                             </div>
                         </div>
                     )}
@@ -440,15 +440,47 @@ function App() {
                         </div>
                         <div className="chat-input-area">
                             {isResumePending ? (
-                                <div style={{ display: 'flex', gap: '10px', width: '100%', justifyContent: 'center' }}>
+                                <div style={{ display: 'flex', gap: '20px', width: '100%', justifyContent: 'center', padding: '20px 0', animation: 'fadeInUp 0.5s ease-out' }}>
                                     <button 
                                         onClick={() => handleResumeDecision('resume')}
-                                        style={{ padding: '10px 20px', backgroundColor: 'var(--color-primary)', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}>
+                                        style={{ 
+                                            padding: '16px 32px', 
+                                            backgroundColor: '#22c55e', 
+                                            color: 'white', 
+                                            border: 'none', 
+                                            borderRadius: '16px', 
+                                            cursor: 'pointer', 
+                                            fontWeight: '800',
+                                            fontSize: '1.1rem',
+                                            boxShadow: '0 10px 25px rgba(34, 197, 94, 0.3)',
+                                            transition: 'all 0.2s',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '10px'
+                                        }}
+                                        onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-3px)'; e.currentTarget.style.boxShadow = '0 15px 30px rgba(34, 197, 94, 0.4)'; e.currentTarget.style.backgroundColor = '#16a34a'; }}
+                                        onMouseLeave={(e) => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = '0 10px 25px rgba(34, 197, 94, 0.3)'; e.currentTarget.style.backgroundColor = '#22c55e'; }}
+                                    >
+                                        <Radar size={22} />
                                         이어서 학습하기
                                     </button>
                                     <button 
                                         onClick={() => handleResumeDecision('fresh')}
-                                        style={{ padding: '10px 20px', backgroundColor: 'var(--color-bg-light)', border: '1px solid var(--color-border)', color: 'var(--color-deep-navy)', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}>
+                                        style={{ 
+                                            padding: '16px 32px', 
+                                            backgroundColor: 'rgba(255, 255, 255, 0.9)', 
+                                            border: '1px solid var(--color-border)', 
+                                            color: 'var(--color-text-secondary)', 
+                                            borderRadius: '16px', 
+                                            cursor: 'pointer', 
+                                            fontWeight: '700',
+                                            fontSize: '1.1rem',
+                                            boxShadow: '0 4px 15px rgba(0, 0, 0, 0.05)',
+                                            transition: 'all 0.2s'
+                                        }}
+                                        onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'white'; e.currentTarget.style.transform = 'translateY(-3px)'; e.currentTarget.style.boxShadow = '0 8px 20px rgba(0,0,0,0.1)'; }}
+                                        onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.9)'; e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = '0 4px 15px rgba(0,0,0,0.05)'; }}
+                                    >
                                         처음부터 다시하기
                                     </button>
                                 </div>
