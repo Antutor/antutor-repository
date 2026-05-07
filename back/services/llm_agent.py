@@ -7,7 +7,7 @@ from fastapi import HTTPException
 
 from config import (
     LOCAL_LLM_ENDPOINT, LOCAL_LLM_MODEL,
-    NEWS_API_KEY
+    NEWS_API_KEY, LLM_BACKEND_TYPE, VLLM_API_KEY
 )
 from services.knowledge_graph import retrieve_knowledge_graph  # noqa: F401 — re-exported
 from multi_agent.prompts import (
@@ -17,40 +17,57 @@ from multi_agent.prompts import (
 )
 
 async def call_local_llm(prompt: str, is_json: bool = False, model: Optional[str] = None, temperature: Optional[float] = None) -> str:
-    """Helper to call local LLM API (e.g., Ollama)"""
+    """Helper to call local LLM API (Ollama or vLLM)"""
     model_name = model or LOCAL_LLM_MODEL
     
-    payload = {
-        "model": model_name,
-        "messages": [
-            {"role": "user", "content": prompt}
-        ],
-        "options": {
-            "temperature": temperature if temperature is not None else 0.0
-        },
-        "stream": False
-    }
+    headers = {"ngrok-skip-browser-warning": "true"}
     
-    if is_json:
-        payload["format"] = "json"
-        
+    if LLM_BACKEND_TYPE.lower() == "vllm":
+        # vLLM (OpenAI Format)
+        endpoint = LOCAL_LLM_ENDPOINT if LOCAL_LLM_ENDPOINT.endswith("/v1") else LOCAL_LLM_ENDPOINT + "/v1"
+        endpoint += "/chat/completions"
+        if VLLM_API_KEY:
+            headers["Authorization"] = f"Bearer {VLLM_API_KEY}"
+            
+        payload = {
+            "model": model_name,
+            "messages": [{"role": "user", "content": prompt}],
+            "temperature": temperature if temperature is not None else 0.0,
+            "max_tokens": 2048
+        }
+        if is_json:
+            payload["response_format"] = {"type": "json_object"}
+    else:
+        # Ollama Format
+        endpoint = LOCAL_LLM_ENDPOINT
+        payload = {
+            "model": model_name,
+            "messages": [{"role": "user", "content": prompt}],
+            "options": {
+                "temperature": temperature if temperature is not None else 0.0
+            },
+            "stream": False
+        }
+        if is_json:
+            payload["format"] = "json"
+            
     try:
         async with httpx.AsyncClient() as client:
-            response = await client.post(LOCAL_LLM_ENDPOINT, json=payload, timeout=120.0)
+            response = await client.post(endpoint, json=payload, headers=headers, timeout=300.0)
             response.raise_for_status()
             data = response.json()
             
-            if "message" in data:
-                return data["message"]["content"]
-            elif "choices" in data:
+            if "choices" in data: # OpenAI / vLLM
                 return data["choices"][0]["message"]["content"]
+            elif "message" in data: # Ollama
+                return data["message"]["content"]
             return str(data)
     except Exception as e:
-        print(f"Local LLM Call Error: {str(e)}")
+        print(f"LLM Call Error ({LLM_BACKEND_TYPE}): {str(e)}")
         if is_json:
             return '{"is_contradiction": false, "score": 0.5, "feedback": "API error."}'
     
-    return "Local LLM Error."
+    return "LLM Error."
 
 async def evaluate_academic_auditor(concept: str, user_answer: str, ground_truth: str, custom_prompt: Optional[str] = None, model: Optional[str] = None, temperature: Optional[float] = None) -> dict:
     template = custom_prompt or NEW_ACADEMIC_DRAFT_PROMPT

@@ -12,6 +12,8 @@ from config import (
     LOCAL_LLM_ENDPOINT, 
     DRAFT_LLM_MODEL, 
     DEBATE_LLM_MODEL,
+    DRAFT_LLM_ENDPOINT,
+    DEBATE_LLM_ENDPOINT,
     LLM_BACKEND_TYPE,
     VLLM_API_KEY
 )
@@ -19,30 +21,37 @@ from config import (
 if LLM_BACKEND_TYPE.lower() == "vllm":
     # 1. vLLM 기반 OpenAI 호환 API (RunPod 등)
     # vLLM endpoint usually ends with /v1
-    base_url = LOCAL_LLM_ENDPOINT if LOCAL_LLM_ENDPOINT.endswith("/v1") else LOCAL_LLM_ENDPOINT + "/v1"
+    draft_base_url = DRAFT_LLM_ENDPOINT if DRAFT_LLM_ENDPOINT.endswith("/v1") else DRAFT_LLM_ENDPOINT + "/v1"
+    debate_base_url = DEBATE_LLM_ENDPOINT if DEBATE_LLM_ENDPOINT.endswith("/v1") else DEBATE_LLM_ENDPOINT + "/v1"
     
     draft_llm = ChatOpenAI(
         model=DRAFT_LLM_MODEL,
-        base_url=base_url,
-        api_key=VLLM_API_KEY or "empty", # vLLM often accepts any string if no auth is set
+        base_url=draft_base_url,
+        api_key=VLLM_API_KEY or "empty",
         temperature=0.0,
         max_tokens=2048,
+        timeout=300,
+        default_headers={"ngrok-skip-browser-warning": "true"}
     ).with_config({"tags": ["draft_llm"]})
     
     debate_llm = ChatOpenAI(
         model=DEBATE_LLM_MODEL,
-        base_url=base_url,
+        base_url=debate_base_url,
         api_key=VLLM_API_KEY or "empty",
         temperature=0.0,
         max_tokens=2048,
+        timeout=300,
+        default_headers={"ngrok-skip-browser-warning": "true"}
     ).with_config({"tags": ["debate_llm"]})
     
     synthesis_llm = ChatOpenAI(
         model=DEBATE_LLM_MODEL,
-        base_url=base_url,
+        base_url=debate_base_url,
         api_key=VLLM_API_KEY or "empty",
         temperature=0.0,
         max_tokens=2048,
+        timeout=300,
+        default_headers={"ngrok-skip-browser-warning": "true"}
     ).with_config({"tags": ["synthesis_llm"]})
 else:
     # 2. 로컬 Ollama 구동 (기존)

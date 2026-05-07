@@ -31,6 +31,35 @@ async def translate_en_to_ko(text: str) -> str:
             print(f"DeepL Translation Error (EN->KO): {e}")
             return text  # 에러 발생 시 원문(영어)을 그대로 반환하여 시스템 다운 방지
 
+async def translate_list_en_to_ko(texts: list[str]) -> list[str]:
+    """
+    Translates a list of English strings to Korean in a single DeepL API call.
+    """
+    if not ENABLE_KOREAN_TRANSLATION or not texts or not DEEPL_API_KEY:
+        return texts
+
+    # Filter out empty strings to avoid API errors, but keep indices correct
+    # Actually DeepL handles multiple texts in one go
+    url = "https://api-free.deepl.com/v2/translate"
+    headers = {
+        "Authorization": f"DeepL-Auth-Key {DEEPL_API_KEY}",
+        "Content-Type": "application/json"
+    }
+    payload = {
+        "text": texts,
+        "target_lang": "KO"
+    }
+
+    async with httpx.AsyncClient() as client:
+        try:
+            response = await client.post(url, headers=headers, json=payload, timeout=15.0)
+            response.raise_for_status()
+            data = response.json()
+            return [t["text"] for t in data["translations"]]
+        except Exception as e:
+            print(f"DeepL Batch Translation Error: {e}")
+            return texts
+
 async def translate_ko_to_en(text: str) -> str:
     """
     Translates Korean text to English using the DeepL Free API.

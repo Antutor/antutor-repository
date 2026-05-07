@@ -34,19 +34,14 @@ const ConceptDictionary = ({ isOpen, onClose, initialSearchTerm, cameFromScaffol
               setLoading(true);
               try {
                   const listRes = await dictionaryAPI.getList();
-                  const detailedConcepts = await Promise.all(
-                      listRes.data.map(async (term) => {
-                          const detailRes = await dictionaryAPI.getDetail(term);
-                          return {
-                              id: detailRes.data.term,
-                              title: detailRes.data.term,
-                              definition: detailRes.data.simple_definition,
-                              details: detailRes.data.example,
-                              expert: 'academic',
-                              hint: detailRes.data.simple_definition
-                          };
-                      })
-                  );
+                  const detailedConcepts = listRes.data.map((item) => ({
+                      id: item.term,
+                      title: item.term,
+                      definition: item.simple_definition,
+                      details: item.example || "",
+                      expert: 'academic',
+                      hint: item.simple_definition
+                  }));
                   setConcepts(detailedConcepts);
               } catch (error) {
                   console.error("Failed to load dictionary:", error);
