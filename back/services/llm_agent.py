@@ -159,5 +159,4 @@ Write a short, encouraging message in English (1-3 sentences) directly replying 
 2. End with a follow-up question to help them think about that missing aspect.
 Do NOT give them the direct answer.
 """
-    prompt = "/no_think\n" + prompt
     return await call_local_llm(prompt, is_json=False, model=model, temperature=temperature)
