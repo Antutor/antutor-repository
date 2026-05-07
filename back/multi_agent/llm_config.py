@@ -5,8 +5,6 @@ import asyncio
 # 상위 폴더(back) 경로를 sys.path에 추가하여 config.py를 불러올 수 있게 함
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from langchain_ollama import ChatOllama
-from langchain_openai import ChatOpenAI
 from config import (
     LOCAL_LLM_MODEL, 
     LOCAL_LLM_ENDPOINT, 
@@ -19,6 +17,7 @@ from config import (
 )
 
 if LLM_BACKEND_TYPE.lower() == "vllm":
+    from langchain_openai import ChatOpenAI
     # 1. vLLM 기반 OpenAI 호환 API (RunPod 등)
     # vLLM endpoint usually ends with /v1
     draft_base_url = DRAFT_LLM_ENDPOINT if DRAFT_LLM_ENDPOINT.endswith("/v1") else DRAFT_LLM_ENDPOINT + "/v1"
@@ -54,6 +53,7 @@ if LLM_BACKEND_TYPE.lower() == "vllm":
         default_headers={"ngrok-skip-browser-warning": "true"}
     ).with_config({"tags": ["synthesis_llm"]})
 else:
+    from langchain_ollama import ChatOllama
     # 2. 로컬 Ollama 구동 (기존)
     # 포트 제외한 base_url 추출 (ex: http://localhost:11434)
     base_url = LOCAL_LLM_ENDPOINT.split("/api")[0]

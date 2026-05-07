@@ -11,31 +11,31 @@ import RadarScoreChart from './components/RadarChart';
 import { studyAPI } from './api/services';
 const missionConcepts = [
     {
-        id: 'Inflation',
+        id: '인플레이션',
         title: '인플레이션',
         icon: Tag,
         initMsg: "환영합니다! 인플레이션에 대해 이야기해 봅시다. 물가 상승이 소비자의 구매력에 어떤 영향을 미치는지 설명할 수 있나요?"
     },
     {
-        id: 'Base Interest Rate',
+        id: '기준 금리',
         title: '기준금리',
         icon: Landmark,
         initMsg: "환영합니다! 중앙은행이 방금 기준금리를 인상했습니다. 이것이 기업 투자와 주식 시장에 어떤 영향을 미친다고 생각하시나요?"
     },
     {
-        id: 'Exchange Rate',
+        id: '환율',
         title: '환율',
         icon: Globe,
         initMsg: "미국 금리가 오를 때 우리나라 환율은 왜 변할까요? 그 상관관계를 설명할 수 있나요?"
     },
     {
-        id: 'Opportunity Cost',
+        id: '대안비용',
         title: '기회비용',
         icon: Scale,
         initMsg: "모든 선택에는 대가가 따릅니다. 실생활의 예를 들어 기회비용의 개념을 설명해 볼까요?"
     },
     {
-        id: 'Compound Interest',
+        id: '복리',
         title: '복리',
         icon: TrendingUp,
         initMsg: "알버트 아인슈타인은 복리를 세계 8대 불가사의라고 불렀다고 합니다. 단리에 비해 장기 투자에서 복리가 그토록 강력한 이유는 무엇일까요?"
@@ -101,6 +101,8 @@ function App() {
     const [expertFeedbackData, setExpertFeedbackData] = useState([]);
     const [inputValue, setInputValue] = useState('');
     const [isThinking, setIsThinking] = useState(false);
+    const [thinkingText, setThinkingText] = useState("질문을 분석 중입니다...");
+    const [fallbackToast, setFallbackToast] = useState(false);
 
     const [consecutiveFailures, setConsecutiveFailures] = useState(0);
     const [highlightedSubNode, setHighlightedSubNode] = useState(null);
@@ -157,6 +159,21 @@ function App() {
         setIsThinking(true);
         setNewFeedback({ academic: true, market: true, macro: true });
 
+        // Rolling thinking text logic
+        const thinkingMessages = [
+            "질문을 분석 중입니다...",
+            "학술 교정관이 개념을 대조하고 있습니다...",
+            "시장 전문가가 최신 뉴스를 훑어보는 중...",
+            "매크로 분석가가 글로벌 지표를 연관 짓는 중...",
+            "모더레이터가 최종 피드백을 요약하고 있습니다..."
+        ];
+        let msgIndex = 0;
+        setThinkingText(thinkingMessages[0]);
+        const thinkingInterval = setInterval(() => {
+            msgIndex = (msgIndex + 1) % thinkingMessages.length;
+            setThinkingText(thinkingMessages[msgIndex]);
+        }, 3500);
+
         let success = false;
         let currentAttempt = 0;
         const MAX_RETRIES = 2; // 무한 재시도 시 UI가 먹통이 되므로 최대 2회로 제한
@@ -169,6 +186,13 @@ function App() {
                     user_answer: textToSend
                 });
                 const data = response.data;
+
+                // Handle Fallback Response
+                if (data.is_fallback) {
+                    setFallbackToast(true);
+                    setTimeout(() => setFallbackToast(false), 5000);
+                }
+
                 if (data.expert_feedback) {
                     setExpertFeedbackData(data.expert_feedback);
                     
@@ -222,6 +246,8 @@ function App() {
             }
         }
         
+        
+        clearInterval(thinkingInterval);
         setIsThinking(false);
     };
 
@@ -362,7 +388,7 @@ function App() {
                             <div style={{ flex: 1 }}></div> {/* 스페이서로 공간 확보 */}
                             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '20px', borderTop: '1px solid var(--color-border)', backgroundColor: 'rgba(255,255,255,0.5)', marginBottom: '20px' }}>
                                 <img src="/images/antutor%20standup.png" alt="Studying Ant" className="bobbing-character" style={{ width: '120px', height: '120px', objectFit: 'contain' }} />
-                                <div style={{ marginTop: '8px', fontSize: '0.9rem', fontWeight: 'bold', color: 'var(--color-expert-academic)' }}>정말 잘하고 있어요!</div>
+                                <div style={{ marginTop: '8px', fontSize: '0.9rem', fontWeight: 'bold', color: '#000000' }}>정말 잘하고 있어요!</div>
                             </div>
                         </div>
                     )}
@@ -398,10 +424,15 @@ function App() {
                             ))}
                             {isThinking && (
                                 <div className="message moderator">
-                                    <div className="message-bubble thinking-bubble">
-                                        <div className="dot"></div>
-                                        <div className="dot"></div>
-                                        <div className="dot"></div>
+                                    <div className="message-bubble thinking-bubble" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '8px' }}>
+                                        <div style={{ display: 'flex', gap: '5px' }}>
+                                            <div className="dot"></div>
+                                            <div className="dot"></div>
+                                            <div className="dot"></div>
+                                        </div>
+                                        <div className="thinking-text" style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)', fontWeight: 500, animation: 'fadeIn 0.5s ease-in-out' }}>
+                                            {thinkingText}
+                                        </div>
                                     </div>
                                 </div>
                             )}
@@ -409,15 +440,47 @@ function App() {
                         </div>
                         <div className="chat-input-area">
                             {isResumePending ? (
-                                <div style={{ display: 'flex', gap: '10px', width: '100%', justifyContent: 'center' }}>
+                                <div style={{ display: 'flex', gap: '20px', width: '100%', justifyContent: 'center', padding: '20px 0', animation: 'fadeInUp 0.5s ease-out' }}>
                                     <button 
                                         onClick={() => handleResumeDecision('resume')}
-                                        style={{ padding: '10px 20px', backgroundColor: 'var(--color-primary)', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}>
+                                        style={{ 
+                                            padding: '16px 32px', 
+                                            backgroundColor: '#22c55e', 
+                                            color: 'white', 
+                                            border: 'none', 
+                                            borderRadius: '16px', 
+                                            cursor: 'pointer', 
+                                            fontWeight: '800',
+                                            fontSize: '1.1rem',
+                                            boxShadow: '0 10px 25px rgba(34, 197, 94, 0.3)',
+                                            transition: 'all 0.2s',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '10px'
+                                        }}
+                                        onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-3px)'; e.currentTarget.style.boxShadow = '0 15px 30px rgba(34, 197, 94, 0.4)'; e.currentTarget.style.backgroundColor = '#16a34a'; }}
+                                        onMouseLeave={(e) => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = '0 10px 25px rgba(34, 197, 94, 0.3)'; e.currentTarget.style.backgroundColor = '#22c55e'; }}
+                                    >
+                                        <Radar size={22} />
                                         이어서 학습하기
                                     </button>
                                     <button 
                                         onClick={() => handleResumeDecision('fresh')}
-                                        style={{ padding: '10px 20px', backgroundColor: 'var(--color-bg-light)', border: '1px solid var(--color-border)', color: 'var(--color-deep-navy)', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}>
+                                        style={{ 
+                                            padding: '16px 32px', 
+                                            backgroundColor: 'rgba(255, 255, 255, 0.9)', 
+                                            border: '1px solid var(--color-border)', 
+                                            color: 'var(--color-text-secondary)', 
+                                            borderRadius: '16px', 
+                                            cursor: 'pointer', 
+                                            fontWeight: '700',
+                                            fontSize: '1.1rem',
+                                            boxShadow: '0 4px 15px rgba(0, 0, 0, 0.05)',
+                                            transition: 'all 0.2s'
+                                        }}
+                                        onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'white'; e.currentTarget.style.transform = 'translateY(-3px)'; e.currentTarget.style.boxShadow = '0 8px 20px rgba(0,0,0,0.1)'; }}
+                                        onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.9)'; e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = '0 4px 15px rgba(0,0,0,0.05)'; }}
+                                    >
                                         처음부터 다시하기
                                     </button>
                                 </div>
@@ -586,6 +649,13 @@ function App() {
                             </button>
                         </div>
                     </div>
+                </div>
+            )}
+
+            {fallbackToast && (
+                <div className="fallback-toast-alert">
+                    <AlertCircle size={18} />
+                    <span>서버 혼잡으로 인해 임시 요약된 피드백을 제공합니다.</span>
                 </div>
             )}
         </div>
