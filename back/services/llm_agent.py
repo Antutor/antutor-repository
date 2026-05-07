@@ -71,7 +71,7 @@ async def call_local_llm(prompt: str, is_json: bool = False, model: Optional[str
 
 async def evaluate_academic_auditor(concept: str, user_answer: str, ground_truth: str, custom_prompt: Optional[str] = None, model: Optional[str] = None, temperature: Optional[float] = None) -> dict:
     template = custom_prompt or NEW_ACADEMIC_DRAFT_PROMPT
-    prompt = template.format(
+    prompt = "/no_think\n" + template.format(
         concept=concept, ground_truth=ground_truth, user_answer=user_answer
     )
     
@@ -118,7 +118,7 @@ async def call_expert_agent(persona: str, concept: str, user_answer: str, contex
         "The Macro-Connector": NEW_MACRO_DRAFT_PROMPT
     }
     template = custom_prompt or prompt_map.get(persona, NEW_ACADEMIC_DRAFT_PROMPT)
-    prompt = template.format(concept=concept, user_answer=user_answer, context=context)
+    prompt = "/no_think\n" + template.format(concept=concept, user_answer=user_answer, context=context)
     
     try:
         feedback = await call_local_llm(prompt, is_json=False, model=model, temperature=temperature)
@@ -159,4 +159,5 @@ Write a short, encouraging message in English (1-3 sentences) directly replying 
 2. End with a follow-up question to help them think about that missing aspect.
 Do NOT give them the direct answer.
 """
+    prompt = "/no_think\n" + prompt
     return await call_local_llm(prompt, is_json=False, model=model, temperature=temperature)

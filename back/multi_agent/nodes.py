@@ -69,7 +69,7 @@ def with_retry_and_fallback(max_retries=3, fallback_value=None):
 @with_retry_and_fallback(max_retries=3, fallback_value=("The Academic Auditor", {"score": 0.5, "feedback": "System fallback due to timeout or error.", "is_contradiction": False, "is_fallback": True}))
 async def call_academic(concept, ground_truth, user_answer):
     async with gpu_semaphore:
-        sys_msg = NEW_ACADEMIC_DRAFT_PROMPT.format(concept=concept, ground_truth=ground_truth, user_answer=user_answer)
+        sys_msg = "/no_think\n" + NEW_ACADEMIC_DRAFT_PROMPT.format(concept=concept, ground_truth=ground_truth, user_answer=user_answer)
         res = await draft_llm.ainvoke([SystemMessage(content=sys_msg)])
         data = extract_json(res.content)
         return "The Academic Auditor", data
@@ -77,7 +77,7 @@ async def call_academic(concept, ground_truth, user_answer):
 @with_retry_and_fallback(max_retries=3, fallback_value=("The Market Practitioner", {"score": 0.5, "feedback": "System fallback due to timeout or error.", "is_contradiction": False, "is_fallback": True}))
 async def call_market(concept, news_context, user_answer):
     async with gpu_semaphore:
-        sys_msg = NEW_MARKET_DRAFT_PROMPT.format(concept=concept, news_context=news_context, user_answer=user_answer)
+        sys_msg = "/no_think\n" + NEW_MARKET_DRAFT_PROMPT.format(concept=concept, news_context=news_context, user_answer=user_answer)
         res = await draft_llm.ainvoke([SystemMessage(content=sys_msg)])
         data = extract_json(res.content)
         return "The Market Practitioner", data
@@ -85,7 +85,7 @@ async def call_market(concept, news_context, user_answer):
 @with_retry_and_fallback(max_retries=3, fallback_value=("The Macro-Connector", {"score": 0.5, "feedback": "System fallback due to timeout or error.", "is_contradiction": False, "is_fallback": True}))
 async def call_macro(concept, kg_context, user_answer):
     async with gpu_semaphore:
-        sys_msg = NEW_MACRO_DRAFT_PROMPT.format(concept=concept, kg_context=kg_context, user_answer=user_answer)
+        sys_msg = "/no_think\n" + NEW_MACRO_DRAFT_PROMPT.format(concept=concept, kg_context=kg_context, user_answer=user_answer)
         res = await draft_llm.ainvoke([SystemMessage(content=sys_msg)])
         data = extract_json(res.content)
         return "The Macro-Connector", data
