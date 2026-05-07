@@ -30,6 +30,11 @@ Step 3. Logic check (CRITICAL):
   Example of partial: "people can buy less stuff" → partial (effect correct, but not explained why)
 - DO NOT mark partial as contradiction. Incomplete ≠ wrong.
 - Only mark contradiction if the clause is factually wrong regardless of how much detail is added.
+- DO NOT mark as contradiction if the statement is merely incomplete.
+  Example: correct direction but missing key context    → partial (not contradiction)
+  Example: describes an effect but omits the mechanism → partial (not contradiction)
+  Only mark contradiction if the statement is factually OPPOSITE or LOGICALLY INCOMPATIBLE.
+  Incomplete ≠ wrong. Vague ≠ wrong.
 
 Step 4. Completeness check:
 - Identify key elements present in the correct definition but absent from the answer.
