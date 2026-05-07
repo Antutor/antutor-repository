@@ -259,21 +259,33 @@ function App() {
     };
 
     const handleMissionSelect = async (mission) => {
+        // Optimistic UI Update: Switch to chat screen immediately
+        setSelectedMission(mission.id);
+        setActiveNodeId('strategic');
+        setHoveredMission(null);
+        
+        // Hide initial question and show only loading state
+        setMessages([]); 
+        setIsThinking(true);
+        setThinkingText("학습 세션을 준비하고 있습니다...");
+
         try {
             const response = await studyAPI.startSession(mission.id);
-            setSessionId(response.data.session_id);
-            setIsResumePending(response.data.resume_available || false);
-            setSelectedMission(mission.id);
-            setActiveNodeId('strategic');
+            const data = response.data;
             
-            // Fix translation fallback: prioritize hardcoded Korean text
-            let startText = mission.initMsg || response.data.initial_question;
-            if (response.data.resume_available) {
-                startText = `${response.data.resume_prompt}\n\n(마지막 질문: ${response.data.last_ai_response})`;
+            setSessionId(data.session_id);
+            setIsResumePending(data.resume_available || false);
+            
+            // Populate messages only after the session is ready
+            if (data.resume_available) {
+                const resumeText = `${data.resume_prompt}\n\n(마지막 질문: ${data.last_ai_response})`;
+                setMessages([{ id: Date.now(), sender: 'moderator', text: resumeText }]);
+            } else {
+                // Use backend question or fallback to hardcoded initMsg
+                const finalStartText = mission.initMsg || data.initial_question;
+                setMessages([{ id: Date.now(), sender: 'moderator', text: finalStartText }]);
             }
             
-            setMessages([{ id: Date.now(), sender: 'moderator', text: startText }]);
-            setHoveredMission(null);
             setHelpCountLevel1(0);
             setHelpCountLevel2(0);
             setReportData(null);
@@ -281,7 +293,9 @@ function App() {
             setIsThinking(false);
         } catch (error) {
             console.error("Failed to start session:", error);
-            alert("세션 시작에 실패했습니다.");
+            alert("세션 시작에 실패했습니다. 다시 시도해주세요.");
+            setSelectedMission(null);
+            setIsThinking(false);
         }
     };
 
@@ -407,7 +421,7 @@ function App() {
                                     onMouseLeave={() => setHoveredMission(null)}
                                 >
                                     <div className="mission-card-icon">
-                                        <mission.icon size={38} color="#22c55e" />
+                                        <mission.icon size={38} color="#4ade80" />
                                     </div>
                                     <h3>{mission.title}</h3>
                                 </div>
@@ -542,7 +556,7 @@ function App() {
 
                 <div className={`profile-drawer ${showLeftSidebarProfile ? 'open' : ''}`}>
                     <div className="drawer-content">
-                        <div className="drawer-header" style={{ borderBottomColor: 'var(--color-soft-blue)', backgroundColor: 'transparent' }}>
+                        <div className="drawer-header" style={{ borderBottomColor: 'var(--color-expert-market)', backgroundColor: 'transparent' }}>
                             <div className="expert-title">
                                 <h3>내 프로필</h3>
                             </div>
