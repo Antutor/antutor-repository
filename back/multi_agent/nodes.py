@@ -148,7 +148,7 @@ async def call_rebuttal(persona, concept, user_answer, drafts):
         # 본인을 제외한 다른 에이전트들의 리뷰만 취합
         other_reviews = "\n".join([f"[{p}] \n{rev}\n" for p, rev in drafts.items() if p != persona])
         
-        sys_msg = AGENT_REBUTTAL_PROMPT.format(
+        sys_msg = "/no_think\n" + AGENT_REBUTTAL_PROMPT.format(
             persona=persona, 
             concept=concept, 
             user_answer=user_answer, 
@@ -245,7 +245,7 @@ async def synthesis_node(state: AgentState):
     
     session_context_str = f"consecutive_high_score_count: {state.get('consecutive_high_score_count', 0)}"
     
-    sys_msg = NEW_MODERATOR_AGENT_PROMPT.format(
+    sys_msg = "/no_think\n" + NEW_MODERATOR_AGENT_PROMPT.format(
         concept=concept,
         user_answer=user_answer,
         session_context=session_context_str,
