@@ -533,7 +533,7 @@ async def websocket_chat(websocket: WebSocket):
         
         await websocket.send_json({"type": "status", "message": "🤖 AI Agents are drafting & debating..."})
         
-        final_state = None
+        final_state = initial_state.copy()
         
         if is_give_up:
             current_idk_count = session["idk_count"] + 1
@@ -553,7 +553,6 @@ async def websocket_chat(websocket: WebSocket):
             except Exception:
                 guidance_message = recovery_text
                 
-            final_state = initial_state
             final_state["raw_scores"] = {"The Market Practitioner": 0.0, "The Macro-Connector": 0.0, "The Academic Auditor": 0.0}
             final_state["is_contradiction"] = False
             final_state["final_synthesis"] = guidance_message
@@ -579,8 +578,12 @@ async def websocket_chat(websocket: WebSocket):
                             await websocket.send_json({"type": "stream", "chunk": chunk.content})
                 
                 elif kind == "on_chain_end":
-                    if event["name"] == "LangGraph":
-                        final_state = event["data"]["output"]
+                    out = event["data"].get("output")
+                    if isinstance(out, dict):
+                        valid_keys = {"draft_reviews", "raw_scores", "is_contradiction", "critiques", "rebuttal_results", "final_synthesis", "debate_count", "moderator_action", "hint_provided"}
+                        updates = {k: v for k, v in out.items() if k in valid_keys}
+                        if updates:
+                            final_state.update(updates)
         
         await websocket.send_json({"type": "status", "message": "✅ Finalizing response..."})
         

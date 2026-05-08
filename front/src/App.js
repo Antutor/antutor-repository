@@ -13,32 +13,27 @@ const missionConcepts = [
     {
         id: '인플레이션',
         title: '인플레이션',
-        icon: Tag,
-        initMsg: "환영합니다! 인플레이션에 대해 이야기해 봅시다. 물가 상승이 소비자의 구매력에 어떤 영향을 미치는지 설명할 수 있나요?"
+        icon: Tag
     },
     {
         id: '기준 금리',
         title: '기준금리',
-        icon: Landmark,
-        initMsg: "환영합니다! 중앙은행이 방금 기준금리를 인상했습니다. 이것이 기업 투자와 주식 시장에 어떤 영향을 미친다고 생각하시나요?"
+        icon: Landmark
     },
     {
         id: '환율',
         title: '환율',
-        icon: Globe,
-        initMsg: "미국 금리가 오를 때 우리나라 환율은 왜 변할까요? 그 상관관계를 설명할 수 있나요?"
+        icon: Globe
     },
     {
         id: '대안비용',
         title: '기회비용',
-        icon: Scale,
-        initMsg: "모든 선택에는 대가가 따릅니다. 실생활의 예를 들어 기회비용의 개념을 설명해 볼까요?"
+        icon: Scale
     },
     {
         id: '복리',
         title: '복리',
-        icon: TrendingUp,
-        initMsg: "알버트 아인슈타인은 복리를 세계 8대 불가사의라고 불렀다고 합니다. 단리에 비해 장기 투자에서 복리가 그토록 강력한 이유는 무엇일까요?"
+        icon: TrendingUp
     }
 ];
 
@@ -112,9 +107,9 @@ function App() {
 
     // 2. 차트에 표시할 실제 점수 데이터 (여기에 저장하면 됩니다)
     const [userScores, setUserScores] = useState({
-        Academic: 80,
-        Market: 65,
-        Macro: 45,
+        Academic: 0,
+        Market: 0,
+        Macro: 0,
         Independence: 0 // 이 값은 차트 컴포넌트 내부 filter에 의해 자동으로 무시됩니다.
     });
     const [reportData, setReportData] = useState(null);
@@ -330,8 +325,8 @@ function App() {
                 const resumeText = `${data.resume_prompt}\n\n(마지막 질문: ${data.last_ai_response})`;
                 setMessages([{ id: Date.now(), sender: 'moderator', text: resumeText }]);
             } else {
-                // Use backend question or fallback to hardcoded initMsg
-                const finalStartText = mission.initMsg || data.initial_question;
+                // Use backend question
+                const finalStartText = data.initial_question || "첫 질문을 불러올 수 없습니다.";
                 setMessages([{ id: Date.now(), sender: 'moderator', text: finalStartText }]);
             }
             
@@ -359,13 +354,7 @@ function App() {
             
             // Add the real initial question/resumed question
             setTimeout(() => {
-                let finalQuestion = response.data.question;
-                if (decision === 'fresh') {
-                    const missionObj = missionConcepts.find(m => m.id.toLowerCase() === selectedMission.toLowerCase());
-                    if (missionObj && missionObj.initMsg) {
-                        finalQuestion = missionObj.initMsg;
-                    }
-                }
+                let finalQuestion = response.data.question || "첫 질문을 불러올 수 없습니다.";
                 setMessages(prev => [...prev, { id: Date.now() + 1, sender: 'moderator', text: finalQuestion }]);
                 setIsThinking(false);
             }, 500);
