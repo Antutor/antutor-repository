@@ -156,7 +156,7 @@ function App() {
 
         const token = localStorage.getItem('access_token');
         // 백엔드 주소에 맞춰 WebSocket URL 설정 (기존 baseURL 기반으로 유추)
-        const wsUrl = `ws://localhost:8000/ws/chat`;
+        const wsUrl = `ws://localhost:8080/ws/chat`;
         const ws = new WebSocket(wsUrl);
 
         let accumulatedString = "";
