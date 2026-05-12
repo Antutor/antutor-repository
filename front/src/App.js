@@ -8,6 +8,7 @@ import Login from './Login';
 import Register from './Register';
 // 1. 차트 컴포넌트 임포트
 import RadarScoreChart from './components/RadarChart';
+import LineScoreChart from './components/LineChart';
 import { studyAPI } from './api/services';
 const missionConcepts = [
     {
@@ -115,13 +116,14 @@ function App() {
     const [reportData, setReportData] = useState(null);
     const [isErrorModalOpen, setIsErrorModalOpen] = useState(false);
     const [failedUserMessage, setFailedUserMessage] = useState(null);
+    const [scoreHistory, setScoreHistory] = useState([]);
 
     const messagesEndRef = useRef(null);
 
     const experts = [
-        { id: 'academic', name: '학술 전문가', icon: BookOpen, color: 'var(--color-expert-academic)', role: '기본 이론과 학문적 엄밀성에 중점을 둡니다.' },
-        { id: 'market', name: '시장 실무자', icon: TrendingUp, color: 'var(--color-expert-market)', role: '실제 시장 동향 및 데이터에 중점을 둡니다.' },
-        { id: 'macro', name: '매크로 분석가', icon: Globe, color: 'var(--color-expert-macro)', role: '글로벌 경제 지표 및 정책에 중점을 둡니다.' },
+        { id: 'academic', name: '학술 전문가', icon: BookOpen, avatar: '/images/academic_ant_avatar.png', color: 'var(--color-expert-academic)', role: '기본 이론과 학문적 엄밀성에 중점을 둡니다.' },
+        { id: 'market', name: '시장 실무자', icon: TrendingUp, avatar: '/images/market_ant_avatar.png', color: 'var(--color-expert-market)', role: '실제 시장 동향 및 데이터에 중점을 둡니다.' },
+        { id: 'macro', name: '매크로 분석가', icon: Globe, avatar: '/images/macro_ant_avatar.png', color: 'var(--color-expert-macro)', role: '글로벌 경제 지표 및 정책에 중점을 둡니다.' },
     ];
 
     useEffect(() => {
@@ -156,7 +158,7 @@ function App() {
 
         const token = localStorage.getItem('access_token');
         // 백엔드 주소에 맞춰 WebSocket URL 설정 (기존 baseURL 기반으로 유추)
-        const wsUrl = `ws://localhost:8080/ws/chat`;
+        const wsUrl = `ws://localhost:8000/ws/chat`;
         const ws = new WebSocket(wsUrl);
 
         let accumulatedString = "";
@@ -214,6 +216,20 @@ function App() {
                             if (f.persona === 'The Macro-Connector') newScores.Macro = Math.round(f.score * 100);
                         });
                         setUserScores(newScores);
+
+                        // Update Score History
+                        setScoreHistory(prev => {
+                            const last = prev.length > 0 ? prev[prev.length - 1] : { Academic: 0, Market: 0, Macro: 0 };
+                            return [
+                                ...prev,
+                                {
+                                    turn: prev.length + 1,
+                                    Academic: last.Academic + newScores.Academic,
+                                    Market: last.Market + newScores.Market,
+                                    Macro: last.Macro + newScores.Macro
+                                }
+                            ];
+                        });
                     }
                     
                     const decision = finalData?.moderator_decision;
@@ -334,6 +350,7 @@ function App() {
             setHelpCountLevel2(0);
             setReportData(null);
             setExpertFeedbackData([]);
+            setScoreHistory([]);
             setIsThinking(false);
         } catch (error) {
             console.error("Failed to start session:", error);
@@ -434,8 +451,8 @@ function App() {
                         <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
                             <div className="sidebar-header"><h2>학습 경로</h2></div>
                             {/* 학습 경로 노드 제거됨 */}
-                            <div style={{ flex: 'none', padding: '0 10px', marginTop: '60px' }}>
-                                <RadarScoreChart scores={userScores} isSidebar={true} />
+                            <div style={{ flex: 'none', padding: '0 10px', marginTop: '30px' }}>
+                                <LineScoreChart history={scoreHistory} />
                             </div>
                             <div style={{ flex: 1 }}></div> {/* 스페이서로 공간 확보 */}
                             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '20px', borderTop: '1px solid var(--color-border)', backgroundColor: 'rgba(255,255,255,0.5)', marginBottom: '20px' }}>
@@ -476,7 +493,7 @@ function App() {
                                         {msg.scaffold?.step === "Sub-concept Nudge" && (
                                             <div className="scaffold-hint-badge">
                                                 <Lightbulb size={14} />
-                                                <span>전문가 힌트가 포함되어 있습니다</span>
+                                                <span>개념 힌트가 포함되어 있습니다</span>
                                             </div>
                                         )}
                                     </div>
@@ -574,17 +591,21 @@ function App() {
 
                 <aside className="expert-panel glass-panel" style={!selectedMission ? { width: '280px', alignItems: 'flex-start', padding: '24px' } : {}}>
                     {!selectedMission ? (
-                        <div className="expert-list-preview" style={{ width: '100%', display: 'flex', flexDirection: 'column', height: '100%' }}>
-                            <h3 style={{ fontSize: '1.2rem', marginBottom: '24px', color: 'var(--color-deep-navy)' }}>전문가들을 만나보세요</h3>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                        <div className="expert-team-container">
+                            <h3 className="expert-team-title">나의 AI 전문가 팀</h3>
+                            <div className="expert-profiles-list">
                                 {experts.map(expert => (
-                                    <div key={expert.id} style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-                                        <div className="expert-icon-btn" style={{ '--expert-color': expert.color, width: '50px', height: '50px', flexShrink: 0, cursor: 'default' }}>
-                                            <expert.icon size={24} color={expert.color} />
+                                    <div key={expert.id} className="expert-profile-card">
+                                        <div className="expert-avatar-wrapper">
+                                            <img src={expert.avatar} alt={expert.name} className="expert-avatar-img" />
+                                            <div className="status-indicator online"></div>
                                         </div>
-                                        <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                            <span style={{ fontWeight: '700', fontSize: '1rem', color: expert.color }}>{expert.name}</span>
-                                            <span style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)', lineHeight: '1.4' }}>{expert.role}</span>
+                                        <div className="expert-info">
+                                            <div className="expert-name-row">
+                                                <span className="expert-name" style={{ color: expert.color }}>{expert.name}</span>
+                                                <span className="online-text">Online</span>
+                                            </div>
+                                            <p className="expert-role-text">{expert.role}</p>
                                         </div>
                                     </div>
                                 ))}
