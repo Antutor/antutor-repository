@@ -119,7 +119,7 @@ async def drafting_node(state: AgentState):
         raw_scores[agent_name] = data.get("score", 0.0)
         # Academic Agent 가 모순을 감지했는지 확인
         if agent_name == "The Academic Auditor":
-            if data.get("type") == "contradiction" or data.get("retry_needed"):
+            if data.get("type") == "contradiction":
                 is_contradict = True
         
     print(f"  ✅ Drafting Node 완료! (모순 감지 여부: {is_contradict})", flush=True)
@@ -252,14 +252,30 @@ async def synthesis_node(state: AgentState):
         academic_result=academic_res,
         market_result=market_res,
         macro_result=macro_res,
-        rebuttal_results=rebuttals_str
+        rebuttal_results=rebuttals_str,
+        news_context=state.get("news_context", "")
     )
     
     res_content = await call_synthesis(sys_msg)
     
     moderator_data = extract_json(res_content)
     final_message = moderator_data.get("message", res_content)
-    hint_provided = moderator_data.get("hint_provided", False)
+    
+    # 안정적인 파싱을 위한 처리
+    raw_hint_provided = moderator_data.get("hint_provided", False)
+    if isinstance(raw_hint_provided, str):
+        hint_provided = raw_hint_provided.lower() == "true"
+    else:
+        hint_provided = bool(raw_hint_provided)
+        
+    mode = moderator_data.get("mode", "normal")
+    
+    # Priority 1: retry_needed 연동 강제화
+    academic_data = drafts.get("The Academic Auditor", {})
+    retry_needed = academic_data.get("retry_needed", False)
+    if retry_needed is True or str(retry_needed).lower() == "true":
+        mode = "retry"
+        hint_provided = True
     
     print("  ✅ Synthesis Node 완료! 최종 피드백 산출 완료 🎉\n", flush=True)
-    return {"final_synthesis": final_message, "hint_provided": hint_provided}
+    return {"final_synthesis": final_message, "hint_provided": hint_provided, "moderator_action": mode}

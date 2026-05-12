@@ -1,8 +1,6 @@
 fastapi
 uvicorn
-google-genai
 httpx
-sentence-transformers
 pydantic
 bcrypt
 PyJWT
@@ -15,3 +13,4 @@ langgraph
 langchain-ollama
 neo4j
 langchain-openai
+websockets

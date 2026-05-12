@@ -410,6 +410,9 @@ Concept: {concept}
 Session context:
 {session_context}
 
+News context:
+{news_context}
+
 Academic draft result:
 {academic_result}
 

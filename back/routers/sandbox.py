@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends
 import httpx
 import json
+import time
 from datetime import datetime
 
 from schemas import (
@@ -221,13 +222,17 @@ async def test_graph_sandbox(request: GraphSandboxRequest, current_user: str = D
             "moderator_action": ""
         }
         
+        start_time = time.time()
         final_state = await debate_graph.ainvoke(initial_state)
+        end_time = time.time()
+        execution_time = round(end_time - start_time, 2)
         
         req_data = request.dict() if hasattr(request, 'dict') else request.model_dump()
         save_sandbox_log(req_data, final_state, "graph_test")
         
         return {
             "status": "success",
+            "execution_time_seconds": execution_time,
             "final_state": final_state
         }
     except Exception as e:
