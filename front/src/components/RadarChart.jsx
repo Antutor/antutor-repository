@@ -1,14 +1,14 @@
 import React from 'react';
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, ResponsiveContainer } from 'recharts';
+import { t } from '../locales';
 
-function RadarScoreChart({ scores, isSidebar = false }) {
-    if (!scores) return <div className="chart-placeholder">데이터가 없습니다.</div>;
+function RadarScoreChart({ scores, isSidebar = false, language = 'ko' }) {
+    if (!scores) return <div className="chart-placeholder">{t(language, 'radarNoData')}</div>;
 
-    // 한국어 라벨 맵핑
     const labelMap = {
-        Academic: '정확성',
-        Market: '현실성',
-        Macro: '통찰력'
+        Academic: t(language, 'chartAccuracy'),
+        Market: t(language, 'chartPracticality'),
+        Macro: t(language, 'chartInsight')
     };
 
     const data = Object.keys(scores)

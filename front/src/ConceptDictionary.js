@@ -2,20 +2,26 @@ import React, { useState, useEffect } from 'react';
 import { Search, ChevronLeft, BookOpen, TrendingUp, Globe, ArrowRight } from 'lucide-react';
 import './ConceptDictionary.css';
 import { dictionaryAPI } from './api/services';
+import { t } from './locales';
 
-const EXPERT_TAGS = {
-  academic: { name: '학술', icon: BookOpen, color: 'var(--color-expert-academic)', bg: 'rgba(59, 130, 246, 0.1)' },
-  market: { name: '시장', icon: TrendingUp, color: 'var(--color-expert-market)', bg: 'rgba(16, 185, 129, 0.1)' },
-  macro: { name: '매크로', icon: Globe, color: 'var(--color-expert-macro)', bg: 'rgba(139, 92, 246, 0.1)' }
-};
+const getExpertTags = (lang) => ({
+  academic: { name: t(lang, 'dictCatAcademic'), icon: BookOpen, color: 'var(--color-expert-academic)', bg: 'rgba(59, 130, 246, 0.1)' },
+  market:   { name: t(lang, 'dictCatMarket'),   icon: TrendingUp, color: 'var(--color-expert-market)', bg: 'rgba(16, 185, 129, 0.1)' },
+  macro:    { name: t(lang, 'dictCatMacro'),    icon: Globe, color: 'var(--color-expert-macro)', bg: 'rgba(139, 92, 246, 0.1)' }
+});
 
-const ConceptDictionary = ({ isOpen, onClose, initialSearchTerm, cameFromScaffolding, onReturnWithHint }) => {
+const ConceptDictionary = ({ isOpen, onClose, initialSearchTerm, cameFromScaffolding, onReturnWithHint, language, onLanguageChange }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [shouldRender, setShouldRender] = useState(false);
   const [expandedCardId, setExpandedCardId] = useState(null);
   
   const [concepts, setConcepts] = useState([]);
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    // Re-fetch whenever language changes
+    setConcepts([]);
+  }, [language]);
 
   useEffect(() => {
     if (isOpen) {
@@ -33,7 +39,7 @@ const ConceptDictionary = ({ isOpen, onClose, initialSearchTerm, cameFromScaffol
           const fetchConcepts = async () => {
               setLoading(true);
               try {
-                  const listRes = await dictionaryAPI.getList();
+                  const listRes = await dictionaryAPI.getList(language);
                   const detailedConcepts = listRes.data.map((item) => ({
                       id: item.term,
                       title: item.term,
@@ -55,7 +61,7 @@ const ConceptDictionary = ({ isOpen, onClose, initialSearchTerm, cameFromScaffol
       const timer = setTimeout(() => setShouldRender(false), 300);
       return () => clearTimeout(timer);
     }
-  }, [isOpen, initialSearchTerm, concepts]);
+  }, [isOpen, initialSearchTerm, concepts, language]);
 
   if (!shouldRender) return null;
 
@@ -73,19 +79,40 @@ const ConceptDictionary = ({ isOpen, onClose, initialSearchTerm, cameFromScaffol
           <div className="dict-header-left">
             <button className="back-btn" onClick={onClose}>
               <ChevronLeft size={20} />
-              <span>세션으로 돌아가기</span>
+              <span>{t(language, 'backToSession')}</span>
             </button>
-            <h2>개념 사전</h2>
+            <h2>{t(language, 'conceptDictTitle')}</h2>
           </div>
-          
-          <div className="dict-search-wrapper">
-            <Search size={18} className="search-icon" />
-            <input 
-              type="text" 
-              placeholder="경제 용어 검색..." 
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            {onLanguageChange && (
+              <select
+                value={language}
+                onChange={(e) => onLanguageChange(e.target.value)}
+                style={{
+                  padding: '6px 10px',
+                  borderRadius: '8px',
+                  border: '1px solid var(--color-border)',
+                  backgroundColor: 'var(--color-bg-light)',
+                  color: 'var(--color-deep-navy)',
+                  fontWeight: '600',
+                  fontSize: '0.8rem',
+                  cursor: 'pointer'
+                }}
+              >
+                <option value="ko">🇰🇷 한국어</option>
+                <option value="en">🇺🇸 English</option>
+              </select>
+            )}
+            <div className="dict-search-wrapper">
+              <Search size={18} className="search-icon" />
+              <input
+                type="text"
+                placeholder={t(language, 'searchTermsPlaceholder')}
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
           </div>
         </header>
 
@@ -94,15 +121,16 @@ const ConceptDictionary = ({ isOpen, onClose, initialSearchTerm, cameFromScaffol
           {loading ? (
              <div className="loading-state" style={{ textAlign: 'center', padding: '40px', color: 'var(--color-text-secondary)' }}>
                 <div style={{ display: 'inline-block', width: '30px', height: '30px', border: '3px solid rgba(59, 130, 246, 0.3)', borderTopColor: 'var(--color-expert-academic)', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
-                <p style={{ marginTop: '15px' }}>사전 불러오는 중...</p>
+                <p style={{ marginTop: '15px' }}>{t(language, 'loadingDict')}</p>
              </div>
           ) : filteredConcepts.length === 0 ? (
             <div className="no-results">
-              <p>"{searchTerm}"에 대한 검색 결과가 없습니다.</p>
+              <p>"{searchTerm}"{t(language, 'noResult')}</p>
             </div>
           ) : (
             <div className="concepts-grid">
               {filteredConcepts.map(concept => {
+                const EXPERT_TAGS = getExpertTags(language);
                 const tag = EXPERT_TAGS[concept.expert];
                 const TagIcon = tag.icon;
                 const isExpanded = expandedCardId === concept.id || (initialSearchTerm && concept.title.toLowerCase().includes(initialSearchTerm.toLowerCase()));
@@ -127,7 +155,7 @@ const ConceptDictionary = ({ isOpen, onClose, initialSearchTerm, cameFromScaffol
                        <div className="card-expanded-content" onClick={e => e.stopPropagation()}>
                           
                           <div className="insights-block">
-                            <h4>예시:</h4>
+                            <h4>{t(language, 'example')}</h4>
                             <p>{concept.details}</p>
                           </div>
 
@@ -135,7 +163,7 @@ const ConceptDictionary = ({ isOpen, onClose, initialSearchTerm, cameFromScaffol
                           {cameFromScaffolding && (
                             <div className="scaffolding-hint-bridge">
                                <button className="hint-btn" onClick={(e) => { e.stopPropagation(); onReturnWithHint(concept.hint); }}>
-                                 <span>힌트와 함께 채팅으로 돌아가기</span>
+                                 <span>{t(language, 'returnWithHint')}</span>
                                  <ArrowRight size={16} />
                                </button>
                             </div>

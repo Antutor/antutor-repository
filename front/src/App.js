@@ -10,39 +10,41 @@ import Register from './Register';
 import RadarScoreChart from './components/RadarChart';
 import LineScoreChart from './components/LineChart';
 import { studyAPI } from './api/services';
-const missionConcepts = [
+import { t } from './locales';
+
+const getMissionConcepts = (lang) => [
     {
         id: '인플레이션',
-        title: '인플레이션',
+        title: t(lang, 'inflation'),
         icon: Tag
     },
     {
         id: '기준 금리',
-        title: '기준금리',
+        title: t(lang, 'interestRate'),
         icon: Landmark
     },
     {
         id: '환율',
-        title: '환율',
+        title: t(lang, 'exchangeRate'),
         icon: Globe
     },
     {
         id: '대안비용',
-        title: '기회비용',
+        title: t(lang, 'opportunityCost'),
         icon: Scale
     },
     {
         id: '복리',
-        title: '복리',
+        title: t(lang, 'compoundInterest'),
         icon: TrendingUp
     }
 ];
 
-const initialPath = [
-    { id: 'fundamentals', title: '기본 개념', status: 'completed', summary: '선택한 주제의 핵심 원리입니다.' },
-    { id: 'strategic', title: '전략적 분석', status: 'active', subNode: '적용 및 맥락' },
-    { id: 'market', title: '시장 동향', status: 'locked' },
-    { id: 'risk', title: '리스크 관리', status: 'locked' }
+const getInitialPath = (lang) => [
+    { id: 'fundamentals', title: t(lang, 'fundamentals'), status: 'completed', summary: t(lang, 'fundamentalsSummary') },
+    { id: 'strategic', title: t(lang, 'strategic'), status: 'active', subNode: t(lang, 'strategicSub') },
+    { id: 'market', title: t(lang, 'market'), status: 'locked' },
+    { id: 'risk', title: t(lang, 'risk'), status: 'locked' }
 ];
 
 function App() {
@@ -52,6 +54,7 @@ function App() {
     const [isSummaryModalOpen, setIsSummaryModalOpen] = useState(false);
     const [isDictionaryOpen, setIsDictionaryOpen] = useState(false);
     const [dictionarySearchTerm, setDictionarySearchTerm] = useState('');
+    const [language, setLanguage] = useState('ko');
 
     // Auth State
     const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -85,7 +88,11 @@ function App() {
     const [reviewNode, setReviewNode] = useState(null);
 
     // Learning Path State
-    const [pathNodes, setPathNodes] = useState(initialPath);
+    const [pathNodes, setPathNodes] = useState(getInitialPath(language));
+    
+    useEffect(() => {
+        setPathNodes(getInitialPath(language));
+    }, [language]);
     const [activeNodeId, setActiveNodeId] = useState(null);
     const [selectedMission, setSelectedMission] = useState(null);
     const [hoveredMission, setHoveredMission] = useState(null);
@@ -97,7 +104,7 @@ function App() {
     const [expertFeedbackData, setExpertFeedbackData] = useState([]);
     const [inputValue, setInputValue] = useState('');
     const [isThinking, setIsThinking] = useState(false);
-    const [thinkingText, setThinkingText] = useState("질문을 분석 중입니다...");
+    const [thinkingText, setThinkingText] = useState(t(language, 'analyzingQuestion'));
     const [fallbackToast, setFallbackToast] = useState(false);
 
     const [consecutiveFailures, setConsecutiveFailures] = useState(0);
@@ -121,9 +128,9 @@ function App() {
     const messagesEndRef = useRef(null);
 
     const experts = [
-        { id: 'academic', name: '학술 전문가', icon: BookOpen, avatar: '/images/academic_ant_avatar.png', color: 'var(--color-expert-academic)', role: '기본 이론과 학문적 엄밀성에 중점을 둡니다.' },
-        { id: 'market', name: '시장 실무자', icon: TrendingUp, avatar: '/images/market_ant_avatar.png', color: 'var(--color-expert-market)', role: '실제 시장 동향 및 데이터에 중점을 둡니다.' },
-        { id: 'macro', name: '매크로 분석가', icon: Globe, avatar: '/images/macro_ant_avatar.png', color: 'var(--color-expert-macro)', role: '글로벌 경제 지표 및 정책에 중점을 둡니다.' },
+        { id: 'academic', name: t(language, 'academicName'), icon: BookOpen, avatar: '/images/academic_ant_avatar.png', color: 'var(--color-expert-academic)', role: t(language, 'academicRole') },
+        { id: 'market', name: t(language, 'marketName'), icon: TrendingUp, avatar: '/images/market_ant_avatar.png', color: 'var(--color-expert-market)', role: t(language, 'marketRole') },
+        { id: 'macro', name: t(language, 'macroName'), icon: Globe, avatar: '/images/macro_ant_avatar.png', color: 'var(--color-expert-macro)', role: t(language, 'macroRole') },
     ];
 
     useEffect(() => {
@@ -154,11 +161,11 @@ function App() {
         }
         setIsThinking(true);
         setNewFeedback({ academic: true, market: true, macro: true });
-        setThinkingText("연결 중입니다...");
+        setThinkingText(t(language, 'connecting'));
 
         const token = localStorage.getItem('access_token');
         // 백엔드 주소에 맞춰 WebSocket URL 설정 (기존 baseURL 기반으로 유추)
-        const wsUrl = `ws://localhost:8000/ws/chat`;
+        const wsUrl = `ws://localhost:8080/ws/chat`;
         const ws = new WebSocket(wsUrl);
 
         let accumulatedString = "";
@@ -169,7 +176,8 @@ function App() {
             ws.send(JSON.stringify({
                 token: token,
                 session_id: sessionId,
-                user_answer: textToSend
+                user_answer: textToSend,
+                language: language
             }));
         };
 
@@ -327,10 +335,10 @@ function App() {
         // Hide initial question and show only loading state
         setMessages([]); 
         setIsThinking(true);
-        setThinkingText("학습 세션을 준비하고 있습니다...");
+        setThinkingText(t(language, 'preparingSession'));
 
         try {
-            const response = await studyAPI.startSession(mission.id);
+            const response = await studyAPI.startSession(mission.id, language);
             const data = response.data;
             
             setSessionId(data.session_id);
@@ -338,11 +346,11 @@ function App() {
             
             // Populate messages only after the session is ready
             if (data.resume_available) {
-                const resumeText = `${data.resume_prompt}\n\n(마지막 질문: ${data.last_ai_response})`;
+                const resumeText = `${data.resume_prompt}\n\n(${t(language, 'lastQuestion')}: ${data.last_ai_response})`;
                 setMessages([{ id: Date.now(), sender: 'moderator', text: resumeText }]);
             } else {
                 // Use backend question
-                const finalStartText = data.initial_question || "첫 질문을 불러올 수 없습니다.";
+                const finalStartText = data.initial_question || t(language, 'questionFailed');
                 setMessages([{ id: Date.now(), sender: 'moderator', text: finalStartText }]);
             }
             
@@ -354,7 +362,7 @@ function App() {
             setIsThinking(false);
         } catch (error) {
             console.error("Failed to start session:", error);
-            alert("세션 시작에 실패했습니다. 다시 시도해주세요.");
+            alert(t(language, 'startFailed'));
             setSelectedMission(null);
             setIsThinking(false);
         }
@@ -364,20 +372,20 @@ function App() {
         if (!selectedMission) return;
         setIsThinking(true);
         try {
-            const response = await studyAPI.resolveResume({ concept: selectedMission, decision });
+            const response = await studyAPI.resolveResume({ concept: selectedMission, decision, language });
             setSessionId(response.data.session_id);
             setIsResumePending(false);
-            setMessages(prev => [...prev, { id: Date.now(), sender: 'user', text: decision === 'resume' ? '이어서 학습하기' : '처음부터 다시하기' }]);
+            setMessages(prev => [...prev, { id: Date.now(), sender: 'user', text: decision === 'resume' ? t(language, 'resumeSession') : t(language, 'startFresh') }]);
             
             // Add the real initial question/resumed question
             setTimeout(() => {
-                let finalQuestion = response.data.question || "첫 질문을 불러올 수 없습니다.";
+                let finalQuestion = response.data.question || t(language, 'questionFailed');
                 setMessages(prev => [...prev, { id: Date.now() + 1, sender: 'moderator', text: finalQuestion }]);
                 setIsThinking(false);
             }, 500);
         } catch (error) {
             console.error("Failed to resolve resume:", error);
-            alert("세션 재개 처리에 실패했습니다.");
+            alert(t(language, 'resumeFailed'));
             setIsThinking(false);
         }
     };
@@ -393,8 +401,8 @@ function App() {
     };
 
     if (!isLoggedIn) {
-        if (authPage === 'login') return <Login onLogin={() => setIsLoggedIn(true)} onGoToRegister={() => setAuthPage('register')} />;
-        if (authPage === 'register') return <Register onGoToLogin={() => setAuthPage('login')} />;
+        if (authPage === 'login') return <Login onLogin={() => setIsLoggedIn(true)} onGoToRegister={() => setAuthPage('register')} language={language} onLanguageChange={setLanguage} />;
+        if (authPage === 'register') return <Register onGoToLogin={() => setAuthPage('login')} language={language} onLanguageChange={setLanguage} />;
     }
 
     return (
@@ -413,11 +421,19 @@ function App() {
                     </div>
                 </div>
                 <div className="header-right">
+                    <select 
+                        value={language} 
+                        onChange={(e) => setLanguage(e.target.value)}
+                        style={{ padding: '6px 12px', borderRadius: '8px', border: '1px solid var(--color-border)', marginRight: '10px', backgroundColor: 'var(--color-bg-light)', color: 'var(--color-deep-navy)', fontWeight: '600' }}
+                    >
+                        <option value="ko">한국어</option>
+                        <option value="en">English</option>
+                    </select>
                     {selectedMission && (
                         <button className="summary-btn" onClick={async () => {
                             if (sessionId) {
                                 try {
-                                    const response = await studyAPI.endSession({ session_id: sessionId });
+                                    const response = await studyAPI.endSession({ session_id: sessionId, language });
                                     setReportData(response.data);
                                 } catch (error) {
                                     console.error("End session failed", error);
@@ -426,12 +442,12 @@ function App() {
                             setIsSummaryModalOpen(true);
                         }}>
                             <CheckCircle size={16} />
-                            <span className="hide-mobile">학습 종료</span>
+                            <span className="hide-mobile">{t(language, 'endSession')}</span>
                         </button>
                     )}
 
                     <button className="summary-btn" style={{ padding: '8px 16px', backgroundColor: 'var(--color-bg-light)', border: '1px solid var(--color-border)', color: 'var(--color-deep-navy)' }} onClick={() => setIsLoggedIn(false)}>
-                        로그아웃
+                        {t(language, 'logout')}
                     </button>
                 </div>
             </header>
@@ -442,22 +458,22 @@ function App() {
                         <div className="welcome-sidebar-content" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', padding: '20px', textAlign: 'center' }}>
                             <div style={{ position: 'relative', marginBottom: '20px' }}>
                                 <div className="speech-bubble" style={{ position: 'relative', top: 0, left: 0, marginBottom: '20px', display: 'inline-block', fontSize: '1.1rem', padding: '10px 18px' }}>
-                                    {hoveredMission ? "학습할 준비가 되셨나요?" : "Zzz... 미션을 선택해주세요..."}
+                                    {hoveredMission ? t(language, 'antReady') : t(language, 'antSleeping')}
                                 </div>
                                 <img src="/images/antutor%20standup.png" alt="Ant" className="mission-card-character bobbing-character" style={{ width: '180px', height: '180px', margin: '0 auto', display: 'block' }} />
                             </div>
                         </div>
                     ) : (
                         <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-                            <div className="sidebar-header"><h2>학습 경로</h2></div>
+                            <div className="sidebar-header"><h2>{t(language, 'learningPath')}</h2></div>
                             {/* 학습 경로 노드 제거됨 */}
                             <div style={{ flex: 'none', padding: '0 10px', marginTop: '30px' }}>
-                                <LineScoreChart history={scoreHistory} />
+                                <LineScoreChart history={scoreHistory} language={language} />
                             </div>
                             <div style={{ flex: 1 }}></div> {/* 스페이서로 공간 확보 */}
                             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '20px', borderTop: '1px solid var(--color-border)', backgroundColor: 'rgba(255,255,255,0.5)', marginBottom: '20px' }}>
                                 <img src="/images/antutor%20standup.png" alt="Studying Ant" className="bobbing-character" style={{ width: '120px', height: '120px', objectFit: 'contain' }} />
-                                <div style={{ marginTop: '8px', fontSize: '0.9rem', fontWeight: 'bold', color: '#000000' }}>정말 잘하고 있어요!</div>
+                                <div style={{ marginTop: '8px', fontSize: '0.9rem', fontWeight: 'bold', color: '#000000' }}>{t(language, 'doingGreat')}</div>
                             </div>
                         </div>
                     )}
@@ -465,9 +481,9 @@ function App() {
 
                 {!selectedMission ? (
                     <section className="mission-selection-container glass-panel">
-                        <h2 className="mission-title">학습 미션을 선택하세요</h2>
+                        <h2 className="mission-title">{t(language, 'missionSelectTitle')}</h2>
                         <div className="mission-grid">
-                            {missionConcepts.map(mission => (
+                            {getMissionConcepts(language).map(mission => (
                                 <div 
                                     key={mission.id} 
                                     className="mission-card" 
@@ -493,7 +509,7 @@ function App() {
                                         {msg.scaffold?.step === "Sub-concept Nudge" && (
                                             <div className="scaffold-hint-badge">
                                                 <Lightbulb size={14} />
-                                                <span>개념 힌트가 포함되어 있습니다</span>
+                                                <span>{t(language, 'hintIncluded')}</span>
                                             </div>
                                         )}
                                     </div>
@@ -540,7 +556,7 @@ function App() {
                                         onMouseLeave={(e) => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = '0 10px 25px rgba(34, 197, 94, 0.3)'; e.currentTarget.style.backgroundColor = '#22c55e'; }}
                                     >
                                         <Radar size={22} />
-                                        이어서 학습하기
+                                        {t(language, 'resumeSessionBtn')}
                                     </button>
                                     <button 
                                         onClick={() => handleResumeDecision('fresh')}
@@ -559,7 +575,7 @@ function App() {
                                         onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'white'; e.currentTarget.style.transform = 'translateY(-3px)'; e.currentTarget.style.boxShadow = '0 8px 20px rgba(0,0,0,0.1)'; }}
                                         onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.9)'; e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = '0 4px 15px rgba(0,0,0,0.05)'; }}
                                     >
-                                        처음부터 다시하기
+                                        {t(language, 'startFreshBtn')}
                                     </button>
                                 </div>
                             ) : (
@@ -568,7 +584,7 @@ function App() {
                                         <div className={`scaffold-info-banner ${currentScaffold.type === 'Fill-in-the-Blank' ? 'fill-mode' : 'nudge-mode'}`}>
                                             <div className="scaffold-info-content">
                                                 {currentScaffold.type === 'Fill-in-the-Blank' ? <Info size={16} /> : <Lightbulb size={16} />}
-                                                <span>{currentScaffold.type === 'Fill-in-the-Blank' ? '아래 문장의 빈칸을 채워주세요.' : '힌트를 참고하여 답변을 완성해 보세요.'}</span>
+                                                <span>{currentScaffold.type === 'Fill-in-the-Blank' ? t(language, 'fillBlankHelp') : t(language, 'nudgeHelp')}</span>
                                             </div>
                                         </div>
                                     )}
@@ -578,7 +594,7 @@ function App() {
                                             value={inputValue} 
                                             onChange={(e) => setInputValue(e.target.value)} 
                                             onKeyDown={handleKeyDown} 
-                                            placeholder={currentScaffold?.type === 'Fill-in-the-Blank' ? '빈칸에 들어갈 내용을 입력하세요...' : '답변을 입력하세요...'} 
+                                            placeholder={currentScaffold?.type === 'Fill-in-the-Blank' ? t(language, 'fillBlankPlaceholder') : t(language, 'answerPlaceholder')} 
                                             disabled={isResumePending} 
                                         />
                                         <button className="send-btn" onClick={handleSendMessage} disabled={isResumePending}><Send size={18} /></button>
@@ -592,7 +608,7 @@ function App() {
                 <aside className="expert-panel glass-panel" style={!selectedMission ? { width: '280px', alignItems: 'flex-start', padding: '24px' } : {}}>
                     {!selectedMission ? (
                         <div className="expert-team-container">
-                            <h3 className="expert-team-title">나의 AI 전문가 팀</h3>
+                            <h3 className="expert-team-title">{t(language, 'myAiTeam')}</h3>
                             <div className="expert-profiles-list">
                                 {experts.map(expert => (
                                     <div key={expert.id} className="expert-profile-card">
@@ -613,7 +629,7 @@ function App() {
                             
                             {/* Dictionary Banner */}
                             <div style={{ marginTop: '40px', paddingBottom: '10px' }}>
-                                <h3 style={{ fontSize: '1.2rem', marginBottom: '20px', color: 'var(--color-deep-navy)' }}>개념 사전</h3>
+                                <h3 style={{ fontSize: '1.2rem', marginBottom: '20px', color: 'var(--color-deep-navy)' }}>{t(language, 'conceptDictTitle')}</h3>
                                 <div 
                                     className="dictionary-banner" 
                                     onClick={() => setIsDictionaryOpen(true)}
@@ -625,7 +641,7 @@ function App() {
                                         <Library size={24} color="#15803d" />
                                     </div>
                                     <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                        <span style={{ fontWeight: '600', fontSize: '0.95rem' }}>모든 경제 용어 살펴보기</span>
+                                        <span style={{ fontWeight: '600', fontSize: '0.95rem' }}>{t(language, 'exploreAllConcepts')}</span>
                                     </div>
                                 </div>
                             </div>
@@ -643,7 +659,7 @@ function App() {
                     <div className="drawer-content">
                         <div className="drawer-header" style={{ borderBottomColor: 'var(--color-expert-market)', backgroundColor: 'transparent' }}>
                             <div className="expert-title">
-                                <h3>내 프로필</h3>
+                                <h3>{t(language, 'myProfile')}</h3>
                             </div>
                             <button className="close-btn" onClick={() => setShowLeftSidebarProfile(false)}>
                                 <X size={20} />
@@ -661,7 +677,7 @@ function App() {
                                 )}
                             </div>
                             <input type="file" ref={fileInputRef} onChange={handleImageUpload} accept="image/*" style={{ display: 'none' }} />
-                            <p style={{ marginTop: '20px', color: 'var(--color-text-secondary)', fontSize: '0.95rem' }}>클릭하여 프로필 사진 업로드</p>
+                            <p style={{ marginTop: '20px', color: 'var(--color-text-secondary)', fontSize: '0.95rem' }}>{t(language, 'uploadProfilePic')}</p>
                         </div>
                     </div>
                 </div>
@@ -687,11 +703,11 @@ function App() {
                                         <div className="feedback-card" style={{ '--expert-color': experts.find(e => e.id === activeExpert)?.color }}>
                                             <div className="feedback-card-header">
                                                 <Star size={16} color={experts.find(e => e.id === activeExpert)?.color} fill={experts.find(e => e.id === activeExpert)?.color} />
-                                                <span>전문가 통찰력</span>
+                                                <span>{t(language, 'expertInsights')}</span>
                                             </div>
-                                            <h4>제안하는 관점</h4>
-                                            <p>{activeFeedback ? activeFeedback.feedback : '아직 이 전문가의 평가가 없습니다. 메시지를 보내보세요.'}</p>
-                                            {activeFeedback && <div style={{ marginTop: '10px', fontSize: '0.9rem', color: experts.find(e => e.id === activeExpert)?.color }}><b>스코어:</b> {Math.round(activeFeedback.score * 100)}점</div>}
+                                            <h4>{t(language, 'suggestedPerspective')}</h4>
+                                            <p>{activeFeedback ? activeFeedback.feedback : t(language, 'noFeedbackYet')}</p>
+                                            {activeFeedback && <div style={{ marginTop: '10px', fontSize: '0.9rem', color: experts.find(e => e.id === activeExpert)?.color }}><b>{t(language, 'score')}</b> {Math.round(activeFeedback.score * 100)}</div>}
                                         </div>
                                     );
                                 })()}
@@ -708,24 +724,24 @@ function App() {
                 helpCountLevel1={helpCountLevel1}
                 helpCountLevel2={helpCountLevel2}
                 reportData={reportData}
-                // 아래 줄을 추가하여 모달 안에서 차트를 그릴 수 있게 합니다.
-                scoreChart={<RadarScoreChart scores={userScores} />}
+                language={language}
+                scoreChart={<RadarScoreChart scores={userScores} language={language} />}
             />
 
-            <ConceptDictionary isOpen={isDictionaryOpen} onClose={() => setIsDictionaryOpen(false)} />
-            <ReviewModal isOpen={isReviewModalOpen} onClose={() => setIsReviewModalOpen(false)} node={reviewNode} />
+            <ConceptDictionary isOpen={isDictionaryOpen} onClose={() => setIsDictionaryOpen(false)} language={language} onLanguageChange={setLanguage} />
+            <ReviewModal isOpen={isReviewModalOpen} onClose={() => setIsReviewModalOpen(false)} node={reviewNode} language={language} />
 
             {isErrorModalOpen && (
                 <div className="review-overlay active" onClick={() => setIsErrorModalOpen(false)}>
                     <div className="review-modal-card" onClick={(e) => e.stopPropagation()}>
                         <div className="review-modal-header">
-                            <h2 style={{margin: 0, fontSize: '1.25rem', color: '#e11d48'}}>연결 지연</h2>
+                            <h2 style={{margin: 0, fontSize: '1.25rem', color: '#e11d48'}}>{t(language, 'connectionDelay')}</h2>
                             <button className="close-btn" onClick={() => setIsErrorModalOpen(false)}><X size={20} /></button>
                         </div>
                         <div className="review-modal-body" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', padding: '30px 20px' }}>
                             <AlertCircle size={48} color="#e11d48" style={{ marginBottom: '20px' }} />
-                            <p style={{ margin: 0, color: 'var(--color-text-secondary)', lineHeight: 1.6, fontSize: '1.05rem', fontWeight: 500 }}>
-                                현재 접속자가 많아 AI 연결이 지연되고 있습니다.<br/>잠시 후 다시 시도해 주세요.
+                            <p style={{ margin: 0, color: 'var(--color-text-secondary)', lineHeight: 1.6, fontSize: '1.05rem', fontWeight: 500, whiteSpace: 'pre-line' }}>
+                                {t(language, 'delayMessage')}
                             </p>
                         </div>
                         <div className="review-modal-footer" style={{padding: '20px', borderTop: '1px solid var(--color-border)', display: 'flex', gap: '10px', justifyContent: 'flex-end'}}>
@@ -734,7 +750,7 @@ function App() {
                                 style={{backgroundColor: 'var(--color-bg-light)', color: 'var(--color-text-secondary)', border: 'none'}}
                                 onClick={() => setIsErrorModalOpen(false)}
                             >
-                                취소
+                                {t(language, 'cancel')}
                             </button>
                             <button 
                                 className="send-btn" 
@@ -744,7 +760,7 @@ function App() {
                                     handleSendMessage(failedUserMessage);
                                 }}
                             >
-                                재시도
+                                {t(language, 'retry')}
                             </button>
                         </div>
                     </div>
@@ -754,7 +770,7 @@ function App() {
             {fallbackToast && (
                 <div className="fallback-toast-alert">
                     <AlertCircle size={18} />
-                    <span>서버 혼잡으로 인해 임시 요약된 피드백을 제공합니다.</span>
+                    <span>{t(language, 'fallbackToast')}</span>
                 </div>
             )}
         </div>

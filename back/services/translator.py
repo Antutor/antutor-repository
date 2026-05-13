@@ -1,13 +1,13 @@
 import httpx
 from config import DEEPL_API_KEY, ENABLE_KOREAN_TRANSLATION
 
-async def translate_en_to_ko(text: str) -> str:
+async def translate_en_to_ko(text: str, target_lang: str = "ko") -> str:
     """
     Translates English text to Korean using the DeepL Free API.
     If ENABLE_KOREAN_TRANSLATION is False, or DEEPL_API_KEY is missing, or an error occurs, 
     the original English text is returned (Fall-back).
     """
-    if not ENABLE_KOREAN_TRANSLATION or not text or not DEEPL_API_KEY:
+    if not ENABLE_KOREAN_TRANSLATION or not text or not DEEPL_API_KEY or target_lang.lower() != "ko":
         return text
 
     url = "https://api-free.deepl.com/v2/translate"
@@ -31,11 +31,11 @@ async def translate_en_to_ko(text: str) -> str:
             print(f"DeepL Translation Error (EN->KO): {e}")
             return text  # 에러 발생 시 원문(영어)을 그대로 반환하여 시스템 다운 방지
 
-async def translate_list_en_to_ko(texts: list[str]) -> list[str]:
+async def translate_list_en_to_ko(texts: list[str], target_lang: str = "ko") -> list[str]:
     """
     Translates a list of English strings to Korean in a single DeepL API call.
     """
-    if not ENABLE_KOREAN_TRANSLATION or not texts or not DEEPL_API_KEY:
+    if not ENABLE_KOREAN_TRANSLATION or not texts or not DEEPL_API_KEY or target_lang.lower() != "ko":
         return texts
 
     # Filter out empty strings to avoid API errors, but keep indices correct
@@ -60,12 +60,12 @@ async def translate_list_en_to_ko(texts: list[str]) -> list[str]:
             print(f"DeepL Batch Translation Error: {e}")
             return texts
 
-async def translate_ko_to_en(text: str) -> str:
+async def translate_ko_to_en(text: str, source_lang: str = "ko") -> str:
     """
     Translates Korean text to English using the DeepL Free API.
     Used for translating user inputs before they hit the English LLM pipeline.
     """
-    if not ENABLE_KOREAN_TRANSLATION or not text or not DEEPL_API_KEY:
+    if not ENABLE_KOREAN_TRANSLATION or not text or not DEEPL_API_KEY or source_lang.lower() != "ko":
         return text
 
     url = "https://api-free.deepl.com/v2/translate"

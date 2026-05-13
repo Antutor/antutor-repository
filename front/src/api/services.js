@@ -16,12 +16,12 @@ export const authAPI = {
 };
 
 export const dictionaryAPI = {
-    getList: () => api.get('/dictionary'), // 2.1 전체 개념 목록 조회
-    getDetail: (term) => api.get(`/dictionary/${term}`), // 2.2 단일 개념 상세 조회
+    getList: (language = 'ko') => api.get('/dictionary', { params: { language } }), // 2.1 전체 개념 목록 조회
+    getDetail: (term, language = 'ko') => api.get(`/dictionary/${term}`, { params: { language } }), // 2.2 단일 개념 상세 조회
 };
 
 export const studyAPI = {
-    startSession: (concept) => api.get(`/start/${concept}`), // 3.1 학습 세션 시작
+    startSession: (concept, language = 'ko') => api.get(`/start/${concept}`, { params: { language } }), // 3.1 학습 세션 시작
     resolveResume: (data) => api.post('/resolve_resume', data), // 3.1.5 세션 재개 결정
     sendChat: (data) => api.post('/chat', data), // 3.2 챗봇 답변 제출 및 평가
     endSession: (data) => api.post('/end_session', data), // 3.3 학습 세션 종료 및 통계 반환

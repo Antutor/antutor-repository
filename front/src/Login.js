@@ -1,28 +1,33 @@
 import React, { useState } from 'react';
-import { Mail, Lock, ArrowRight, User } from 'lucide-react';
+import { Lock, ArrowRight, User } from 'lucide-react';
 import { authAPI } from './api/services';
+import { t } from './locales';
 import './Login.css';
 
-const Login = ({ onLogin, onGoToRegister }) => {
+const Login = ({ onLogin, onGoToRegister, language, onLanguageChange }) => {
   const [userId, setUserId] = useState('');
   const [password, setPassword] = useState('');
   const [isFadingOut, setIsFadingOut] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (userId && password) {
-      try {
-        const response = await authAPI.login({ username: userId, password });
-        if (response.data.access_token) {
-          localStorage.setItem('access_token', response.data.access_token);
-        }
-        setIsFadingOut(true);
-        setTimeout(() => {
-          onLogin();
-        }, 500); // 500ms coordinates with the CSS transition length
-      } catch (error) {
-        alert("Login failed! Please check your credentials.");
+    if (!userId) {
+      alert(t(language, 'enterUserId'));
+      return;
+    }
+    if (!password) {
+      alert(t(language, 'loginPasswordPlaceholder'));
+      return;
+    }
+    try {
+      const response = await authAPI.login({ username: userId, password });
+      if (response.data.access_token) {
+        localStorage.setItem('access_token', response.data.access_token);
       }
+      setIsFadingOut(true);
+      setTimeout(() => { onLogin(); }, 500);
+    } catch (error) {
+      alert(t(language, 'loginFailed'));
     }
   };
 
@@ -30,49 +35,69 @@ const Login = ({ onLogin, onGoToRegister }) => {
     <div className={`login-page ${isFadingOut ? 'fade-out' : ''}`}>
       <div className="login-card">
 
-        <div className="login-header">
-          <img src="/images/antutor%20standup.png" alt="Antutor" className="login-logo-img" />
-          <h2>Antutor에 오신 것을 환영합니다</h2>
-          <p>학습 대시보드에 접속하려면 로그인하세요.</p>
+        {/* Language Toggle */}
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '12px' }}>
+          <select
+            value={language}
+            onChange={(e) => onLanguageChange(e.target.value)}
+            style={{
+              padding: '6px 12px',
+              borderRadius: '8px',
+              border: '1px solid var(--color-border)',
+              backgroundColor: 'var(--color-bg-light)',
+              color: 'var(--color-deep-navy)',
+              fontWeight: '600',
+              fontSize: '0.85rem',
+              cursor: 'pointer'
+            }}
+          >
+            <option value="ko">🇰🇷 한국어</option>
+            <option value="en">🇺🇸 English</option>
+          </select>
         </div>
 
-        <form onSubmit={handleSubmit} className="login-form">
+        <div className="login-header">
+          <img src="/images/antutor%20standup.png" alt="Antutor" className="login-logo-img" />
+          <h2>{t(language, 'loginWelcome')}</h2>
+          <p>{t(language, 'loginSubtitle')}</p>
+        </div>
+
+        {/* noValidate disables browser-native tooltips; JS handles validation */}
+        <form onSubmit={handleSubmit} className="login-form" noValidate>
           <div className="input-group">
-            <label>아이디</label>
+            <label>{t(language, 'loginUserId')}</label>
             <div className="input-field">
               <User size={18} className="input-icon" />
               <input
                 type="text"
-                placeholder="아이디를 입력하세요"
+                placeholder={t(language, 'loginUserIdPlaceholder')}
                 value={userId}
                 onChange={(e) => setUserId(e.target.value)}
-                required
               />
             </div>
           </div>
 
           <div className="input-group">
-            <label>비밀번호</label>
+            <label>{t(language, 'loginPassword')}</label>
             <div className="input-field">
               <Lock size={18} className="input-icon" />
               <input
                 type="password"
-                placeholder="비밀번호를 입력하세요"
+                placeholder={t(language, 'loginPasswordPlaceholder')}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                required
               />
             </div>
           </div>
 
           <button type="submit" className="login-submit-btn">
-            <span>로그인</span>
+            <span>{t(language, 'loginBtn')}</span>
             <ArrowRight size={18} />
           </button>
         </form>
 
         <div className="login-footer">
-          계정이 없으신가요? <span className="signup-link" onClick={onGoToRegister}>회원가입</span>
+          {t(language, 'noAccount')} <span className="signup-link" onClick={onGoToRegister}>{t(language, 'signUp')}</span>
         </div>
       </div>
     </div>

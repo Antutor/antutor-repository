@@ -8,6 +8,7 @@ async def websocket_chat(websocket: WebSocket):
         token = data.get("token")
         session_id = data.get("session_id")
         user_answer = data.get("user_answer")
+        language = data.get("language", "ko")
         
         if not token or not session_id or not user_answer:
             await websocket.send_json({"type": "error", "message": "Missing required fields (token, session_id, user_answer)."})
@@ -34,7 +35,7 @@ async def websocket_chat(websocket: WebSocket):
         user_id = current_user["user_id"]
         
         # 2. 세션 및 개념 데이터 조회
-        await websocket.send_json({"type": "status", "message": "🔍 Checking session data..."})
+        await websocket.send_json({"type": "status", "message": await translate_en_to_ko("🔍 Checking session data...", language)})
         
         sess_res = supabase.table("sessions").select("*").eq("session_id", int(session_id)).execute()
         if not sess_res.data:
@@ -59,12 +60,12 @@ async def websocket_chat(websocket: WebSocket):
         concept_name = concept_data["name"]
         ground_truth = concept_data["definition"]
         
-        eval_user_answer = await translate_ko_to_en(user_answer)
+        eval_user_answer = await translate_ko_to_en(user_answer, language)
         is_give_up = any(kw in user_answer.lower() or kw in eval_user_answer.lower() for kw in GIVE_UP_KEYWORDS)
         
-        await websocket.send_json({"type": "status", "message": "🌐 Searching Knowledge Graph & News..."})
+        await websocket.send_json({"type": "status", "message": await translate_en_to_ko("🌐 Searching Knowledge Graph & News...", language)})
         
-        concept_name_kr = await translate_en_to_ko(concept_name)
+        concept_name_kr = await translate_en_to_ko(concept_name, language)
         news_context, kg_context = await asyncio.gather(
             retrieve_news_rag(concept_name),
             retrieve_knowledge_graph(concept_name_kr)
@@ -87,7 +88,7 @@ async def websocket_chat(websocket: WebSocket):
             "hint_provided": False
         }
         
-        await websocket.send_json({"type": "status", "message": "🤖 AI Agents are drafting & debating..."})
+        await websocket.send_json({"type": "status", "message": await translate_en_to_ko("🤖 AI Agents are drafting & debating...", language)})
         
         final_state = None
         
@@ -111,7 +112,7 @@ async def websocket_chat(websocket: WebSocket):
                     if event["name"] == "LangGraph":
                         final_state = event["data"]["output"]
         
-        await websocket.send_json({"type": "status", "message": "✅ Finalizing response..."})
+        await websocket.send_json({"type": "status", "message": await translate_en_to_ko("✅ Finalizing response...", language)})
         
         expert_scores_raw = final_state.get("raw_scores", {})
         antutor_score = expert_scores_raw.get("The Academic Auditor", 0.0)
@@ -218,20 +219,20 @@ async def websocket_chat(websocket: WebSocket):
         
         supabase.table("chat_logs").insert(chat_log_payload).execute()
         
-        translated_propositions = [await translate_en_to_ko(p) for p in propositions]
+        translated_propositions = [await translate_en_to_ko(p, language) for p in propositions]
         for expert in expert_results:
             raw_feedback = expert.get("feedback")
             if isinstance(raw_feedback, dict):
                 actual_text = raw_feedback.get("weakest_point", raw_feedback.get("feedback", ""))
-                expert["feedback"] = await translate_en_to_ko(actual_text) if actual_text else ""
+                expert["feedback"] = await translate_en_to_ko(actual_text, language) if actual_text else ""
             elif isinstance(raw_feedback, str):
-                expert["feedback"] = await translate_en_to_ko(raw_feedback)
+                expert["feedback"] = await translate_en_to_ko(raw_feedback, language)
                 
         if scaffold_plan:
             if scaffold_plan.get("message"):
-                scaffold_plan["message"] = await translate_en_to_ko(scaffold_plan["message"])
+                scaffold_plan["message"] = await translate_en_to_ko(scaffold_plan["message"], language)
             if scaffold_plan.get("definition"):
-                scaffold_plan["definition"] = await translate_en_to_ko(scaffold_plan["definition"])
+                scaffold_plan["definition"] = await translate_en_to_ko(scaffold_plan["definition"], language)
 
         await websocket.send_json({
             "type": "final_result",

@@ -28,7 +28,7 @@ if LLM_BACKEND_TYPE.lower() == "vllm":
         base_url=draft_base_url,
         api_key=VLLM_API_KEY or "empty",
         temperature=0.0,
-        max_tokens=2048,
+        max_tokens=512,
         timeout=600,
         default_headers={"ngrok-skip-browser-warning": "true"}
     ).with_config({"tags": ["draft_llm"]})
@@ -38,7 +38,7 @@ if LLM_BACKEND_TYPE.lower() == "vllm":
         base_url=debate_base_url,
         api_key=VLLM_API_KEY or "empty",
         temperature=0.0,
-        max_tokens=2048,
+        max_tokens=512,
         timeout=600,
         default_headers={"ngrok-skip-browser-warning": "true"}
     ).with_config({"tags": ["debate_llm"]})
@@ -48,7 +48,7 @@ if LLM_BACKEND_TYPE.lower() == "vllm":
         base_url=debate_base_url,
         api_key=VLLM_API_KEY or "empty",
         temperature=0.0,
-        max_tokens=2048,
+        max_tokens=256,
         timeout=600,
         default_headers={"ngrok-skip-browser-warning": "true"}
     ).with_config({"tags": ["synthesis_llm"]})

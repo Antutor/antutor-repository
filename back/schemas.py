@@ -9,9 +9,11 @@ class ChatRequest(BaseModel):
     session_id: str
     concept: str
     user_answer: str
+    language: Optional[str] = "ko"
 
 class EndSessionRequest(BaseModel):
     session_id: str
+    language: Optional[str] = "ko"
 
 class PromptTuningSandboxRequest(BaseModel):
     system_prompt: str
@@ -50,3 +52,4 @@ class GraphSandboxRequest(BaseModel):
 class ResumeDecisionRequest(BaseModel):
     concept: str
     decision: str  # "resume" or "fresh"
+    language: Optional[str] = "ko"

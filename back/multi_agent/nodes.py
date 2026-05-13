@@ -244,6 +244,8 @@ async def synthesis_node(state: AgentState):
     rebuttals_str = json.dumps(rebuttal_results, ensure_ascii=False, indent=2)
     
     session_context_str = f"consecutive_high_score_count: {state.get('consecutive_high_score_count', 0)}"
+    language = state.get("language", "ko")
+    output_language = "Korean" if language == "ko" else "English"
     
     sys_msg = "/no_think\n" + NEW_MODERATOR_AGENT_PROMPT.format(
         concept=concept,
@@ -253,7 +255,8 @@ async def synthesis_node(state: AgentState):
         market_result=market_res,
         macro_result=macro_res,
         rebuttal_results=rebuttals_str,
-        news_context=state.get("news_context", "")
+        news_context=state.get("news_context", ""),
+        output_language=output_language
     )
     
     res_content = await call_synthesis(sys_msg)

@@ -33,7 +33,7 @@ async def call_local_llm(prompt: str, is_json: bool = False, model: Optional[str
             "model": model_name,
             "messages": [{"role": "user", "content": prompt}],
             "temperature": temperature if temperature is not None else 0.0,
-            "max_tokens": 2048
+            "max_tokens": 512
         }
         if is_json:
             payload["response_format"] = {"type": "json_object"}
