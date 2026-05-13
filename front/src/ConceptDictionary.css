@@ -83,9 +83,9 @@
 }
 
 .dict-search-wrapper:focus-within {
-  border-color: var(--color-expert-academic);
+  border-color: #10b981;
   background-color: var(--color-white);
-  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.1);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.1);
 }
 
 .search-icon {
@@ -130,12 +130,12 @@
 .concept-card:hover {
   transform: translateY(-4px);
   box-shadow: 0 12px 24px rgba(0,0,0,0.06);
-  border-color: rgba(59, 130, 246, 0.3);
+  border-color: rgba(16, 185, 129, 0.3);
 }
 
 .concept-card.highlighted-card {
-  border: 2px solid var(--color-expert-academic);
-  box-shadow: 0 8px 30px rgba(59, 130, 246, 0.15);
+  border: 2px solid #10b981;
+  box-shadow: 0 8px 30px rgba(16, 185, 129, 0.15);
   transform: scale(1.02);
 }
 
@@ -398,7 +398,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  background-color: var(--color-expert-academic);
+  background-color: #10b981;
   color: var(--color-white);
   padding: 12px 24px;
   border-radius: 8px;

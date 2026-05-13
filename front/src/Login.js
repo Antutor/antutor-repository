@@ -25,7 +25,7 @@ const Login = ({ onLogin, onGoToRegister, language, onLanguageChange }) => {
         localStorage.setItem('access_token', response.data.access_token);
       }
       setIsFadingOut(true);
-      setTimeout(() => { onLogin(); }, 500);
+      setTimeout(() => { onLogin(userId); }, 500);
     } catch (error) {
       alert(t(language, 'loginFailed'));
     }

@@ -3,7 +3,7 @@
   flex-direction: column;
   height: 100vh;
   overflow: hidden;
-  background: linear-gradient(to bottom, #fefce8 0%, #f0fdfa 15%, #f7fee7 50%, #ecfdf5 100%);
+  background: linear-gradient(120deg, #fdfbf7 0%, #f0f9ff 40%, #f5f3ff 100%);
 }
 
 .app-header {
@@ -116,7 +116,7 @@
   display: flex;
   flex: 1;
   gap: 20px;
-  padding: 20px;
+  padding: 0 20px 20px 20px;
   position: relative;
   overflow: hidden;
   box-sizing: border-box;
@@ -124,11 +124,11 @@
 
 /* Glassmorphism Panel Base */
 .glass-panel {
-  background: rgba(255, 255, 255, 0.7);
+  background: var(--glass-bg);
   backdrop-filter: blur(15px);
   border-radius: 35px;
-  border: 2px solid rgba(255, 255, 255, 0.8);
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.05);
+  border: 2px solid var(--glass-border);
+  box-shadow: var(--shadow-premium);
   animation: slideUpFade 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
@@ -152,6 +152,7 @@
   transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s;
   flex-shrink: 0;
   overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .sidebar.closed {
@@ -1448,6 +1449,8 @@
   border-radius: 18px;
   border: 1px solid rgba(255, 255, 255, 0.8);
   transition: all 0.3s ease;
+  overflow: hidden;
+  min-width: 0;
 }
 
 .expert-profile-card:hover {
@@ -1505,15 +1508,17 @@
 
 .expert-name-row {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   justify-content: space-between;
-  gap: 8px;
+  flex-wrap: nowrap;
+  gap: 4px;
 }
 
 .expert-name {
   font-weight: 700;
   font-size: 0.95rem;
   font-family: 'Inter', sans-serif;
+  white-space: nowrap;
 }
 
 .online-text {
@@ -1533,4 +1538,57 @@
   -webkit-box-orient: vertical;
   overflow: hidden;
   font-family: 'Inter', sans-serif;
+}
+
+/* Help Action Chips */
+.help-action-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background-color: rgba(255, 255, 255, 0.8);
+  border: 1px solid var(--color-border);
+  padding: 8px 14px;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.help-action-chip:hover:not(:disabled) {
+  background-color: var(--color-white);
+  border-color: #22c55e;
+  color: #16a34a;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(34, 197, 94, 0.15);
+}
+
+.help-action-chip:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.help-action-chip:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.help-action-chip svg {
+  transition: transform 0.2s;
+}
+
+.help-action-chip:hover svg {
+  transform: scale(1.1);
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }

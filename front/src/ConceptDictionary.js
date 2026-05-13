@@ -5,9 +5,9 @@ import { dictionaryAPI } from './api/services';
 import { t } from './locales';
 
 const getExpertTags = (lang) => ({
-  academic: { name: t(lang, 'dictCatAcademic'), icon: BookOpen, color: 'var(--color-expert-academic)', bg: 'rgba(59, 130, 246, 0.1)' },
-  market:   { name: t(lang, 'dictCatMarket'),   icon: TrendingUp, color: 'var(--color-expert-market)', bg: 'rgba(16, 185, 129, 0.1)' },
-  macro:    { name: t(lang, 'dictCatMacro'),    icon: Globe, color: 'var(--color-expert-macro)', bg: 'rgba(139, 92, 246, 0.1)' }
+  academic: { name: t(lang, 'dictCatAcademic'), icon: BookOpen, color: '#10b981', bg: 'rgba(16, 185, 129, 0.1)' },
+  market:   { name: t(lang, 'dictCatMarket'),   icon: TrendingUp, color: '#059669', bg: 'rgba(5, 150, 105, 0.1)' },
+  macro:    { name: t(lang, 'dictCatMacro'),    icon: Globe, color: '#8b5cf6', bg: 'rgba(139, 92, 246, 0.1)' }
 });
 
 const ConceptDictionary = ({ isOpen, onClose, initialSearchTerm, cameFromScaffolding, onReturnWithHint, language, onLanguageChange }) => {

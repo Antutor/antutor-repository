@@ -1,24 +1,28 @@
 @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap');
 
 :root {
-  --color-deep-navy: #4b5563; /* Softened Charcoal */
-  --color-navy-light: #6b7280; /* Lighter Grey */
-  --color-soft-blue: #bfdbfe;
-  --color-soft-gold: #fef3c7;
-  --color-soft-green: #d1fae5;
-  --color-soft-pink: #ffe4e6;
+  --color-deep-navy: #0f172a; /* Slate 900 - Deep & Premium */
+  --color-navy-light: #334155; /* Slate 700 */
+  --color-soft-blue: #eff6ff; /* Blue 50 */
+  --color-soft-gold: #fffbeb; /* Amber 50 */
+  --color-soft-green: #f0fdf4; /* Emerald 50 */
+  --color-soft-pink: #fdf2f8; /* Pink 50 */
   --color-white: #ffffff;
-  --color-cream: #fdfbf7;
-  --color-bg-light: #f9fbfc;
-  --color-border: #e2e8f0;
+  --color-cream: #fafaf9; /* Stone 50 */
+  --color-bg-light: #f8fafc; /* Slate 50 */
+  --color-border: #e2e8f0; /* Slate 200 */
   
-  /* Expert Point Colors - Softened */
-  --color-expert-academic: #93c5fd; /* Softened Blue */
-  --color-expert-market: #6ee7b7; /* Softened Green */
-  --color-expert-macro: #c4b5fd; /* Softened Purple */
+  /* Expert Point Colors - Vibrant & Professional */
+  --color-expert-academic: #2563eb; /* Blue 600 */
+  --color-expert-market: #059669; /* Emerald 600 */
+  --color-expert-macro: #7c3aed; /* Violet 600 */
   
-  --color-text-primary: #4b5563;
-  --color-text-secondary: #9ca3af;
+  --color-text-primary: #1e293b; /* Slate 800 */
+  --color-text-secondary: #64748b; /* Slate 500 */
+  
+  --glass-bg: rgba(255, 255, 255, 0.7);
+  --glass-border: rgba(255, 255, 255, 0.8);
+  --shadow-premium: 0 10px 40px rgba(0, 0, 0, 0.04);
 }
 
 * {
