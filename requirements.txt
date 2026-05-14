@@ -14,3 +14,6 @@ langchain-ollama
 neo4j
 langchain-openai
 websockets
+tavily-python
+langchain-tavily
+sentence-transformers

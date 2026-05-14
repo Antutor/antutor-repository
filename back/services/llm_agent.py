@@ -7,7 +7,7 @@ from fastapi import HTTPException
 
 from config import (
     LOCAL_LLM_ENDPOINT, LOCAL_LLM_MODEL,
-    NEWS_API_KEY, LLM_BACKEND_TYPE, VLLM_API_KEY
+    TAVILY_API_KEY, LLM_BACKEND_TYPE, VLLM_API_KEY
 )
 from services.knowledge_graph import retrieve_knowledge_graph  # noqa: F401 — re-exported
 from multi_agent.prompts import (
@@ -85,25 +85,156 @@ async def evaluate_academic_auditor(concept: str, user_answer: str, ground_truth
             "feedback": "Failed to parse local LLM assessment."
         }
 
-async def retrieve_news_rag(concept: str) -> str:
-    if not NEWS_API_KEY:
-        raise HTTPException(status_code=500, detail="NEWS_API_KEY is not configured.")
-    
-    url = f"https://newsapi.org/v2/everything?q={concept}&sortBy=relevancy&pageSize=3&apiKey={NEWS_API_KEY}"
-    async with httpx.AsyncClient() as client:
-        try:
-            response = await client.get(url, timeout=5.0)
-            data = response.json()
-            if data.get("status") == "ok" and data.get("articles"):
-                articles = data["articles"]
-                news_summary = " ".join([f"Headline: {art['title']}." for art in articles])
-                return f"Recent news context for {concept}: {news_summary}"
-            else:
-                return f"No recent news found for {concept}."
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Error fetching news for {concept}: {str(e)}")
-    
-    raise HTTPException(status_code=500, detail=f"Failed to retrieve news context for {concept}.")
+# 웹페이지 네비게이션/면책 문구 패턴 — AI 컨텍스트에 불필요
+_BOILERPLATE_PATTERNS = [
+    "official website", ".gov website", "government organization",
+    "united states government", "federal reserve",   # 기관 소개 보일러플레이트
+    "javascript", "cookies", "cookie policy",         # 브라우저/쿠키 안내
+    "subscribe", "newsletter", "sign up", "log in",  # 마케팅/로그인 유도
+    "all rights reserved", "privacy policy",          # 법적 고지
+    "click here", "read more", "learn more",          # 네비게이션 링크
+]
+
+def _is_boilerplate(sentence: str) -> bool:
+    """웹페이지 면책/네비게이션 문구인지 확인합니다."""
+    lower = sentence.lower()
+    return any(pat in lower for pat in _BOILERPLATE_PATTERNS)
+
+def _trim_to_sentences(text: str, max_chars: int = 300) -> str:
+    """
+    max_chars 미만에서 완성된 문장만 포함하도록 자릅니다.
+    - 짧거나(< 25자) 물음표로 끝나는 소제목 형태 문장은 건너뜁니다.
+    - 보일러플레이트(정부 면책, 쿠키 안내 등) 문장을 제거합니다.
+    """
+    import re as _re
+
+    def _keep(s: str) -> bool:
+        return len(s) >= 25 and not s.strip().endswith('?') and not _is_boilerplate(s)
+
+    if len(text) <= max_chars:
+        sentences = _re.split(r'(?<=[.!?])\s+', text)
+        kept = [s for s in sentences if _keep(s)]
+        return ' '.join(kept).strip() or text
+
+    sentences = _re.split(r'(?<=[.!?])\s+', text)
+    result = ""
+    for s in sentences:
+        if not _keep(s):
+            continue
+        candidate = (result + " " + s).strip()
+        if len(candidate) > max_chars:
+            break
+        result = candidate
+    return result if result else text[:max_chars]
+
+def _clean_content(text: str) -> str:
+    """
+    Tavily 검색 결과의 불필요한 노이즈를 제거합니다.
+    - 마크다운 헤더 줄 전체 제거 (# 텍스트 → 줄 삭제)
+    - 볼드(**), 이탤릭(*) 제거
+    - ': 579This' 같은 콜론+공백+숫자 아티팩트 제거
+    - 연속 공백·개행 정리
+    """
+    import re as _re
+    text = _re.sub(r'(?m)^#+.*$', '', text)               # ## 헤더 줄 전체 제거
+    text = _re.sub(r'\*{1,3}(.*?)\*{1,3}', r'\1', text)  # **bold**, *italic* 제거
+    text = _re.sub(r':\s*\d+\s*', ' ', text)             # ': 579' 또는 ':579' 아티팩트 제거
+    text = _re.sub(r'\s+', ' ', text).strip()             # 공백 정리
+    return text
+
+# ---------------------------------------------------------------------------
+# Tavily Search (langchain-tavily) — Market Practitioner 뉴스 컨텍스트 확보
+# ---------------------------------------------------------------------------
+try:
+    from langchain_tavily import TavilySearch
+    import os as _os
+    # setdefault 대신 직접 할당: 빈 문자열로 이미 설정된 경우에도 덮어씁니다.
+    if TAVILY_API_KEY:
+        _os.environ["TAVILY_API_KEY"] = TAVILY_API_KEY
+    _tavily_tool = TavilySearch(max_results=5)
+    print(f"✅ [Tavily] 초기화 완료 (key={'설정됨' if TAVILY_API_KEY else '없음'})", flush=True)
+except Exception as _e:
+    print(f"⚠️ [Tavily] 초기화 오류: {_e}")
+    _tavily_tool = None
+
+async def retrieve_tavily_news(concept: str) -> str:
+    """
+    TavilySearch(langchain-tavily) 를 사용하여 개념 관련 최신 뉴스를 검색합니다.
+    Market Practitioner 에이전트의 news_context 로 연결됩니다.
+    """
+    if not TAVILY_API_KEY or TAVILY_API_KEY == "your-tavily-api-key-here":
+        print("⚠️ [Tavily] API 키가 설정되지 않았습니다. 빈 컨텍스트 반환.", flush=True)
+        return f"No recent news found for {concept}. (Tavily API key not configured)"
+
+    if _tavily_tool is None:
+        return f"No recent news found for {concept}. (Tavily tool initialization failed)"
+
+    try:
+        loop = asyncio.get_event_loop()
+        results = await loop.run_in_executor(
+            None, lambda: _tavily_tool.invoke(f"{concept} economics market")
+        )
+        # 디버그: 실제 반환값 타입과 내용 확인
+        print(f"🔍 [Tavily] type={type(results).__name__}, preview={str(results)[:300]}", flush=True)
+
+        if not results:
+            return f"No recent news found for {concept}."
+
+        # TavilySearch 버전에 따라 반환값 형식이 다를 수 있음:
+        #   - {"results": [...]}  : dict 래퍼 (신버전)
+        #   - list[dict]          : 리스트 직접 반환
+        #   - str                 : 포맷된 문자열 직접 반환
+        items = []
+        if isinstance(results, dict):
+            items = results.get("results", [])
+        elif isinstance(results, list):
+            items = results
+        elif isinstance(results, str):
+            return f"Recent news context for {concept}:\n{_clean_content(results)[:600]}"
+
+        snippets = []
+        for r in items:
+            if isinstance(r, dict):
+                content = _trim_to_sentences(
+                    _clean_content(r.get("content", r.get("snippet", ""))),
+                    max_chars=600
+                )
+                if content:
+                    # 제목·URL은 AI 컨텍스트에 불필요하므로 내용만 포함
+                    snippets.append(f"- {content}")
+
+        if snippets:
+            news_text = "\n".join(snippets)
+            return f"Recent news context for {concept}:\n{news_text}"
+        else:
+            return f"No relevant news found for {concept}."
+    except Exception as e:
+        print(f"⚠️ [Tavily] 검색 오류: {e}", flush=True)
+        return f"Error fetching news for {concept}: {str(e)}"
+
+# 기존 직접 호출자(채팅.py, sandbox.py, benchmark.py)와의 호환성을 위한 별칭
+# 실제 구현체는 Tavily로 전환되었습니다.
+retrieve_news_rag = retrieve_tavily_news
+
+# --- Deprecated: 기존 News API 구현 (주석 처리) ---
+# async def retrieve_news_rag(concept: str) -> str:
+#     if not NEWS_API_KEY:
+#         raise HTTPException(status_code=500, detail="NEWS_API_KEY is not configured.")
+#     url = f"https://newsapi.org/v2/everything?q={concept}&sortBy=relevancy&pageSize=3&apiKey={NEWS_API_KEY}"
+#     async with httpx.AsyncClient() as client:
+#         try:
+#             response = await client.get(url, timeout=5.0)
+#             data = response.json()
+#             if data.get("status") == "ok" and data.get("articles"):
+#                 articles = data["articles"]
+#                 news_summary = " ".join([f"Headline: {art['title']}." for art in articles])
+#                 return f"Recent news context for {concept}: {news_summary}"
+#             else:
+#                 return f"No recent news found for {concept}."
+#         except Exception as e:
+#             raise HTTPException(status_code=500, detail=f"Error fetching news for {concept}: {str(e)}")
+#     raise HTTPException(status_code=500, detail=f"Failed to retrieve news context for {concept}.")
+
 
 # retrieve_knowledge_graph 는 services/knowledge_graph.py 에서 import 되어
 # 이 모듈의 네임스페이스로 re-export 됩니다.

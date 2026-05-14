@@ -29,10 +29,14 @@ export const locales = {
     
     // Main UI
     missionSelectTitle: '학습 미션을 선택하세요',
+    missionSelectTitleUser: '님, 오늘의 학습 미션을 선택하세요!',
     antSleeping: 'Zzz... 미션을 선택해주세요...',
     antReady: '학습할 준비가 되셨나요?',
     learningPath: '학습 경로',
     doingGreat: '정말 잘하고 있어요!',
+    studyStreak: '연속 학습 {n}일째',
+    attendance: '출석 현황',
+    todayAttendance: '오늘 출석 완료!',
     
     // Chat & System Messages
     preparingSession: '학습 세션을 준비하고 있습니다...',
@@ -48,6 +52,8 @@ export const locales = {
     answerPlaceholder: '답변을 입력하세요...',
     fillBlankHelp: '아래 문장의 빈칸을 채워주세요.',
     nudgeHelp: '힌트를 참고하여 답변을 완성해 보세요.',
+    iDontKnow: '모르겠어요',
+    requestHint: '힌트 요청',
     
     // Sidebar
     myAiTeam: '나의 AI 전문가 팀',
@@ -180,10 +186,14 @@ export const locales = {
     
     // Main UI
     missionSelectTitle: 'Select a Learning Mission',
+    missionSelectTitleUser: ', choose your learning mission for today!',
     antSleeping: 'Zzz... Please select a mission...',
     antReady: 'Are you ready to learn?',
     learningPath: 'Learning Path',
     doingGreat: 'You are doing great!',
+    studyStreak: '{n} Day Streak!',
+    attendance: 'Attendance',
+    todayAttendance: "Today's Check-in!",
     
     // Chat & System Messages
     preparingSession: 'Preparing learning session...',
@@ -199,6 +209,8 @@ export const locales = {
     answerPlaceholder: 'Type your answer...',
     fillBlankHelp: 'Please fill in the blank in the sentence below.',
     nudgeHelp: 'Use the hint to complete your answer.',
+    iDontKnow: "I don't know",
+    requestHint: 'Request Hint',
     
     // Sidebar
     myAiTeam: 'My AI Expert Team',

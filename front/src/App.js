@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import './App.css';
-import { Menu, Send, BookOpen, TrendingUp, Gem, Radar, X, Library, CheckCircle, Lock, Star, Globe, Tag, Landmark, Scale, Circle, AlertCircle, Lightbulb, Info } from 'lucide-react';
+import { Menu, Send, BookOpen, TrendingUp, Gem, Radar, X, Library, CheckCircle, Lock, Star, Globe, Tag, Landmark, Scale, Circle, AlertCircle, Lightbulb, Info, HelpCircle } from 'lucide-react';
 import SummaryModal from './SummaryModal';
 import ConceptDictionary from './ConceptDictionary';
 import ReviewModal from './ReviewModal';
@@ -9,6 +9,7 @@ import Register from './Register';
 // 1. 차트 컴포넌트 임포트
 import RadarScoreChart from './components/RadarChart';
 import LineScoreChart from './components/LineChart';
+import AttendanceTracker from './components/AttendanceTracker';
 import { studyAPI } from './api/services';
 import { t } from './locales';
 
@@ -61,6 +62,7 @@ function App() {
     const [authPage, setAuthPage] = useState('login'); // 'login' or 'register'
     const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
     const [showLeftSidebarProfile, setShowLeftSidebarProfile] = useState(false);
+    const [userName, setUserName] = useState('');
     const [profileImage, setProfileImage] = useState(null);
     const fileInputRef = useRef(null);
 
@@ -126,6 +128,7 @@ function App() {
     const [scoreHistory, setScoreHistory] = useState([]);
 
     const messagesEndRef = useRef(null);
+    const expertDrawerRef = useRef(null);
 
     const experts = [
         { id: 'academic', name: t(language, 'academicName'), icon: BookOpen, avatar: '/images/academic_ant_avatar.png', color: 'var(--color-expert-academic)', role: t(language, 'academicRole') },
@@ -148,17 +151,39 @@ function App() {
         scrollToBottom();
     }, [messages, isThinking]);
 
+    // 전문가 창 외부 클릭 시 닫기 및 시작 화면 이동 시 닫기 로직
+    useEffect(() => {
+        function handleClickOutside(event) {
+            if (expertDrawerRef.current && !expertDrawerRef.current.contains(event.target)) {
+                // 전문가 아이콘 버튼 클릭 시에는 해당 버튼의 onClick 이벤트가 우선 처리되도록 제외
+                if (event.target.closest('.expert-icon-btn')) return;
+                setActiveExpert(null);
+            }
+        }
+
+        if (activeExpert) {
+            document.addEventListener('mousedown', handleClickOutside);
+        }
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, [activeExpert]);
+
+    useEffect(() => {
+        if (!selectedMission) {
+            setActiveExpert(null);
+        }
+    }, [selectedMission]);
+
     const handleSendMessage = async (retryText = null) => {
         const actualRetryText = typeof retryText === 'string' ? retryText : null;
         const textToSend = actualRetryText || inputValue.trim();
         if (!textToSend || isThinking || !sessionId) return;
         
-        if (!actualRetryText) {
-            const userMessage = { id: Date.now(), sender: 'user', text: textToSend };
-            setMessages(prev => [...prev, userMessage]);
-            setInputValue('');
-            setCurrentScaffold(null); // 답변 전송 시 Scaffolding 상태 초기화
-        }
+        const userMessage = { id: Date.now(), sender: 'user', text: textToSend };
+        setMessages(prev => [...prev, userMessage]);
+        setInputValue('');
+        setCurrentScaffold(null); 
         setIsThinking(true);
         setNewFeedback({ academic: true, market: true, macro: true });
         setThinkingText(t(language, 'connecting'));
@@ -401,13 +426,13 @@ function App() {
     };
 
     if (!isLoggedIn) {
-        if (authPage === 'login') return <Login onLogin={() => setIsLoggedIn(true)} onGoToRegister={() => setAuthPage('register')} language={language} onLanguageChange={setLanguage} />;
+        if (authPage === 'login') return <Login onLogin={(uid) => { setUserName(uid); setIsLoggedIn(true); }} onGoToRegister={() => setAuthPage('register')} language={language} onLanguageChange={setLanguage} />;
         if (authPage === 'register') return <Register onGoToLogin={() => setAuthPage('login')} language={language} onLanguageChange={setLanguage} />;
     }
 
     return (
         <div className="app-container fade-in">
-            <header className="app-header">
+            <header className="app-header" style={{ height: '75px' }}>
                 <div className="header-left">
                     <button className="icon-btn" onClick={() => setShowLeftSidebarProfile(!showLeftSidebarProfile)}>
                         <Menu size={20} />
@@ -417,7 +442,14 @@ function App() {
                         onClick={() => { setSelectedMission(null); setHoveredMission(null); }}
                         style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', gap: '10px' }}
                     >
-                        <img src="/images/antutor%20logo%20final.png" alt="Antutor Logo" style={{ height: '60px', marginLeft: '5px' }} />
+                        <img 
+                            src="/images/antutor%20logo%20final.png" 
+                            alt="Antutor Logo" 
+                            style={{ 
+                                height: '72px', 
+                                marginLeft: '5px'
+                            }} 
+                        />
                     </div>
                 </div>
                 <div className="header-right">
@@ -462,6 +494,9 @@ function App() {
                                 </div>
                                 <img src="/images/antutor%20standup.png" alt="Ant" className="mission-card-character bobbing-character" style={{ width: '180px', height: '180px', margin: '0 auto', display: 'block' }} />
                             </div>
+                            
+                            {/* Motivation Section: Streak & Attendance */}
+                            <AttendanceTracker language={language} />
                         </div>
                     ) : (
                         <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
@@ -471,9 +506,8 @@ function App() {
                                 <LineScoreChart history={scoreHistory} language={language} />
                             </div>
                             <div style={{ flex: 1 }}></div> {/* 스페이서로 공간 확보 */}
-                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '20px', borderTop: '1px solid var(--color-border)', backgroundColor: 'rgba(255,255,255,0.5)', marginBottom: '20px' }}>
-                                <img src="/images/antutor%20standup.png" alt="Studying Ant" className="bobbing-character" style={{ width: '120px', height: '120px', objectFit: 'contain' }} />
-                                <div style={{ marginTop: '8px', fontSize: '0.9rem', fontWeight: 'bold', color: '#000000' }}>{t(language, 'doingGreat')}</div>
+                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '10px', borderTop: '1px solid var(--color-border)', backgroundColor: 'rgba(255,255,255,0.5)', marginBottom: '10px' }}>
+                                <RadarScoreChart scores={userScores} isSidebar={true} language={language} />
                             </div>
                         </div>
                     )}
@@ -481,7 +515,13 @@ function App() {
 
                 {!selectedMission ? (
                     <section className="mission-selection-container glass-panel">
-                        <h2 className="mission-title">{t(language, 'missionSelectTitle')}</h2>
+                        <h2 className="mission-title">
+                            {language === 'ko' ? (
+                                <>{userName}<span style={{ fontWeight: '400' }}>{t(language, 'missionSelectTitleUser')}</span></>
+                            ) : (
+                                <>{userName}{t(language, 'missionSelectTitleUser')}</>
+                            )}
+                        </h2>
                         <div className="mission-grid">
                             {getMissionConcepts(language).map(mission => (
                                 <div 
@@ -580,6 +620,24 @@ function App() {
                                 </div>
                             ) : (
                                 <div style={{ width: '100%' }}>
+                                    <div className="help-action-chips" style={{ display: 'flex', gap: '10px', marginBottom: '12px', animation: 'fadeInUp 0.4s ease-out' }}>
+                                        <button 
+                                            className="help-action-chip" 
+                                            onClick={() => handleSendMessage(t(language, 'iDontKnow'))}
+                                            disabled={isThinking}
+                                        >
+                                            <HelpCircle size={14} />
+                                            <span>{t(language, 'iDontKnow')}</span>
+                                        </button>
+                                        <button 
+                                            className="help-action-chip" 
+                                            onClick={() => handleSendMessage(t(language, 'requestHint'))}
+                                            disabled={isThinking}
+                                        >
+                                            <Lightbulb size={14} />
+                                            <span>{t(language, 'requestHint')}</span>
+                                        </button>
+                                    </div>
                                     {currentScaffold && (
                                         <div className={`scaffold-info-banner ${currentScaffold.type === 'Fill-in-the-Blank' ? 'fill-mode' : 'nudge-mode'}`}>
                                             <div className="scaffold-info-content">
@@ -682,7 +740,7 @@ function App() {
                     </div>
                 </div>
 
-                <div className={`expert-drawer ${activeExpert ? 'open' : ''}`}>
+                <div ref={expertDrawerRef} className={`expert-drawer ${activeExpert ? 'open' : ''}`}>
                     {activeExpert && (
                         <div className="drawer-content">
                             <div className="drawer-header" style={{ borderBottomColor: experts.find(e => e.id === activeExpert)?.color }}>

@@ -20,6 +20,9 @@ from multi_agent.llm_config import draft_llm
 from multi_agent.prompts import RECOVERY_NUDGE_PROMPT, RECOVERY_FILL_BLANK_PROMPT
 from langchain_core.messages import SystemMessage
 import json
+# --- 보안 가드레일 & 시맨틱 캐시 ---
+from services.guardrail import run_guardrail, run_guardrail_ws
+from services.semantic_cache import get_cached_response, save_to_cache
 
 def get_recovery_prompt(concept_name, ground_truth, kg_context, idk_count):
     if idk_count == 1:
@@ -200,6 +203,32 @@ async def chat(request: ChatRequest, current_user: dict = Depends(get_current_us
     # Check both original (Korean) and translated (English) for keywords
     is_give_up = any(kw in request.user_answer.lower() or kw in eval_user_answer.lower() for kw in GIVE_UP_KEYWORDS)
     is_contradiction = False
+
+    # ── 1. 보안 가드레일 ──────────────────────────────────────────────
+    await run_guardrail(eval_user_answer, user_id=str(user_id))
+
+    # ── 2. 시맨틱 캐시 조회 ──────────────────────────────────────────
+    if not is_give_up:
+        cached_response = await get_cached_response(concept_name, eval_user_answer)
+        if cached_response:
+            print(f"✅ [Chat] 시맨틱 캐시 히트! 캐시된 응답 반환", flush=True)
+            translated_cached = await translate_en_to_ko(cached_response, language)
+            return {
+                "atomic_propositions": ["(Served from semantic cache)"],
+                "expert_average_score": 0.0,
+                "is_contradiction_override": False,
+                "expert_feedback": [],
+                "is_fallback": False,
+                "from_cache": True,
+                "moderator_decision": {
+                    "status": "proceed",
+                    "lowest_performing_area": "N/A",
+                    "scaffold_plan": {
+                        "step": "Guidance Prompt",
+                        "message": translated_cached
+                    }
+                }
+            }
     
     any_fallback = False
     if is_give_up:
@@ -341,6 +370,10 @@ async def chat(request: ChatRequest, current_user: dict = Depends(get_current_us
                 "step": "Guidance Prompt",
                 "message": guidance_message
             }
+
+    # ── 3. 시맨틱 캐시 저장 ──────────────────────────────────────────
+    if not is_give_up and guidance_message:
+        await save_to_cache(concept_name, eval_user_answer, guidance_message)
 
     # 현재 턴 수 계산
     logs_count_res = supabase.table("chat_logs").select("log_id", count="exact").eq("session_id", session["session_id"]).execute()
@@ -513,7 +546,43 @@ async def websocket_chat(websocket: WebSocket):
         
         eval_user_answer = await translate_ko_to_en(user_answer, language)
         is_give_up = any(kw in user_answer.lower() or kw in eval_user_answer.lower() for kw in GIVE_UP_KEYWORDS)
-        
+
+        # ── 1. 보안 가드레일 ──────────────────────────────────────────
+        blocked_msg = await run_guardrail_ws(eval_user_answer, user_id=str(user_id))
+        if blocked_msg:
+            await websocket.send_json({"type": "error", "message": blocked_msg})
+            await websocket.close(code=1008)
+            return
+
+        # ── 2. 시맨틱 캐시 조회 ──────────────────────────────────────────
+        if not is_give_up:
+            cached_response = await get_cached_response(concept_name, eval_user_answer)
+            if cached_response:
+                print(f"✅ [WS Chat] 시맨틱 캐시 히트! 캐시된 응답 반환", flush=True)
+                translated_cached = await translate_en_to_ko(cached_response, language)
+                await websocket.send_json({
+                    "type": "final_result",
+                    "data": {
+                        "atomic_propositions": ["(Served from semantic cache)"],
+                        "expert_average_score": 0.0,
+                        "is_contradiction_override": False,
+                        "expert_feedback": [],
+                        "is_fallback": False,
+                        "from_cache": True,
+                        "moderator_decision": {
+                            "status": "proceed",
+                            "lowest_performing_area": "N/A",
+                            "scaffold_plan": {
+                                "step": "Guidance Prompt",
+                                "message": translated_cached
+                            }
+                        }
+                    }
+                })
+                await asyncio.sleep(1)
+                await websocket.close()
+                return
+
         await websocket.send_json({"type": "status", "message": await translate_en_to_ko("🌐 Searching Knowledge Graph & News...", language)})
         
         news_context, kg_context = await asyncio.gather(
@@ -669,6 +738,10 @@ async def websocket_chat(websocket: WebSocket):
                 moderator_action = "proceed"
                 guidance_message = final_state.get("final_synthesis", "Good job, but let's explore more deeply.")
                 scaffold_plan = {"step": "Guidance Prompt", "message": guidance_message}
+
+        # ── 3. 시맨틱 캐시 저장 ──────────────────────────────────────────
+        if not is_give_up and guidance_message:
+            await save_to_cache(concept_name, eval_user_answer, guidance_message)
 
         logs_count_res = supabase.table("chat_logs").select("log_id", count="exact").eq("session_id", session["session_id"]).execute()
         turn_number = logs_count_res.count + 1 if logs_count_res.count is not None else 1
