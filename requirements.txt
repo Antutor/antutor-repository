@@ -16,3 +16,4 @@ langchain-openai
 websockets
 tavily-python
 langchain-tavily
+sentence-transformers
