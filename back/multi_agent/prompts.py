@@ -78,14 +78,23 @@ Do NOT skip any clause.
 Every clause must appear in error_clauses, even if correct.
 correct clauses → include with empty reason field.
 
-Step 6. Final type decision (MUST follow exactly):
-- If ALL clauses are contradiction                                  → type = "contradiction"
-- If ALL clauses are irrelevant                                     → type = "irrelevant"
-- If ALL clauses are contradiction and/or irrelevant               → type = "contradiction"
-- If ALL clauses are correct                                        → type = "correct"
-- If clauses are correct and/or partial only                       → type = "partial"
-- If at least one clause is contradiction or irrelevant
-  AND at least one clause is correct or partial                    → type = "mixed"
+Step 6. Final type decision — MECHANICAL CHECK:
+
+Before deciding type, count:
+  - contradiction_count = number of clauses typed "contradiction"
+  - irrelevant_count = number of clauses typed "irrelevant"  
+  - correct_count = number of clauses typed "correct"
+  - partial_count = number of clauses typed "partial"
+
+Apply rules IN ORDER:
+  IF contradiction_count > 0 AND (correct_count > 0 OR partial_count > 0):
+    → type = "mixed"  ← CHECK THIS FIRST
+  ELIF contradiction_count > 0 OR irrelevant_count > 0:
+    → type = "contradiction"
+  ELIF correct_count > 0 AND partial_count == 0:
+    → type = "correct"
+  ELSE:
+    → type = "partial"
 
 WARNING: Do NOT classify as "partial" if ANY clause is contradiction or irrelevant.
 Check ALL clauses before deciding type.
