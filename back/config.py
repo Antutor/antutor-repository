@@ -18,7 +18,8 @@ VLLM_API_KEY = os.getenv("VLLM_API_KEY", "")
 LOCAL_LLM_MODEL = os.getenv("LOCAL_LLM_MODEL", "qwen3:8b")
 DRAFT_LLM_MODEL = os.getenv("DRAFT_LLM_MODEL", "qwen3:8b")
 DEBATE_LLM_MODEL = os.getenv("DEBATE_LLM_MODEL", "qwen3:8b")
-NEWS_API_KEY = os.getenv("NEWS_API_KEY", "")
+# NEWS_API_KEY = os.getenv("NEWS_API_KEY", "")  # Deprecated: replaced by Tavily Search
+TAVILY_API_KEY = os.getenv("TAVILY_API_KEY", "")
 DEEPL_API_KEY = os.getenv("DEEPL_API_KEY", "")
 ENABLE_KOREAN_TRANSLATION = os.getenv("ENABLE_KOREAN_TRANSLATION", "true").lower() == "true"
 

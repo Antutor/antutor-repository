@@ -94,7 +94,7 @@ async def ai_test_sandbox(request: PromptTuningSandboxRequest, current_user: str
 @router.get("/ai/test/rag/{concept}", tags=["Sandbox"])
 async def test_rag_sandbox(concept: str, current_user: str = Depends(get_current_user)):
     """
-    RAG(News API) 기능만 단독으로 테스트합니다.
+    RAG(Tavily Search) 기능만 단독으로 테스트합니다.
     """
     try:
         news_context = await retrieve_news_rag(concept)
