@@ -22,27 +22,63 @@ Step 1. Segment the student answer into clauses.
 Step 2. For each clause, extract the factual claim.
 
 Step 3. Logic check (CRITICAL):
-- contradiction = the clause states something FACTUALLY OPPOSITE or LOGICALLY INCOMPATIBLE.
-  Example of contradiction: "inflation means prices go DOWN" → contradiction
-  Example of contradiction: "inflation increases purchasing power" → contradiction
-- partial = the clause is correct in direction but vague, incomplete, or missing key context.
-  Example of partial: "inflation means prices go up" → partial (direction correct, but missing economy-wide scope and purchasing power)
-  Example of partial: "people can buy less stuff" → partial (effect correct, but not explained why)
+- contradiction = the clause states something FACTUALLY OPPOSITE
+  or LOGICALLY INCOMPATIBLE.
+- partial = correct direction but vague, incomplete,
+  or missing key context.
 - DO NOT mark partial as contradiction. Incomplete ≠ wrong.
-- Only mark contradiction if the clause is factually wrong regardless of how much detail is added.
-- DO NOT mark as contradiction if the statement is merely incomplete.
-  Example: correct direction but missing key context    → partial (not contradiction)
-  Example: describes an effect but omits the mechanism → partial (not contradiction)
-  Only mark contradiction if the statement is factually OPPOSITE or LOGICALLY INCOMPATIBLE.
-  Incomplete ≠ wrong. Vague ≠ wrong.
+- Only mark contradiction if factually wrong regardless
+  of how much detail is added.
 
-Step 4. Completeness check:
-- Identify key elements present in the correct definition but absent from the answer.
+Common misconception patterns — these ARE contradictions:
+- Direction reversal: stating the OPPOSITE causal direction
+- Effect-cause inversion: describing effect as cause
+- Value-quantity confusion: mixing up monetary value
+  and purchasing power
+- Scope error: applying economy-wide concept
+  to individual level only
 
-Step 5. Classify each clause:
-  correct | partial | contradiction | irrelevant
+Step 4. Completeness and scope check:
 
-Step 6. Final type decision (CRITICAL — follow exactly):
+4-1. Core definition check:
+  - Identify which elements of the CORE correct definition
+    are present or absent in the student answer.
+  - Only flag as missing if a CORE element is absent.
+
+4-2. Beyond-scope content check:
+  - If the student includes content BEYOND the core definition,
+    evaluate it as follows:
+
+  CASE A: Additional content is factually CORRECT
+    → Label as "correct_extension"
+    → Do NOT penalize. Treat as bonus.
+    → Example: mentioning central bank policy
+      when asked about inflation definition → bonus
+
+  CASE B: Additional content is factually INCORRECT
+    → Label as "contradiction"
+    → Penalize normally as per Step 3.
+    → Example: "기준금리 인상 → 물가 상승" → contradiction
+
+  CASE C: Additional content is completely UNRELATED
+    to the concept being evaluated
+    → Label as "irrelevant"
+    → Example: discussing stock investment
+      when explaining inflation → irrelevant
+
+RULE: "correct_extension" does NOT negatively affect
+the final type or score.
+It may contribute a small positive adjustment (+0.05 ~ +0.1).
+
+Step 5. Classify EVERY clause — NO EXCEPTIONS:
+  correct | partial | contradiction | irrelevant | correct_extension
+
+CRITICAL: You MUST classify ALL clauses including correct ones.
+Do NOT skip any clause.
+Every clause must appear in error_clauses, even if correct.
+correct clauses → include with empty reason field.
+
+Step 6. Final type decision (MUST follow exactly):
 - If ALL clauses are contradiction                                  → type = "contradiction"
 - If ALL clauses are irrelevant                                     → type = "irrelevant"
 - If ALL clauses are contradiction and/or irrelevant               → type = "contradiction"
@@ -51,7 +87,8 @@ Step 6. Final type decision (CRITICAL — follow exactly):
 - If at least one clause is contradiction or irrelevant
   AND at least one clause is correct or partial                    → type = "mixed"
 
-WARNING: Do NOT classify as "partial" if any clause is contradiction or irrelevant.                   → type = "mixed"
+WARNING: Do NOT classify as "partial" if ANY clause is contradiction or irrelevant.
+Check ALL clauses before deciding type.
 
 Step 7. Score reference table:
   contradiction or irrelevant → score: 0.0 ~ 0.2
@@ -89,7 +126,10 @@ Return ONLY this JSON:
 }}
 
 Output rules:
-- error_clauses: include ALL clauses typed partial / contradiction / irrelevant. Empty array only if type = "correct".
+- error_clauses: include ALL clauses regardless of type.
+  correct clauses → type: "correct", reason: ""
+  correct_extension clauses → type: "correct_extension", reason: "Accurate additional context beyond core definition. Bonus applied."
+  Empty array only if no clauses were found.
 - weakest_point: the single most critical missing or incorrect concept.
 - hint: one concrete clue that helps the student correct the weakest_point. Empty string if retry_needed = false.
 - score: refer to the score reference table in Step 7.
@@ -125,6 +165,13 @@ Real-world signals (any of these counts):
   people, households, consumers, businesses, prices, wages,
   spending, borrowing, interest rates, cost of living, exchange rates,
   inflation impact, market reaction, asset prices, unemployment
+
+Step 2-1. Check news context connection (bonus only):
+  - Read the news context provided above.
+  - If the student's answer connects to or aligns with
+    the real-world signals in the news context:
+    → apply a score bonus of up to +0.1
+  - If no connection exists: NO penalty. Score unchanged.
 
 Step 3. Final type decision:
   - No clause contains any real-world signal                        → type = "irrelevant"
@@ -386,6 +433,10 @@ Priority 4 (Integrated):
   "~할까요?", "~어떻게 될까요?", "~설명해볼 수 있을까요?", "~어떤 영향을 미칠까요?"
 - Do NOT end with "~해야 합니다?" or statement-style sentences followed by "?".
 - Keep the question to 2~3 sentences maximum.
+- If news_context is available, incorporate a relevant news reference
+  into the final question to make it timely and concrete.
+  Example: instead of abstract "how does inflation affect markets",
+  use a specific real-world angle from the news.
 
 --- Output ---
 
@@ -424,6 +475,9 @@ Macro draft result:
 
 Rebuttal results:
 {rebuttal_results}
+
+News context:
+{news_context}
 """
 
 # ====================================================================
