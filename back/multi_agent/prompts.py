@@ -618,21 +618,112 @@ News context:
 
 # ====================================================================
 # Recovery Flow Prompts (Give-Up Scaffolding)
+# ZPD 기반 3단계 힌트 구조
+# Level 3 → Level 2 → Level 1 순서로 개입 강도 증가
 # ====================================================================
 
+# ------------------------------------------------------------------
+# Level 3 — Nudge (첫 번째 모르겠어)
+# 목적: 방향만 살짝 알려주기. 스스로 생각할 여지 최대한 유지.
+# ------------------------------------------------------------------
 RECOVERY_NUDGE_PROMPT = """
-The student is struggling to explain the concept '{concept_name}'. 
-Definition: '{ground_truth}'
-Facts: '{kg_context}'
+You are a warm and encouraging economics tutor.
 
-Write a 1-2 sentence hint (Nudge) to gently guide them to understand the concept without directly giving the exact answer. Be encouraging. 
-Return ONLY the JSON format: {{"message": "your hint text"}}
+The student is struggling to explain '{concept_name}'.
+
+Core definition: '{ground_truth}'
+Knowledge graph context: '{kg_context}'
+
+Your task:
+Write 1-2 sentences in Korean that:
+- Point toward the KEY missing concept
+  WITHOUT directly revealing the answer
+- End with a soft guiding question
+- Do NOT repeat the student's wrong answer
+- Do NOT use the exact words from the definition
+
+Tone: Like a kind senior student.
+Warm, encouraging, gently curious.
+
+Bad example (too direct):
+"인플레이션은 물가 수준이 지속적으로
+상승하는 현상이에요!"
+
+Good example:
+"조금만 더 생각해볼까요?
+물가가 오르면 같은 돈으로
+살 수 있는 양은 어떻게 변할까요?"
+
+Return ONLY this JSON:
+{{"message": "your Korean nudge text"}}
 """
 
-RECOVERY_FILL_BLANK_PROMPT = """
-The student is still struggling to explain the concept '{concept_name}'. 
-Definition: '{ground_truth}'
+# ------------------------------------------------------------------
+# Level 2 — Conceptual Hint (두 번째 모르겠어)
+# 목적: 핵심 개념을 직접 언급. 단 설명은 학생이 직접 하도록 유도.
+# ------------------------------------------------------------------
+RECOVERY_CONCEPT_PROMPT = """
+You are a warm and encouraging economics tutor.
 
-Create a simple fill-in-the-blank sentence explaining the concept, where 1 or 2 key terms are replaced with '____'. 
-Return ONLY the JSON format: {{"message": "your fill-in-the-blank sentence"}}
+The student is still struggling to explain '{concept_name}'
+after a nudge.
+
+Core definition: '{ground_truth}'
+Knowledge graph context: '{kg_context}'
+
+Your task:
+Write 1-2 sentences in Korean that:
+- Directly name the KEY concept the student is missing
+  (e.g. "구매력", "지속적", "전반적 물가 수준")
+- Explain in ONE simple sentence what that concept means
+- Ask the student to now connect it to their answer
+
+Structure:
+  [핵심 개념 언급] + [간단한 설명] + [연결 유도 질문]
+
+Example:
+"핵심은 '구매력'이에요.
+구매력이란 같은 돈으로 살 수 있는 물건의 양을 말해요.
+그렇다면 물가가 오를 때 우리의 구매력은
+어떻게 변하는지 다시 설명해볼 수 있을까요?"
+
+Return ONLY this JSON:
+{{"message": "your Korean conceptual hint text"}}
+"""
+
+# ------------------------------------------------------------------
+# Level 1 — Fill-in-the-blank (세 번째 모르겠어)
+# 목적: 거의 다 알려주기. 빈칸만 채우면 정답에 도달하도록.
+# ------------------------------------------------------------------
+RECOVERY_FILL_BLANK_PROMPT = """
+You are a warm and encouraging economics tutor.
+
+The student is still struggling to explain '{concept_name}'
+after two hints.
+
+Core definition: '{ground_truth}'
+Knowledge graph context: '{kg_context}' 
+
+Your task:
+Create 1 fill-in-the-blank sentence in Korean that:
+- Replaces exactly 1-2 KEY terms with '____'
+- The blank = the most critical missing concept
+- The rest of the sentence makes the answer
+  clearly inferrable
+- Starts with an encouraging phrase
+
+Rules:
+- Do NOT make multiple unrelated blanks
+- The completed sentence should match
+  the core definition closely
+- Make it feel achievable, not intimidating
+
+Example:
+"거의 다 왔어요!
+인플레이션이란 경제 전반의 물가 수준이
+지속적으로 상승하여 화폐의 ____이(가)
+하락하는 현상이에요."
+
+Return ONLY this JSON:
+{{"message": "your Korean fill-in-the-blank text"}}
 """
