@@ -28,9 +28,9 @@ def get_recovery_prompt(concept_name, ground_truth, kg_context, idk_count):
     if idk_count == 1:
         return RECOVERY_NUDGE_PROMPT.format(concept_name=concept_name, ground_truth=ground_truth, kg_context=kg_context)
     elif idk_count == 2:
-        return RECOVERY_CONCEPT_PROMPT.format(concept_name=concept_name, ground_truth=ground_truth)
+        return RECOVERY_CONCEPT_PROMPT.format(concept_name=concept_name, ground_truth=ground_truth, kg_context=kg_context)
     else:
-        return RECOVERY_FILL_BLANK_PROMPT.format(concept_name=concept_name, ground_truth=ground_truth)
+        return RECOVERY_FILL_BLANK_PROMPT.format(concept_name=concept_name, ground_truth=ground_truth, kg_context=kg_context)
 
 def save_debate_log(session_id, concept, user_answer, draft_reviews, critiques, final_synthesis):
     try:
