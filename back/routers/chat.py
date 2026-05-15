@@ -17,7 +17,7 @@ from datetime import datetime
 import json
 import os
 from multi_agent.llm_config import draft_llm
-from multi_agent.prompts import RECOVERY_NUDGE_PROMPT, RECOVERY_FILL_BLANK_PROMPT
+from multi_agent.prompts import RECOVERY_NUDGE_PROMPT, RECOVERY_CONCEPT_PROMPT, RECOVERY_FILL_BLANK_PROMPT
 from langchain_core.messages import SystemMessage
 import json
 # --- 보안 가드레일 & 시맨틱 캐시 ---
@@ -27,6 +27,8 @@ from services.semantic_cache import get_cached_response, save_to_cache
 def get_recovery_prompt(concept_name, ground_truth, kg_context, idk_count):
     if idk_count == 1:
         return RECOVERY_NUDGE_PROMPT.format(concept_name=concept_name, ground_truth=ground_truth, kg_context=kg_context)
+    elif idk_count == 2:
+        return RECOVERY_CONCEPT_PROMPT.format(concept_name=concept_name, ground_truth=ground_truth)
     else:
         return RECOVERY_FILL_BLANK_PROMPT.format(concept_name=concept_name, ground_truth=ground_truth)
 
@@ -328,8 +330,13 @@ async def chat(request: ChatRequest, current_user: dict = Depends(get_current_us
         moderator_action = "scaffold"
         if current_idk_count == 1:
             scaffold_step = "Sub-concept Nudge"
+            scaffolding_level = 3
+        elif current_idk_count == 2:
+            scaffold_step = "Concept Explanation"
+            scaffolding_level = 2
         else:
             scaffold_step = "Fill-in-the-Blank"
+            scaffolding_level = 1
             
         sys_prompt = get_recovery_prompt(concept_name, ground_truth, kg_context, current_idk_count)
         
@@ -345,6 +352,7 @@ async def chat(request: ChatRequest, current_user: dict = Depends(get_current_us
             
         scaffold_plan = {
             "step": scaffold_step,
+            "scaffolding_level": scaffolding_level,
             "message": guidance_message
         }
     else:
@@ -636,11 +644,17 @@ async def websocket_chat(websocket: WebSocket):
             
             if current_idk_count == 1:
                 scaffold_step = "Sub-concept Nudge"
+                scaffolding_level = 3
+            elif current_idk_count == 2:
+                scaffold_step = "Concept Explanation"
+                scaffolding_level = 2
             else:
                 scaffold_step = "Fill-in-the-Blank"
+                scaffolding_level = 1
                 
             final_state["scaffold_plan"] = {
                 "step": scaffold_step,
+                "scaffolding_level": scaffolding_level,
                 "message": guidance_message
             }
         else:

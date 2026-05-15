@@ -439,6 +439,14 @@ Write a 1-2 sentence hint (Nudge) to gently guide them to understand the concept
 Return ONLY the JSON format: {{"message": "your hint text"}}
 """
 
+RECOVERY_CONCEPT_PROMPT = """
+The student is still struggling to explain the concept '{concept_name}'. 
+Definition: '{ground_truth}'
+
+Provide a clear and simplified explanation of the core concept. 
+Return ONLY the JSON format: {{"message": "your concept explanation"}}
+"""
+
 RECOVERY_FILL_BLANK_PROMPT = """
 The student is still struggling to explain the concept '{concept_name}'. 
 Definition: '{ground_truth}'
