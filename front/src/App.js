@@ -189,7 +189,6 @@ function App() {
         setThinkingText(t(language, 'connecting'));
 
         const token = localStorage.getItem('access_token');
-        // 백엔드 주소에 맞춰 WebSocket URL 설정 (기존 baseURL 기반으로 유추)
         const wsUrl = `ws://localhost:8080/ws/chat`;
         const ws = new WebSocket(wsUrl);
 
@@ -621,14 +620,6 @@ function App() {
                             ) : (
                                 <div style={{ width: '100%' }}>
                                     <div className="help-action-chips" style={{ display: 'flex', gap: '10px', marginBottom: '12px', animation: 'fadeInUp 0.4s ease-out' }}>
-                                        <button 
-                                            className="help-action-chip" 
-                                            onClick={() => handleSendMessage(t(language, 'iDontKnow'))}
-                                            disabled={isThinking}
-                                        >
-                                            <HelpCircle size={14} />
-                                            <span>{t(language, 'iDontKnow')}</span>
-                                        </button>
                                         <button 
                                             className="help-action-chip" 
                                             onClick={() => handleSendMessage(t(language, 'requestHint'))}
