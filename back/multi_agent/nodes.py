@@ -10,7 +10,9 @@ from multi_agent.prompts import (
     NEW_MARKET_DRAFT_PROMPT,
     NEW_MACRO_DRAFT_PROMPT,
     NEW_MODERATOR_AGENT_PROMPT,
-    AGENT_REBUTTAL_PROMPT
+    AGENT_REBUTTAL_PROMPT_ACADEMIC,
+    AGENT_REBUTTAL_PROMPT_MARKET,
+    AGENT_REBUTTAL_PROMPT_MACRO
 )
 from multi_agent.llm_config import draft_llm, debate_llm, synthesis_llm, gpu_semaphore
 
@@ -148,8 +150,14 @@ async def call_rebuttal(persona, concept, user_answer, drafts):
         # 본인을 제외한 다른 에이전트들의 리뷰만 취합
         other_reviews = "\n".join([f"[{p}] \n{rev}\n" for p, rev in drafts.items() if p != persona])
         
-        sys_msg = "/no_think\n" + AGENT_REBUTTAL_PROMPT.format(
-            persona=persona, 
+        if persona == "The Academic Auditor":
+            prompt_template = AGENT_REBUTTAL_PROMPT_ACADEMIC
+        elif persona == "The Market Practitioner":
+            prompt_template = AGENT_REBUTTAL_PROMPT_MARKET
+        else:
+            prompt_template = AGENT_REBUTTAL_PROMPT_MACRO
+            
+        sys_msg = "/no_think\n" + prompt_template.format(
             concept=concept, 
             user_answer=user_answer, 
             other_reviews=other_reviews
@@ -218,7 +226,7 @@ async def moderator_check_node(state: AgentState):
         
     return {"debate_count": count, "moderator_action": action}
 
-@with_retry_and_fallback(max_retries=3, fallback_value='{"message": "System fallback: Unable to generate final synthesis due to timeout.", "hint_provided": false}')
+@with_retry_and_fallback(max_retries=3, fallback_value=None)
 async def call_synthesis(sys_msg):
     async with gpu_semaphore:
         res = await synthesis_llm.ainvoke([SystemMessage(content=sys_msg)])
@@ -261,8 +269,27 @@ async def synthesis_node(state: AgentState):
     
     res_content = await call_synthesis(sys_msg)
     
-    moderator_data = extract_json(res_content)
-    final_message = moderator_data.get("message", res_content)
+    if res_content is None:
+        # 타임아웃 발생 시 fallback 처리: 각 에이전트의 부분 결과를 조합하여 반환
+        print("\n[Fallback] Moderator timeout. 부분 결과를 조합하여 반환합니다.", flush=True)
+        academic_data = drafts.get("The Academic Auditor", {})
+        weakest_point = academic_data.get("weakest_point", "")
+        hint = academic_data.get("hint", "")
+        
+        if language == "ko":
+            fallback_msg = f"응답 생성 시간이 초과되어 학술적 피드백만 전달합니다.\n발견된 핵심 약점: {weakest_point}"
+            if hint:
+                fallback_msg += f"\n힌트: {hint}"
+        else:
+            fallback_msg = f"Response generation timed out. Delivering academic feedback only.\nWeakest point: {weakest_point}"
+            if hint:
+                fallback_msg += f"\nHint: {hint}"
+                
+        moderator_data = {"message": fallback_msg, "hint_provided": bool(hint), "mode": "retry" if academic_data.get("retry_needed") else "normal"}
+        final_message = fallback_msg
+    else:
+        moderator_data = extract_json(res_content)
+        final_message = moderator_data.get("message", res_content)
     
     # 안정적인 파싱을 위한 처리
     raw_hint_provided = moderator_data.get("hint_provided", False)
