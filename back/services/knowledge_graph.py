@@ -47,6 +47,20 @@ RETURN startNode(r).name AS Subject,
 """
 
 
+_driver = None
+
+async def get_neo4j_driver():
+    global _driver
+    if _driver is None:
+        _driver = AsyncGraphDatabase.driver(
+            _NEO4J_URI,
+            auth=(NEO4J_USER, NEO4J_PASSWORD),
+            encrypted=True,
+            ssl_context=_SSL_CONTEXT,
+            max_connection_pool_size=50
+        )
+    return _driver
+
 async def get_economic_facts(keyword: str) -> str:
     """
     keyword: 영문 경제 개념명 (예: 'opportunity cost')
@@ -55,15 +69,10 @@ async def get_economic_facts(keyword: str) -> str:
     """
     facts: list[str] = []
 
-    async with AsyncGraphDatabase.driver(
-        _NEO4J_URI,
-        auth=(NEO4J_USER, NEO4J_PASSWORD),
-        encrypted=True,
-        ssl_context=_SSL_CONTEXT,
-    ) as driver:
-        async with driver.session() as session:
-            result = await session.run(_CYPHER_QUERY, keyword=keyword)
-            records = await result.data()
+    driver = await get_neo4j_driver()
+    async with driver.session() as session:
+        result = await session.run(_CYPHER_QUERY, keyword=keyword)
+        records = await result.data()
 
     for record in records:
         subject = record["Subject"]

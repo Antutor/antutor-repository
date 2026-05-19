@@ -17,3 +17,5 @@ websockets
 tavily-python
 langchain-tavily
 sentence-transformers
+uvloop; sys_platform != 'win32'
+gunicorn
