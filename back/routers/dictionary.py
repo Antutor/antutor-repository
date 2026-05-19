@@ -11,7 +11,7 @@ async def get_all_dictionary_terms(language: str = "ko"):
     If language='ko', translates names and definitions via DeepL batch call.
     If language='en', returns original English text directly.
     """
-    response = supabase.table("concepts").select("name, definition").execute()
+    response = supabase.table("concepts").select("name, definition, category").execute()
     concepts = response.data
 
     if not concepts:
@@ -24,7 +24,8 @@ async def get_all_dictionary_terms(language: str = "ko"):
                 "term": row["name"],
                 "simple_definition": row.get("definition") or "",
                 "original_name": row["name"],
-                "example": ""
+                "example": "",
+                "category": row.get("category", "academic")
             }
             for row in concepts
         ]
@@ -43,7 +44,8 @@ async def get_all_dictionary_terms(language: str = "ko"):
             "term": translated_list[i*2],
             "simple_definition": translated_list[i*2 + 1],
             "original_name": concepts[i]["name"],
-            "example": ""
+            "example": "",
+            "category": concepts[i].get("category", "academic")
         })
 
     return results
@@ -81,7 +83,8 @@ async def get_dictionary_term(term: str, language: str = "ko"):
         return {
             "term": target_concept["name"],
             "simple_definition": target_concept.get("definition") or "",
-            "example": ""
+            "example": "",
+            "category": target_concept.get("category", "academic")
         }
 
     final_translations = await translate_list_en_to_ko([target_concept["name"], target_concept.get("definition") or ""])
@@ -89,5 +92,6 @@ async def get_dictionary_term(term: str, language: str = "ko"):
     return {
         "term": final_translations[0],
         "simple_definition": final_translations[1],
-        "example": ""
+        "example": "",
+        "category": target_concept.get("category", "academic")
     }
