@@ -56,6 +56,7 @@ function App() {
     const [isDictionaryOpen, setIsDictionaryOpen] = useState(false);
     const [dictionarySearchTerm, setDictionarySearchTerm] = useState('');
     const [language, setLanguage] = useState('ko');
+    const [expandedSidebarExpert, setExpandedSidebarExpert] = useState(null);
 
     // Auth State
     const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -189,7 +190,6 @@ function App() {
         setThinkingText(t(language, 'connecting'));
 
         const token = localStorage.getItem('access_token');
-        // 백엔드 주소에 맞춰 WebSocket URL 설정 (기존 baseURL 기반으로 유추)
         const wsUrl = `ws://localhost:8080/ws/chat`;
         const ws = new WebSocket(wsUrl);
 
@@ -623,14 +623,6 @@ function App() {
                                     <div className="help-action-chips" style={{ display: 'flex', gap: '10px', marginBottom: '12px', animation: 'fadeInUp 0.4s ease-out' }}>
                                         <button 
                                             className="help-action-chip" 
-                                            onClick={() => handleSendMessage(t(language, 'iDontKnow'))}
-                                            disabled={isThinking}
-                                        >
-                                            <HelpCircle size={14} />
-                                            <span>{t(language, 'iDontKnow')}</span>
-                                        </button>
-                                        <button 
-                                            className="help-action-chip" 
                                             onClick={() => handleSendMessage(t(language, 'requestHint'))}
                                             disabled={isThinking}
                                         >
@@ -669,7 +661,12 @@ function App() {
                             <h3 className="expert-team-title">{t(language, 'myAiTeam')}</h3>
                             <div className="expert-profiles-list">
                                 {experts.map(expert => (
-                                    <div key={expert.id} className="expert-profile-card">
+                                    <div 
+                                        key={expert.id} 
+                                        className={`expert-profile-card ${expandedSidebarExpert === expert.id ? 'expanded' : ''}`}
+                                        onClick={() => setExpandedSidebarExpert(prev => prev === expert.id ? null : expert.id)}
+                                        style={{ cursor: 'pointer' }}
+                                    >
                                         <div className="expert-avatar-wrapper">
                                             <img src={expert.avatar} alt={expert.name} className="expert-avatar-img" />
                                             <div className="status-indicator online"></div>
@@ -686,8 +683,8 @@ function App() {
                             </div>
                             
                             {/* Dictionary Banner */}
-                            <div style={{ marginTop: '40px', paddingBottom: '10px' }}>
-                                <h3 style={{ fontSize: '1.2rem', marginBottom: '20px', color: 'var(--color-deep-navy)' }}>{t(language, 'conceptDictTitle')}</h3>
+                            <div style={{ marginTop: language === 'en' ? '10px' : '40px', paddingBottom: '10px' }}>
+                                <h3 style={{ fontSize: '1.2rem', marginBottom: language === 'en' ? '12px' : '20px', color: 'var(--color-deep-navy)' }}>{t(language, 'conceptDictTitle')}</h3>
                                 <div 
                                     className="dictionary-banner" 
                                     onClick={() => setIsDictionaryOpen(true)}
