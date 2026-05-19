@@ -1505,9 +1505,9 @@
 
 .expert-name-row {
   display: flex;
-  align-items: baseline;
+  align-items: flex-start;
   justify-content: space-between;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
   gap: 4px;
 }
 
@@ -1515,7 +1515,8 @@
   font-weight: 700;
   font-size: 0.95rem;
   font-family: 'Inter', sans-serif;
-  white-space: nowrap;
+  white-space: normal;
+  line-height: 1.2;
 }
 
 .online-text {
@@ -1535,6 +1536,12 @@
   -webkit-box-orient: vertical;
   overflow: hidden;
   font-family: 'Inter', sans-serif;
+  transition: all 0.3s ease;
+}
+
+.expert-profile-card.expanded .expert-role-text {
+  -webkit-line-clamp: unset;
+  display: block;
 }
 
 /* Help Action Chips */
