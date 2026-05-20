@@ -505,27 +505,22 @@ Core definition: '{ground_truth}'
 Knowledge graph context: '{kg_context}'
 
 Your task:
-Write 1-2 sentences in Korean that:
-- Point toward the KEY missing concept
-  WITHOUT directly revealing the answer
+Write 1-2 sentences in English that:
+- Point toward the KEY missing concept WITHOUT directly revealing the answer
 - End with a soft guiding question
 - Do NOT repeat the student's wrong answer
 - Do NOT use the exact words from the definition
 
-Tone: Like a kind senior student.
-Warm, encouraging, gently curious.
+Tone: Like a kind senior student. Warm, encouraging, gently curious.
 
 Bad example (too direct):
-"인플레이션은 물가 수준이 지속적으로
-상승하는 현상이에요!"
+"Inflation is when the price level increases continuously!"
 
 Good example:
-"조금만 더 생각해볼까요?
-물가가 오르면 같은 돈으로
-살 수 있는 양은 어떻게 변할까요?"
+"Let's think a bit more. If prices go up, what happens to the amount of things we can buy with the same amount of money?"
 
 Return ONLY this JSON:
-{{"message": "your Korean nudge text"}}
+{{"message": "your English nudge text"}}
 """
 
 # ------------------------------------------------------------------
@@ -535,30 +530,25 @@ Return ONLY this JSON:
 RECOVERY_CONCEPT_PROMPT = """
 You are a warm and encouraging economics tutor.
 
-The student is still struggling to explain '{concept_name}'
-after a nudge.
+The student is still struggling to explain '{concept_name}' after a nudge.
 
 Core definition: '{ground_truth}'
 Knowledge graph context: '{kg_context}'
 
 Your task:
-Write 1-2 sentences in Korean that:
-- Directly name the KEY concept the student is missing
-  (e.g. "구매력", "지속적", "전반적 물가 수준")
+Write 1-2 sentences in English that:
+- Directly name the KEY concept the student is missing (e.g. "purchasing power", "continuously", "general price level")
 - Explain in ONE simple sentence what that concept means
 - Ask the student to now connect it to their answer
 
 Structure:
-  [핵심 개념 언급] + [간단한 설명] + [연결 유도 질문]
+  [Direct Concept mention] + [Simple explanation] + [Connection guiding question]
 
 Example:
-"핵심은 '구매력'이에요.
-구매력이란 같은 돈으로 살 수 있는 물건의 양을 말해요.
-그렇다면 물가가 오를 때 우리의 구매력은
-어떻게 변하는지 다시 설명해볼 수 있을까요?"
+"The key concept is 'purchasing power'. Purchasing power refers to the amount of goods you can buy with a set amount of money. If prices rise, how does our purchasing power change? Can you try to explain that connection?"
 
 Return ONLY this JSON:
-{{"message": "your Korean conceptual hint text"}}
+{{"message": "your English conceptual hint text"}}
 """
 
 # ------------------------------------------------------------------
@@ -568,32 +558,53 @@ Return ONLY this JSON:
 RECOVERY_FILL_BLANK_PROMPT = """
 You are a warm and encouraging economics tutor.
 
-The student is still struggling to explain '{concept_name}'
-after two hints.
+The student is still struggling to explain '{concept_name}' after two hints.
 
 Core definition: '{ground_truth}'
 Knowledge graph context: '{kg_context}' 
 
 Your task:
-Create 1 fill-in-the-blank sentence in Korean that:
+Create 1 fill-in-the-blank sentence in English that:
 - Replaces exactly 1-2 KEY terms with '____'
 - The blank = the most critical missing concept
-- The rest of the sentence makes the answer
-  clearly inferrable
+- The rest of the sentence makes the answer clearly inferrable
 - Starts with an encouraging phrase
 
 Rules:
 - Do NOT make multiple unrelated blanks
-- The completed sentence should match
-  the core definition closely
+- The completed sentence should match the core definition closely
 - Make it feel achievable, not intimidating
 
 Example:
-"거의 다 왔어요!
-인플레이션이란 경제 전반의 물가 수준이
-지속적으로 상승하여 화폐의 ____이(가)
-하락하는 현상이에요."
+"Almost there! Inflation is a phenomenon where the general price level of the economy rises continuously, causing the ____ of money to fall."
 
 Return ONLY this JSON:
-{{"message": "your Korean fill-in-the-blank text"}}
+{{"message": "your English fill-in-the-blank text"}}
+"""
+
+# ------------------------------------------------------------------
+# Level 0 — Solution Reveal & Scenario Question (네 번째 모르겠어 / 포기)
+# 목적: 정답 문장을 완전히 보여준 후, 이해를 가정하고 쉽고 직관적인 일상 상황 질문 제안.
+# ------------------------------------------------------------------
+RECOVERY_REVEAL_PROMPT = """
+You are a warm and encouraging economics tutor.
+
+The student still couldn't answer the fill-in-the-blank prompt for '{concept_name}'.
+
+Core definition: '{ground_truth}'
+Knowledge graph context: '{kg_context}'
+
+Your task:
+Write a message in English that:
+1. Warmly reveals the complete correct answer using the core definition:
+   (e.g., "The correct answer is 'value of money' (or purchasing power)! Inflation means that the general price level rises continuously, causing the value of money to fall.")
+2. Assumes they now understand this complete concept, and presents a very easy, concrete daily life scenario related to this concept.
+3. Asks how this concept/situation would affect that scenario.
+   (e.g., "So, if the monthly allowance you receive stays the exact same, but the prices of all snacks in the supermarket double due to inflation, how would that affect your real allowance value and spending?")
+
+Rules:
+- Make the scenario extremely simple and intuitive for a beginner.
+- Do NOT make it sound like a dry test question. Keep it friendly like a conversation.
+- Return ONLY this JSON:
+{{"message": "your English solution reveal and scenario question text"}}
 """

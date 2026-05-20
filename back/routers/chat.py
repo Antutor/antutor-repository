@@ -17,7 +17,7 @@ from datetime import datetime
 import json
 import os
 from multi_agent.llm_config import draft_llm
-from multi_agent.prompts import RECOVERY_NUDGE_PROMPT, RECOVERY_CONCEPT_PROMPT, RECOVERY_FILL_BLANK_PROMPT
+from multi_agent.prompts import RECOVERY_NUDGE_PROMPT, RECOVERY_CONCEPT_PROMPT, RECOVERY_FILL_BLANK_PROMPT, RECOVERY_REVEAL_PROMPT
 from langchain_core.messages import SystemMessage
 import json
 # --- 보안 가드레일 & 시맨틱 캐시 ---
@@ -29,8 +29,10 @@ def get_recovery_prompt(concept_name, ground_truth, kg_context, idk_count):
         return RECOVERY_NUDGE_PROMPT.format(concept_name=concept_name, ground_truth=ground_truth, kg_context=kg_context)
     elif idk_count == 2:
         return RECOVERY_CONCEPT_PROMPT.format(concept_name=concept_name, ground_truth=ground_truth, kg_context=kg_context)
-    else:
+    elif idk_count == 3:
         return RECOVERY_FILL_BLANK_PROMPT.format(concept_name=concept_name, ground_truth=ground_truth, kg_context=kg_context)
+    else:
+        return RECOVERY_REVEAL_PROMPT.format(concept_name=concept_name, ground_truth=ground_truth, kg_context=kg_context)
 
 def save_chat_log_db(chat_log_payload):
     try:
@@ -338,17 +340,23 @@ async def chat(request: ChatRequest, background_tasks: BackgroundTasks, current_
     
     if is_give_up:
         current_idk_count += 1
-        supabase.table("sessions").update({"idk_count": current_idk_count}).eq("session_id", session["session_id"]).execute()
         moderator_action = "scaffold"
         if current_idk_count == 1:
+            supabase.table("sessions").update({"idk_count": current_idk_count}).eq("session_id", session["session_id"]).execute()
             scaffold_step = "Sub-concept Nudge"
             scaffolding_level = 3
         elif current_idk_count == 2:
+            supabase.table("sessions").update({"idk_count": current_idk_count}).eq("session_id", session["session_id"]).execute()
             scaffold_step = "Concept Explanation"
             scaffolding_level = 2
-        else:
+        elif current_idk_count == 3:
+            supabase.table("sessions").update({"idk_count": current_idk_count}).eq("session_id", session["session_id"]).execute()
             scaffold_step = "Fill-in-the-Blank"
             scaffolding_level = 1
+        else:
+            supabase.table("sessions").update({"idk_count": 0}).eq("session_id", session["session_id"]).execute()
+            scaffold_step = "Solution Reveal"
+            scaffolding_level = 0
             
         sys_prompt = get_recovery_prompt(concept_name, ground_truth, kg_context, current_idk_count)
         
@@ -368,6 +376,8 @@ async def chat(request: ChatRequest, background_tasks: BackgroundTasks, current_
             "message": guidance_message
         }
     else:
+        if session["idk_count"] > 0:
+            supabase.table("sessions").update({"idk_count": 0}).eq("session_id", session["session_id"]).execute()
         if raw_avg_score >= 85:
             moderator_action = "suggest_termination"
             guidance_message = "You have achieved a high level of mastery. Would you like to terminate the session? (Yes/No)"
@@ -635,7 +645,10 @@ async def websocket_chat(websocket: WebSocket):
         
         if is_give_up:
             current_idk_count = session["idk_count"] + 1
-            supabase.table("sessions").update({"idk_count": current_idk_count}).eq("session_id", session["session_id"]).execute()
+            if current_idk_count >= 4:
+                supabase.table("sessions").update({"idk_count": 0}).eq("session_id", session["session_id"]).execute()
+            else:
+                supabase.table("sessions").update({"idk_count": current_idk_count}).eq("session_id", session["session_id"]).execute()
             
             sys_prompt = get_recovery_prompt(concept_name, ground_truth, kg_context, current_idk_count)
             
@@ -661,9 +674,12 @@ async def websocket_chat(websocket: WebSocket):
             elif current_idk_count == 2:
                 scaffold_step = "Concept Explanation"
                 scaffolding_level = 2
-            else:
+            elif current_idk_count == 3:
                 scaffold_step = "Fill-in-the-Blank"
                 scaffolding_level = 1
+            else:
+                scaffold_step = "Solution Reveal"
+                scaffolding_level = 0
                 
             final_state["scaffold_plan"] = {
                 "step": scaffold_step,
@@ -671,6 +687,8 @@ async def websocket_chat(websocket: WebSocket):
                 "message": guidance_message
             }
         else:
+            if session["idk_count"] > 0:
+                supabase.table("sessions").update({"idk_count": 0}).eq("session_id", session["session_id"]).execute()
             async for event in debate_graph.astream_events(initial_state, version="v1"):
                 kind = event["event"]
                 
