@@ -27,6 +27,8 @@ class AgentSandboxRequest(BaseModel):
     concept: str
     user_answer: str
     ground_truth: Optional[str] = None
+    definition: Optional[str] = None
+    acceptable_extensions: Optional[str] = None
     context: Optional[str] = None
     use_real_context: Optional[bool] = False
     custom_prompt: Optional[str] = None
@@ -44,7 +46,8 @@ class ModeratorSandboxRequest(BaseModel):
 class GraphSandboxRequest(BaseModel):
     concept: str
     user_answer: str
-    ground_truth: str
+    definition: str
+    acceptable_extensions: Optional[str] = ""
     use_real_context: Optional[bool] = False
     model: Optional[str] = None
     temperature: Optional[float] = None

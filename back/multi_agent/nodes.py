@@ -69,9 +69,14 @@ def with_retry_and_fallback(max_retries=3, fallback_value=None):
     return decorator
 
 @with_retry_and_fallback(max_retries=3, fallback_value=("The Academic Auditor", {"score": 0.5, "feedback": "System fallback due to timeout or error.", "is_contradiction": False, "is_fallback": True}))
-async def call_academic(concept, ground_truth, user_answer):
+async def call_academic(concept, definition, acceptable_extensions, user_answer):
     async with gpu_semaphore:
-        sys_msg = "/no_think\n" + NEW_ACADEMIC_DRAFT_PROMPT.format(concept=concept, ground_truth=ground_truth, user_answer=user_answer)
+        sys_msg = "/no_think\n" + NEW_ACADEMIC_DRAFT_PROMPT.format(
+            concept=concept, 
+            definition=definition, 
+            acceptable_extensions=acceptable_extensions, 
+            user_answer=user_answer
+        )
         res = await draft_llm.ainvoke([SystemMessage(content=sys_msg)])
         data = extract_json(res.content)
         return "The Academic Auditor", data
@@ -99,7 +104,8 @@ async def drafting_node(state: AgentState):
     """
     concept = state["concept"]
     user_answer = state["user_answer"]
-    ground_truth = state["ground_truth"]
+    definition = state.get("definition") or state.get("ground_truth") or ""
+    acceptable_extensions = state.get("acceptable_extensions") or ""
     news_context = state.get("news_context", "")
     kg_context = state.get("kg_context", "")
     
@@ -107,7 +113,7 @@ async def drafting_node(state: AgentState):
     print(f"  - 3명의 에이전트(Academic, Market, Macro)가 초안을 작성 중입니다...", flush=True)
     
     results = await asyncio.gather(
-        call_academic(concept, ground_truth, user_answer), 
+        call_academic(concept, definition, acceptable_extensions, user_answer), 
         call_market(concept, news_context, user_answer), 
         call_macro(concept, kg_context, user_answer)
     )

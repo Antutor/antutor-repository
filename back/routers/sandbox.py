@@ -128,12 +128,14 @@ async def test_agent_sandbox(request: AgentSandboxRequest, current_user: str = D
         
         req_data = request.dict() if hasattr(request, 'dict') else request.model_dump()
         if persona == "The Academic Auditor":
-            if not request.ground_truth:
-                return {"status": "error", "detail": "ground_truth is required for The Academic Auditor"}
+            actual_def = request.definition or request.ground_truth
+            if not actual_def:
+                return {"status": "error", "detail": "definition or ground_truth is required for The Academic Auditor"}
             result = await evaluate_academic_auditor(
-                request.concept, 
-                eval_user_answer, 
-                request.ground_truth, 
+                concept=request.concept, 
+                user_answer=eval_user_answer, 
+                definition=actual_def, 
+                acceptable_extensions=request.acceptable_extensions or "",
                 custom_prompt=request.custom_prompt,
                 model=request.model,
                 temperature=request.temperature
@@ -210,7 +212,9 @@ async def test_graph_sandbox(request: GraphSandboxRequest, current_user: str = D
         initial_state = {
             "concept": request.concept,
             "user_answer": eval_user_answer,
-            "ground_truth": request.ground_truth,
+            "definition": request.definition,
+            "acceptable_extensions": request.acceptable_extensions or "",
+            "ground_truth": request.definition,  # Backward compatibility
             "news_context": news_context,
             "kg_context": kg_context,
             "draft_reviews": {},

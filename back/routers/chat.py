@@ -208,6 +208,8 @@ async def chat(request: ChatRequest, background_tasks: BackgroundTasks, current_
     concept_data = concept_res.data[0]
     concept_name = concept_data["name"]
     ground_truth = concept_data["definition"]
+    definition = concept_data["definition"]
+    acceptable_extensions = concept_data.get("acceptable_extensions", "")
     
     eval_user_answer = await translate_ko_to_en(request.user_answer, language)
     # Check both original (Korean) and translated (English) for keywords
@@ -264,6 +266,8 @@ async def chat(request: ChatRequest, background_tasks: BackgroundTasks, current_
             "concept": concept_name,
             "user_answer": eval_user_answer,
             "ground_truth": ground_truth,
+            "definition": definition,
+            "acceptable_extensions": acceptable_extensions,
             "news_context": news_context,
             "kg_context": kg_context,
             "draft_reviews": {},
@@ -570,6 +574,8 @@ async def websocket_chat(websocket: WebSocket):
         concept_data = concept_res.data[0]
         concept_name = concept_data["name"]
         ground_truth = concept_data["definition"]
+        definition = concept_data["definition"]
+        acceptable_extensions = concept_data.get("acceptable_extensions", "")
         
         eval_user_answer = await translate_ko_to_en(user_answer, language)
         is_give_up = any(kw in user_answer.lower() or kw in eval_user_answer.lower() for kw in GIVE_UP_KEYWORDS)
@@ -625,6 +631,8 @@ async def websocket_chat(websocket: WebSocket):
             "concept": concept_name,
             "user_answer": eval_user_answer,
             "ground_truth": ground_truth,
+            "definition": definition,
+            "acceptable_extensions": acceptable_extensions,
             "news_context": news_context,
             "kg_context": kg_context,
             "draft_reviews": {},

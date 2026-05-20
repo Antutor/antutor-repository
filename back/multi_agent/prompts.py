@@ -3,7 +3,10 @@ NEW_ACADEMIC_DRAFT_PROMPT = """You are the Academic Agent. Output ONLY valid JSO
 Evaluate the student's explanation of "{concept}".
 
 Correct definition (CORE only):
-{ground_truth}
+{definition}
+
+Acceptable extensions/elaborations (if any):
+{acceptable_extensions}
 
 --- Internal Reasoning (do NOT output) ---
 

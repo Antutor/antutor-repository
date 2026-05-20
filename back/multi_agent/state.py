@@ -1,10 +1,12 @@
-from typing import TypedDict, List, Dict, Annotated, Any
+from typing import TypedDict, List, Dict, Annotated, Any, Optional
 import operator
 
 class AgentState(TypedDict):
     concept: str
     user_answer: str
     ground_truth: str
+    definition: Optional[str]
+    acceptable_extensions: Optional[str]
     news_context: str
     kg_context: str
     

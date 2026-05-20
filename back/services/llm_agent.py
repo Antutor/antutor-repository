@@ -69,11 +69,31 @@ async def call_local_llm(prompt: str, is_json: bool = False, model: Optional[str
     
     return "LLM Error."
 
-async def evaluate_academic_auditor(concept: str, user_answer: str, ground_truth: str, custom_prompt: Optional[str] = None, model: Optional[str] = None, temperature: Optional[float] = None) -> dict:
+async def evaluate_academic_auditor(
+    concept: str, 
+    user_answer: str, 
+    definition: Optional[str] = None, 
+    acceptable_extensions: str = "", 
+    custom_prompt: Optional[str] = None, 
+    model: Optional[str] = None, 
+    temperature: Optional[float] = None,
+    ground_truth: Optional[str] = None
+) -> dict:
+    actual_definition = definition or ground_truth or ""
     template = custom_prompt or NEW_ACADEMIC_DRAFT_PROMPT
-    prompt = "/no_think\n" + template.format(
-        concept=concept, ground_truth=ground_truth, user_answer=user_answer
-    )
+    
+    format_kwargs = {
+        "concept": concept,
+        "user_answer": user_answer,
+    }
+    
+    if "{definition}" in template or "{acceptable_extensions}" in template:
+        format_kwargs["definition"] = actual_definition
+        format_kwargs["acceptable_extensions"] = acceptable_extensions
+    else:
+        format_kwargs["ground_truth"] = actual_definition
+        
+    prompt = "/no_think\n" + template.format(**format_kwargs)
     
     raw_response = await call_local_llm(prompt, is_json=True, model=model, temperature=temperature)
     try:
