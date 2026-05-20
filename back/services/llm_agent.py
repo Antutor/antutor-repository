@@ -151,7 +151,7 @@ try:
     # setdefault 대신 직접 할당: 빈 문자열로 이미 설정된 경우에도 덮어씁니다.
     if TAVILY_API_KEY:
         _os.environ["TAVILY_API_KEY"] = TAVILY_API_KEY
-    _tavily_tool = TavilySearch(max_results=5)
+    _tavily_tool = TavilySearch(max_results=3)
     print(f"✅ [Tavily] 초기화 완료 (key={'설정됨' if TAVILY_API_KEY else '없음'})", flush=True)
 except Exception as _e:
     print(f"⚠️ [Tavily] 초기화 오류: {_e}")

@@ -1,11 +1,11 @@
 import os
 import sys
 
-# Add back directory to path
 sys.path.append(os.path.join(os.path.dirname(__file__), 'back'))
 
-from back.database import supabase
+from database import supabase
 
-# fetch 1 row from sessions
-res = supabase.table("sessions").select("*").limit(1).execute()
-print("Sessions data:", res.data)
+res = supabase.table("semantic_cache").select("*").execute()
+print("semantic_cache rows count:", len(res.data))
+for row in res.data:
+    print(f"ID: {row.get('id')}, Concept: {row.get('concept')}, User Answer: '{row.get('user_answer')[:60]}'")

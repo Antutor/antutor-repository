@@ -215,8 +215,13 @@ async def chat(request: ChatRequest, background_tasks: BackgroundTasks, current_
     # ── 1. 보안 가드레일 ──────────────────────────────────────────────
     await run_guardrail(eval_user_answer, user_id=str(user_id))
 
+    # 현재 턴 수 계산 (캐싱 로직 및 DB 저장에 활용)
+    logs_count_res = supabase.table("chat_logs").select("log_id", count="exact").eq("session_id", session["session_id"]).execute()
+    turn_number = logs_count_res.count + 1 if logs_count_res.count is not None else 1
+
     # ── 2. 시맨틱 캐시 조회 ──────────────────────────────────────────
-    if not is_give_up:
+    # 첫 번째 답변(Draft)일 때만 캐시를 조회합니다. 꼬리 질문(turn_number > 1)에 대한 답변은 캐시를 우회해야 문맥에 맞는 평가가 가능합니다.
+    if not is_give_up and turn_number == 1:
         cached_response = await get_cached_response(concept_name, eval_user_answer)
         if cached_response:
             print(f"✅ [Chat] 시맨틱 캐시 히트! 캐시된 응답 반환", flush=True)
@@ -387,12 +392,9 @@ async def chat(request: ChatRequest, background_tasks: BackgroundTasks, current_
             }
 
     # ── 3. 시맨틱 캐시 저장 ──────────────────────────────────────────
-    if not is_give_up and guidance_message:
+    # 첫 번째 턴에서 생성된 피드백만 캐시에 저장합니다.
+    if not is_give_up and guidance_message and turn_number == 1:
         await save_to_cache(concept_name, eval_user_answer, guidance_message)
-
-    # 현재 턴 수 계산
-    logs_count_res = supabase.table("chat_logs").select("log_id", count="exact").eq("session_id", session["session_id"]).execute()
-    turn_number = logs_count_res.count + 1 if logs_count_res.count is not None else 1
 
     chat_log_payload = {
         "session_id": session["session_id"],
@@ -569,8 +571,12 @@ async def websocket_chat(websocket: WebSocket):
             await websocket.close(code=1008)
             return
 
+        # 턴 수 계산
+        logs_count_res = supabase.table("chat_logs").select("log_id", count="exact").eq("session_id", session["session_id"]).execute()
+        turn_number = logs_count_res.count + 1 if logs_count_res.count is not None else 1
+
         # ── 2. 시맨틱 캐시 조회 ──────────────────────────────────────────
-        if not is_give_up:
+        if not is_give_up and turn_number == 1:
             cached_response = await get_cached_response(concept_name, eval_user_answer)
             if cached_response:
                 print(f"✅ [WS Chat] 시맨틱 캐시 히트! 캐시된 응답 반환", flush=True)
@@ -761,11 +767,8 @@ async def websocket_chat(websocket: WebSocket):
                 scaffold_plan = {"step": "Guidance Prompt", "message": guidance_message}
 
         # ── 3. 시맨틱 캐시 저장 ──────────────────────────────────────────
-        if not is_give_up and guidance_message:
+        if not is_give_up and guidance_message and turn_number == 1:
             await save_to_cache(concept_name, eval_user_answer, guidance_message)
-
-        logs_count_res = supabase.table("chat_logs").select("log_id", count="exact").eq("session_id", session["session_id"]).execute()
-        turn_number = logs_count_res.count + 1 if logs_count_res.count is not None else 1
 
         chat_log_payload = {
             "session_id": session["session_id"],
