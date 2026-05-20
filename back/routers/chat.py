@@ -9,7 +9,9 @@ from dependencies import get_current_user
 from config import GIVE_UP_KEYWORDS, SECRET_KEY, ALGORITHM
 from services.llm_agent import (
     retrieve_news_rag,
-    retrieve_knowledge_graph
+    retrieve_knowledge_graph,
+    ThinkTagStreamFilter,
+    strip_think_tags
 )
 from multi_agent.graph import debate_graph
 from services.translator import translate_en_to_ko, translate_ko_to_en
@@ -26,13 +28,14 @@ from services.semantic_cache import get_cached_response, save_to_cache
 
 def get_recovery_prompt(concept_name, ground_truth, kg_context, idk_count):
     if idk_count == 1:
-        return RECOVERY_NUDGE_PROMPT.format(concept_name=concept_name, ground_truth=ground_truth, kg_context=kg_context)
+        template = RECOVERY_NUDGE_PROMPT.format(concept_name=concept_name, ground_truth=ground_truth, kg_context=kg_context)
     elif idk_count == 2:
-        return RECOVERY_CONCEPT_PROMPT.format(concept_name=concept_name, ground_truth=ground_truth, kg_context=kg_context)
+        template = RECOVERY_CONCEPT_PROMPT.format(concept_name=concept_name, ground_truth=ground_truth, kg_context=kg_context)
     elif idk_count == 3:
-        return RECOVERY_FILL_BLANK_PROMPT.format(concept_name=concept_name, ground_truth=ground_truth, kg_context=kg_context)
+        template = RECOVERY_FILL_BLANK_PROMPT.format(concept_name=concept_name, ground_truth=ground_truth, kg_context=kg_context)
     else:
-        return RECOVERY_REVEAL_PROMPT.format(concept_name=concept_name, ground_truth=ground_truth, kg_context=kg_context)
+        template = RECOVERY_REVEAL_PROMPT.format(concept_name=concept_name, ground_truth=ground_truth, kg_context=kg_context)
+    return "/no_think\n" + template
 
 def save_chat_log_db(chat_log_payload):
     try:
@@ -368,11 +371,12 @@ async def chat(request: ChatRequest, background_tasks: BackgroundTasks, current_
         # wait! 이 함수는 POST /chat (async def) 내부입니다. await 가능.
         res = await draft_llm.ainvoke([SystemMessage(content=sys_prompt)])
         
+        clean_content = strip_think_tags(res.content)
         try:
-            parsed = json.loads(res.content)
-            guidance_message = parsed.get("message", res.content)
+            parsed = json.loads(clean_content)
+            guidance_message = parsed.get("message", clean_content)
         except Exception:
-            guidance_message = res.content
+            guidance_message = clean_content
             
         scaffold_plan = {
             "step": scaffold_step,
@@ -661,11 +665,15 @@ async def websocket_chat(websocket: WebSocket):
             sys_prompt = get_recovery_prompt(concept_name, ground_truth, kg_context, current_idk_count)
             
             recovery_text = ""
+            think_filter = ThinkTagStreamFilter()
             async for chunk in draft_llm.astream([SystemMessage(content=sys_prompt)]):
                 if chunk.content:
                     recovery_text += chunk.content
-                    await websocket.send_json({"type": "stream", "chunk": chunk.content})
+                    filtered = think_filter.feed(chunk.content)
+                    if filtered:
+                        await websocket.send_json({"type": "stream", "chunk": filtered})
             
+            recovery_text = strip_think_tags(recovery_text)
             try:
                 parsed = json.loads(recovery_text)
                 guidance_message = parsed.get("message", recovery_text)
@@ -694,9 +702,11 @@ async def websocket_chat(websocket: WebSocket):
                 "scaffolding_level": scaffolding_level,
                 "message": guidance_message
             }
+
         else:
             if session["idk_count"] > 0:
                 supabase.table("sessions").update({"idk_count": 0}).eq("session_id", session["session_id"]).execute()
+            think_filter = ThinkTagStreamFilter()
             async for event in debate_graph.astream_events(initial_state, version="v1"):
                 kind = event["event"]
                 
@@ -705,7 +715,9 @@ async def websocket_chat(websocket: WebSocket):
                     if "synthesis_llm" in tags:
                         chunk = event["data"]["chunk"]
                         if chunk.content:
-                            await websocket.send_json({"type": "stream", "chunk": chunk.content})
+                            filtered = think_filter.feed(chunk.content)
+                            if filtered:
+                                await websocket.send_json({"type": "stream", "chunk": filtered})
                 
                 elif kind == "on_chain_end":
                     out = event["data"].get("output")

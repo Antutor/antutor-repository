@@ -15,6 +15,7 @@ from multi_agent.prompts import (
     AGENT_REBUTTAL_PROMPT_MACRO
 )
 from multi_agent.llm_config import draft_llm, debate_llm, synthesis_llm, gpu_semaphore
+from services.llm_agent import strip_think_tags
 
 def extract_json(text: str) -> dict:
     try:
@@ -78,7 +79,7 @@ async def call_academic(concept, definition, acceptable_extensions, user_answer)
             user_answer=user_answer
         )
         res = await draft_llm.ainvoke([SystemMessage(content=sys_msg)])
-        data = extract_json(res.content)
+        data = extract_json(strip_think_tags(res.content))
         return "The Academic Auditor", data
 
 @with_retry_and_fallback(max_retries=3, fallback_value=("The Market Practitioner", {"score": 0.5, "feedback": "System fallback due to timeout or error.", "is_contradiction": False, "is_fallback": True}))
@@ -86,7 +87,7 @@ async def call_market(concept, news_context, user_answer):
     async with gpu_semaphore:
         sys_msg = "/no_think\n" + NEW_MARKET_DRAFT_PROMPT.format(concept=concept, news_context=news_context, user_answer=user_answer)
         res = await draft_llm.ainvoke([SystemMessage(content=sys_msg)])
-        data = extract_json(res.content)
+        data = extract_json(strip_think_tags(res.content))
         return "The Market Practitioner", data
 
 @with_retry_and_fallback(max_retries=3, fallback_value=("The Macro-Connector", {"score": 0.5, "feedback": "System fallback due to timeout or error.", "is_contradiction": False, "is_fallback": True}))
@@ -94,7 +95,7 @@ async def call_macro(concept, kg_context, user_answer):
     async with gpu_semaphore:
         sys_msg = "/no_think\n" + NEW_MACRO_DRAFT_PROMPT.format(concept=concept, kg_context=kg_context, user_answer=user_answer)
         res = await draft_llm.ainvoke([SystemMessage(content=sys_msg)])
-        data = extract_json(res.content)
+        data = extract_json(strip_think_tags(res.content))
         return "The Macro-Connector", data
 
 async def drafting_node(state: AgentState):
@@ -171,7 +172,7 @@ async def call_rebuttal(persona, concept, user_answer, drafts):
         res = await debate_llm.ainvoke([SystemMessage(content=sys_msg)])
         
         # JSON 기반 파싱: 필드 추출 후 dict로 반환
-        data = extract_json(res.content)
+        data = extract_json(strip_think_tags(res.content))
         return {
             "persona": persona,
             "agreement_level": data.get("agreement_level", "N/A"),
@@ -236,7 +237,7 @@ async def moderator_check_node(state: AgentState):
 async def call_synthesis(sys_msg):
     async with gpu_semaphore:
         res = await synthesis_llm.ainvoke([SystemMessage(content=sys_msg)])
-    return res.content
+    return strip_think_tags(res.content)
 
 async def synthesis_node(state: AgentState):
     """
