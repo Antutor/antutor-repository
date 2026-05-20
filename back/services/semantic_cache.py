@@ -20,6 +20,12 @@ from typing import Optional
 # ---------------------------------------------------------------------------
 # 임베딩 모델 — Lazy 초기화 (서버 시작 속도 보호)
 # ---------------------------------------------------------------------------
+from datetime import datetime
+from database import supabase
+
+# ---------------------------------------------------------------------------
+# 임베딩 모델 — Lazy 초기화 (서버 시작 속도 보호)
+# ---------------------------------------------------------------------------
 _encoder = None
 _encoder_ready = False
 
@@ -69,14 +75,12 @@ async def get_embedding(text: str) -> Optional[list[float]]:
 
 
 # ---------------------------------------------------------------------------
-# 캐시 조회 (DB 미구축 — 항상 미스)
+# 캐시 조회
 # ---------------------------------------------------------------------------
 
 async def get_cached_response(concept: str, user_answer: str) -> Optional[str]:
     """
     해당 개념(concept)에 대해 유사한 사용자 답변(user_answer)이 있었는지 벡터 DB에서 조회합니다.
-
-    DB 미구축 상태: 항상 None(캐시 미스)을 반환합니다.
 
     Args:
         concept: 대상 개념 이름 (예: "inflation")
@@ -85,36 +89,37 @@ async def get_cached_response(concept: str, user_answer: str) -> Optional[str]:
     Returns:
         캐시 히트 시 cached_response 문자열, 미스 시 None
     """
-    # TODO: pgvector 유사도 검색 (DB 구축 후 아래 로직으로 교체)
-    # embedding = await get_embedding(user_answer)
-    # if embedding is None:
-    #     return None
-    # result = await supabase.rpc("match_semantic_cache", {
-    #     "p_concept": concept,
-    #     "p_embedding": embedding,
-    #     "p_match_threshold": 0.92,
-    #     "p_match_count": 1
-    # }).execute()
-    # if result.data:
-    #     print(f"✅ [SemanticCache] 캐시 히트! similarity={result.data[0]['similarity']:.4f}")
-    #     return result.data[0]["cached_response"]
+    embedding = await get_embedding(user_answer)
+    if embedding is None:
+        return None
+    try:
+        result = supabase.rpc("match_semantic_cache", {
+            "p_concept": concept,
+            "p_embedding": embedding,
+            "p_match_threshold": 0.65,
+            "p_match_count": 1
+        }).execute()
+        if result.data:
+            print(f"✅ [SemanticCache] 캐시 히트! similarity={result.data[0]['similarity']:.4f}", flush=True)
+            return result.data[0]["cached_response"]
+    except Exception as e:
+        print(f"⚠️ [SemanticCache] 캐시 조회 오류: {e}", flush=True)
+
     print(
-        f"🔍 [SemanticCache] DB 유사도 검색 (미구축 — 캐시 미스 반환) "
+        f"🔍 [SemanticCache] DB 유사도 검색 (캐시 미스 반환) "
         f"| concept='{concept}' | answer_preview='{user_answer[:50]}'",
         flush=True,
     )
-    return None   # 항상 미스
+    return None
 
 
 # ---------------------------------------------------------------------------
-# 캐시 저장 (DB 미구축 — print만)
+# 캐시 저장
 # ---------------------------------------------------------------------------
 
 async def save_to_cache(concept: str, user_answer: str, response: str) -> None:
     """
     새로운 사용자 답변과 튜터의 피드백 쌍을 벡터 DB에 저장합니다.
-
-    DB 미구축 상태: 임베딩 생성 후 저장 로그만 출력합니다.
 
     Args:
         concept: 대상 개념 이름 (예: "inflation")
@@ -123,19 +128,20 @@ async def save_to_cache(concept: str, user_answer: str, response: str) -> None:
     """
     embedding = await get_embedding(user_answer)
 
-    # TODO: pgvector 저장 (DB 구축 후 아래 로직으로 교체)
-    # if embedding is not None:
-    #     await supabase.table("semantic_cache").insert({
-    #         "concept": concept,
-    #         "user_answer": user_answer,
-    #         "cached_response": response,
-    #         "embedding": embedding,
-    #         "created_at": datetime.utcnow().isoformat()
-    #     }).execute()
+    if embedding is not None:
+        try:
+            supabase.table("semantic_cache").insert({
+                "concept": concept,
+                "user_answer": user_answer,
+                "cached_response": response,
+                "embedding": embedding,
+                "created_at": datetime.utcnow().isoformat()
+            }).execute()
+            print(
+                f"💾 [SemanticCache] 캐시 DB 저장 완료 "
+                f"| concept='{concept}' | vector_dim={len(embedding)}",
+                flush=True,
+            )
+        except Exception as e:
+            print(f"⚠️ [SemanticCache] 캐시 저장 실패: {e}", flush=True)
 
-    vector_dim = len(embedding) if embedding else 0
-    print(
-        f"💾 [SemanticCache] 캐시 DB 저장됨 (DB 미구축 — 임시 처리) "
-        f"| concept='{concept}' | vector_dim={vector_dim}",
-        flush=True,
-    )

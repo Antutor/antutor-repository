@@ -17,7 +17,7 @@ from datetime import datetime
 import json
 import os
 from multi_agent.llm_config import draft_llm
-from multi_agent.prompts import RECOVERY_NUDGE_PROMPT, RECOVERY_CONCEPT_PROMPT, RECOVERY_FILL_BLANK_PROMPT
+from multi_agent.prompts import RECOVERY_NUDGE_PROMPT, RECOVERY_CONCEPT_PROMPT, RECOVERY_FILL_BLANK_PROMPT, RECOVERY_REVEAL_PROMPT
 from langchain_core.messages import SystemMessage
 import json
 # --- 보안 가드레일 & 시맨틱 캐시 ---
@@ -29,8 +29,10 @@ def get_recovery_prompt(concept_name, ground_truth, kg_context, idk_count):
         return RECOVERY_NUDGE_PROMPT.format(concept_name=concept_name, ground_truth=ground_truth, kg_context=kg_context)
     elif idk_count == 2:
         return RECOVERY_CONCEPT_PROMPT.format(concept_name=concept_name, ground_truth=ground_truth, kg_context=kg_context)
-    else:
+    elif idk_count == 3:
         return RECOVERY_FILL_BLANK_PROMPT.format(concept_name=concept_name, ground_truth=ground_truth, kg_context=kg_context)
+    else:
+        return RECOVERY_REVEAL_PROMPT.format(concept_name=concept_name, ground_truth=ground_truth, kg_context=kg_context)
 
 def save_chat_log_db(chat_log_payload):
     try:
@@ -215,8 +217,13 @@ async def chat(request: ChatRequest, background_tasks: BackgroundTasks, current_
     # ── 1. 보안 가드레일 ──────────────────────────────────────────────
     await run_guardrail(eval_user_answer, user_id=str(user_id))
 
+    # 현재 턴 수 계산 (캐싱 로직 및 DB 저장에 활용)
+    logs_count_res = supabase.table("chat_logs").select("log_id", count="exact").eq("session_id", session["session_id"]).execute()
+    turn_number = logs_count_res.count + 1 if logs_count_res.count is not None else 1
+
     # ── 2. 시맨틱 캐시 조회 ──────────────────────────────────────────
-    if not is_give_up:
+    # 첫 번째 답변(Draft)일 때만 캐시를 조회합니다. 꼬리 질문(turn_number > 1)에 대한 답변은 캐시를 우회해야 문맥에 맞는 평가가 가능합니다.
+    if not is_give_up and turn_number == 1:
         cached_response = await get_cached_response(concept_name, eval_user_answer)
         if cached_response:
             print(f"✅ [Chat] 시맨틱 캐시 히트! 캐시된 응답 반환", flush=True)
@@ -333,17 +340,23 @@ async def chat(request: ChatRequest, background_tasks: BackgroundTasks, current_
     
     if is_give_up:
         current_idk_count += 1
-        supabase.table("sessions").update({"idk_count": current_idk_count}).eq("session_id", session["session_id"]).execute()
         moderator_action = "scaffold"
         if current_idk_count == 1:
+            supabase.table("sessions").update({"idk_count": current_idk_count}).eq("session_id", session["session_id"]).execute()
             scaffold_step = "Sub-concept Nudge"
             scaffolding_level = 3
         elif current_idk_count == 2:
+            supabase.table("sessions").update({"idk_count": current_idk_count}).eq("session_id", session["session_id"]).execute()
             scaffold_step = "Concept Explanation"
             scaffolding_level = 2
-        else:
+        elif current_idk_count == 3:
+            supabase.table("sessions").update({"idk_count": current_idk_count}).eq("session_id", session["session_id"]).execute()
             scaffold_step = "Fill-in-the-Blank"
             scaffolding_level = 1
+        else:
+            supabase.table("sessions").update({"idk_count": 0}).eq("session_id", session["session_id"]).execute()
+            scaffold_step = "Solution Reveal"
+            scaffolding_level = 0
             
         sys_prompt = get_recovery_prompt(concept_name, ground_truth, kg_context, current_idk_count)
         
@@ -363,6 +376,8 @@ async def chat(request: ChatRequest, background_tasks: BackgroundTasks, current_
             "message": guidance_message
         }
     else:
+        if session["idk_count"] > 0:
+            supabase.table("sessions").update({"idk_count": 0}).eq("session_id", session["session_id"]).execute()
         if raw_avg_score >= 85:
             moderator_action = "suggest_termination"
             guidance_message = "You have achieved a high level of mastery. Would you like to terminate the session? (Yes/No)"
@@ -387,12 +402,9 @@ async def chat(request: ChatRequest, background_tasks: BackgroundTasks, current_
             }
 
     # ── 3. 시맨틱 캐시 저장 ──────────────────────────────────────────
-    if not is_give_up and guidance_message:
+    # 첫 번째 턴에서 생성된 피드백만 캐시에 저장합니다.
+    if not is_give_up and guidance_message and turn_number == 1:
         await save_to_cache(concept_name, eval_user_answer, guidance_message)
-
-    # 현재 턴 수 계산
-    logs_count_res = supabase.table("chat_logs").select("log_id", count="exact").eq("session_id", session["session_id"]).execute()
-    turn_number = logs_count_res.count + 1 if logs_count_res.count is not None else 1
 
     chat_log_payload = {
         "session_id": session["session_id"],
@@ -569,8 +581,12 @@ async def websocket_chat(websocket: WebSocket):
             await websocket.close(code=1008)
             return
 
+        # 턴 수 계산
+        logs_count_res = supabase.table("chat_logs").select("log_id", count="exact").eq("session_id", session["session_id"]).execute()
+        turn_number = logs_count_res.count + 1 if logs_count_res.count is not None else 1
+
         # ── 2. 시맨틱 캐시 조회 ──────────────────────────────────────────
-        if not is_give_up:
+        if not is_give_up and turn_number == 1:
             cached_response = await get_cached_response(concept_name, eval_user_answer)
             if cached_response:
                 print(f"✅ [WS Chat] 시맨틱 캐시 히트! 캐시된 응답 반환", flush=True)
@@ -629,7 +645,10 @@ async def websocket_chat(websocket: WebSocket):
         
         if is_give_up:
             current_idk_count = session["idk_count"] + 1
-            supabase.table("sessions").update({"idk_count": current_idk_count}).eq("session_id", session["session_id"]).execute()
+            if current_idk_count >= 4:
+                supabase.table("sessions").update({"idk_count": 0}).eq("session_id", session["session_id"]).execute()
+            else:
+                supabase.table("sessions").update({"idk_count": current_idk_count}).eq("session_id", session["session_id"]).execute()
             
             sys_prompt = get_recovery_prompt(concept_name, ground_truth, kg_context, current_idk_count)
             
@@ -655,9 +674,12 @@ async def websocket_chat(websocket: WebSocket):
             elif current_idk_count == 2:
                 scaffold_step = "Concept Explanation"
                 scaffolding_level = 2
-            else:
+            elif current_idk_count == 3:
                 scaffold_step = "Fill-in-the-Blank"
                 scaffolding_level = 1
+            else:
+                scaffold_step = "Solution Reveal"
+                scaffolding_level = 0
                 
             final_state["scaffold_plan"] = {
                 "step": scaffold_step,
@@ -665,6 +687,8 @@ async def websocket_chat(websocket: WebSocket):
                 "message": guidance_message
             }
         else:
+            if session["idk_count"] > 0:
+                supabase.table("sessions").update({"idk_count": 0}).eq("session_id", session["session_id"]).execute()
             async for event in debate_graph.astream_events(initial_state, version="v1"):
                 kind = event["event"]
                 
@@ -761,11 +785,8 @@ async def websocket_chat(websocket: WebSocket):
                 scaffold_plan = {"step": "Guidance Prompt", "message": guidance_message}
 
         # ── 3. 시맨틱 캐시 저장 ──────────────────────────────────────────
-        if not is_give_up and guidance_message:
+        if not is_give_up and guidance_message and turn_number == 1:
             await save_to_cache(concept_name, eval_user_answer, guidance_message)
-
-        logs_count_res = supabase.table("chat_logs").select("log_id", count="exact").eq("session_id", session["session_id"]).execute()
-        turn_number = logs_count_res.count + 1 if logs_count_res.count is not None else 1
 
         chat_log_payload = {
             "session_id": session["session_id"],
