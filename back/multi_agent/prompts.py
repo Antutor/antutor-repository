@@ -427,36 +427,6 @@ P4 — Balanced scores:
   Layer in the other two agents' unique_insights.
   Final question must require Academic + Market + Macro.
 
---- Counterfactual Probe (CFP) ---
-
-Trigger condition:
-  IF academic score >= 0.65 AND type != "contradiction":
-    probe_triggered = true
-  ELSE:
-    probe_triggered = false
-    counterfactual_probe = ""
-    → SKIP this section
-
-IF triggered:
-  Step 1. Extract the student's core causal claim
-          from academic error_clauses or weakest_point.
-          Example: "물가 상승 → 구매력 하락"
-
-  Step 2. Flip ONE variable in that claim.
-          Example: "물가 하락" or "구매력 상승"
-
-  Step 3. Write a one-sentence Korean question
-          asking what would happen under the flipped condition.
-
-  Rules:
-  - Flip only ONE variable. Do NOT change the concept itself.
-  - The correct answer must be directly inferrable
-    from the original ground_truth logic.
-  - Do NOT ask about external factors (정책, 외부 충격 등).
-
-Output fields to add:
-  "counterfactual_probe": "만약 물가가 하락한다면 구매력은 어떻게 달라질까요?",
-  "probe_triggered": true
 
 --- Message Rules ---
 - Use rebuttal_question as skeleton, unique_insight for depth,
