@@ -10,6 +10,86 @@ const getExpertTags = (lang) => ({
   macro: { name: t(lang, 'dictCatMacro'), icon: Globe, color: '#8b5cf6', bg: 'rgba(139, 92, 246, 0.1)' }
 });
 
+const formatTextWithLineBreaks = (text) => {
+    if (!text) return null;
+    
+    // Convert any form of literal \n or escaped newlines to a standard marker
+    let processedText = String(text)
+        .replace(/\\\\n/g, '\n')
+        .replace(/\\n/g, '\n')
+        .replace(/\\r/g, '')
+        .replace(/\r\n/g, '\n')
+        .replace(/\r/g, '\n');
+        
+    return processedText.split('\n').map((line, index) => {
+        // Identify mathematical expressions within brackets or parentheses that contain numbers and operators
+        const mathRegex = /(\[[^\]]+\]|\([^)]+\))/g;
+        const parts = line.split(mathRegex);
+        
+        return (
+            <span key={index} style={{ lineHeight: '1.8' }}>
+                {parts.map((part, pIndex) => {
+                    // Match pattern like [ ... ] or ( ... ) containing numbers and math operators
+                    if (mathRegex.test(part) && /[+\-×/^%]/.test(part) && /\d/.test(part)) {
+                        const subParts = part.split(/(\^\d+)/);
+                        return (
+                            <span key={pIndex} className="math-formula" style={{
+                                backgroundColor: '#f0fdf4',
+                                border: '1px solid #bbf7d0',
+                                padding: '1px 6px',
+                                borderRadius: '6px',
+                                fontFamily: "'Consolas', 'Courier New', monospace",
+                                fontWeight: '600',
+                                color: '#166534',
+                                margin: '0 3px',
+                                display: 'inline-block',
+                                letterSpacing: '0.5px'
+                            }}>
+                                {subParts.map((sp, spIndex) => {
+                                    if (sp.startsWith('^')) {
+                                        return <sup key={spIndex} style={{ fontSize: '0.7em', marginLeft: '1px' }}>{sp.slice(1)}</sup>;
+                                    }
+                                    return sp;
+                                })}
+                            </span>
+                        );
+                    }
+                    return part;
+                })}
+                <br />
+            </span>
+        );
+    });
+};
+
+const splitFirstParagraph = (text) => {
+    if (!text) return { first: "", rest: "" };
+    
+    let processedText = String(text)
+        .replace(/\\\\n/g, '\n')
+        .replace(/\\n/g, '\n')
+        .replace(/\\r/g, '')
+        .replace(/\r\n/g, '\n')
+        .replace(/\r/g, '\n');
+        
+    const lines = processedText.split('\n');
+    let firstLine = "";
+    let restLines = [];
+    
+    for (let i = 0; i < lines.length; i++) {
+        if (!firstLine && lines[i].trim().length > 0) {
+            firstLine = lines[i];
+        } else if (firstLine) {
+            restLines.push(lines[i]);
+        }
+    }
+    
+    return {
+        first: firstLine,
+        rest: restLines.join('\n').trim()
+    };
+};
+
 const ConceptDictionary = ({ isOpen, onClose, initialSearchTerm, cameFromScaffolding, onReturnWithHint, language, onLanguageChange }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [shouldRender, setShouldRender] = useState(false);
@@ -43,8 +123,8 @@ const ConceptDictionary = ({ isOpen, onClose, initialSearchTerm, cameFromScaffol
             const detailedConcepts = listRes.data.map((item) => ({
               id: item.term,
               title: item.term,
-              definition: item.simple_definition,
-              details: item.example || "",
+              definition: item.simple_definition ? item.simple_definition.replace(/\\n/g, '\n') : "",
+              details: item.example ? item.example.replace(/\\n/g, '\n') : "",
               rawCategory: item.category || 'Economics',
               hint: item.simple_definition
             }));
@@ -167,6 +247,8 @@ const ConceptDictionary = ({ isOpen, onClose, initialSearchTerm, cameFromScaffol
                 const TagIcon = tagStyle.icon;
                 const isExpanded = expandedCardId === concept.id || (initialSearchTerm && concept.title.toLowerCase().includes(initialSearchTerm.toLowerCase()));
 
+                const { first: defFirst, rest: defRest } = splitFirstParagraph(concept.definition);
+
                 return (
                   <div
                     key={concept.id}
@@ -181,15 +263,28 @@ const ConceptDictionary = ({ isOpen, onClose, initialSearchTerm, cameFromScaffol
                       <h3>{concept.title}</h3>
                     </div>
 
-                    <p className="card-definition">{concept.definition}</p>
+                    <p className="card-definition">
+                      {formatTextWithLineBreaks(defFirst)}
+                      {!isExpanded && defRest && (
+                        <span style={{ color: 'var(--color-primary)', fontWeight: '600', marginLeft: '8px', opacity: 0.8 }}>... 더보기</span>
+                      )}
+                    </p>
 
                     {isExpanded && (
                       <div className="card-expanded-content" onClick={e => e.stopPropagation()}>
+                        
+                        {defRest && (
+                          <div className="card-definition-rest" style={{ marginBottom: '16px' }}>
+                            <p>{formatTextWithLineBreaks(defRest)}</p>
+                          </div>
+                        )}
 
-                        <div className="insights-block">
-                          <h4>{t(language, 'example')}</h4>
-                          <p>{concept.details}</p>
-                        </div>
+                        {concept.details && concept.details.trim() !== '' && (
+                          <div className="insights-block">
+                            <h4>{t(language, 'example')}</h4>
+                            <p>{formatTextWithLineBreaks(concept.details)}</p>
+                          </div>
+                        )}
 
                         {/* Scaffolding Dynamic Integration */}
                         {cameFromScaffolding && (

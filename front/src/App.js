@@ -10,41 +10,8 @@ import Register from './Register';
 import RadarScoreChart from './components/RadarChart';
 import LineScoreChart from './components/LineChart';
 import AttendanceTracker from './components/AttendanceTracker';
-import { studyAPI } from './api/services';
+import { studyAPI, dictionaryAPI } from './api/services';
 import { t } from './locales';
-
-const getMissionConcepts = (lang) => [
-    {
-        id: '인플레이션',
-        title: t(lang, 'inflation'),
-        icon: Tag
-    },
-    {
-        id: '기준 금리',
-        title: t(lang, 'interestRate'),
-        icon: Landmark
-    },
-    {
-        id: '환율',
-        title: t(lang, 'exchangeRate'),
-        icon: Globe
-    },
-    {
-        id: '대안비용',
-        title: t(lang, 'opportunityCost'),
-        icon: Scale
-    },
-    {
-        id: '복리',
-        title: t(lang, 'compoundInterest'),
-        icon: TrendingUp
-    },
-    {
-        id: 'coming_soon',
-        title: lang === 'ko' ? '추가 예정' : 'Coming Soon',
-        icon: PlusCircle
-    }
-];
 
 const getInitialPath = (lang) => [
     { id: 'fundamentals', title: t(lang, 'fundamentals'), status: 'completed', summary: t(lang, 'fundamentalsSummary') },
@@ -62,6 +29,51 @@ function App() {
     const [dictionarySearchTerm, setDictionarySearchTerm] = useState('');
     const [language, setLanguage] = useState('ko');
     const [expandedSidebarExpert, setExpandedSidebarExpert] = useState(null);
+
+    const [missionConcepts, setMissionConcepts] = useState([]);
+    const [isLoadingMissions, setIsLoadingMissions] = useState(true);
+    
+    useEffect(() => {
+        const fetchMissions = async () => {
+            setIsLoadingMissions(true);
+            try {
+                const res = await dictionaryAPI.getList(language);
+                const icons = [Tag, Landmark, Globe, TrendingUp, Scale, BookOpen, Star, AlertCircle];
+                let iconIndex = 0;
+                
+                const mappedMissions = res.data.map((item) => {
+                    const isAlternativeCost = item.term === '대안비용';
+                    let IconComponent = isAlternativeCost ? PlusCircle : icons[iconIndex % icons.length];
+                    if (!isAlternativeCost) iconIndex++;
+                    
+                    if (item.term === '인플레이션') IconComponent = Tag;
+                    else if (item.term.includes('금리')) IconComponent = Landmark;
+                    else if (item.term === '환율') IconComponent = Globe;
+                    else if (item.term === '기회비용' && !isAlternativeCost) IconComponent = Scale;
+                    else if (item.term === '복리') IconComponent = TrendingUp;
+
+                    return {
+                        id: isAlternativeCost ? 'coming_soon' : item.term,
+                        originalId: item.term,
+                        title: isAlternativeCost ? (language === 'ko' ? '추가 예정' : 'Coming Soon') : item.term,
+                        icon: IconComponent
+                    };
+                });
+                
+                mappedMissions.sort((a, b) => (a.id === 'coming_soon') === (b.id === 'coming_soon') ? 0 : (a.id === 'coming_soon' ? 1 : -1));
+                
+                setMissionConcepts(mappedMissions);
+            } catch (error) {
+                console.error("Failed to load missions:", error);
+                setMissionConcepts([
+                    { id: 'coming_soon', title: language === 'ko' ? '추가 예정' : 'Coming Soon', icon: PlusCircle }
+                ]);
+            } finally {
+                setIsLoadingMissions(false);
+            }
+        };
+        fetchMissions();
+    }, [language]);
 
     // Auth State
     const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -497,9 +509,6 @@ function App() {
         <div className="app-container fade-in">
             <header className="app-header" style={{ height: '75px' }}>
                 <div className="header-left">
-                    <button className="icon-btn" onClick={() => setShowLeftSidebarProfile(!showLeftSidebarProfile)}>
-                        <Menu size={20} />
-                    </button>
                     <div
                         className="logo-section"
                         onClick={() => { setSelectedMission(null); setHoveredMission(null); }}
@@ -586,7 +595,11 @@ function App() {
                             )}
                         </h2>
                         <div className="mission-grid">
-                            {getMissionConcepts(language).map(mission => (
+                            {isLoadingMissions ? (
+                                <div style={{ textAlign: 'center', width: '100%', padding: '40px', color: 'var(--color-text-secondary)' }}>
+                                    <div style={{ display: 'inline-block', width: '30px', height: '30px', border: '3px solid rgba(59, 130, 246, 0.3)', borderTopColor: 'var(--color-expert-academic)', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
+                                </div>
+                            ) : missionConcepts.map(mission => (
                                 <div 
                                     key={mission.id} 
                                     className="mission-card" 

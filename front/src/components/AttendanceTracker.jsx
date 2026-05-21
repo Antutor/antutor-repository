@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Calendar, CheckCircle2, Flame } from 'lucide-react';
 import { t } from '../locales';
+import api from '../api';
 
 const getLocalDateString = (d) => {
     const year = d.getFullYear();
@@ -14,59 +15,24 @@ const AttendanceTracker = ({ language = 'ko' }) => {
     const [streak, setStreak] = useState(0);
 
     useEffect(() => {
-        const saved = localStorage.getItem('antutor_attendance');
-        let dates = saved ? JSON.parse(saved) : [];
-        
-        const todayStr = getLocalDateString(new Date());
-        
-        // Mark today as attended when user visits
-        if (!dates.includes(todayStr)) {
-            dates.push(todayStr);
-            localStorage.setItem('antutor_attendance', JSON.stringify(dates));
-        }
-        
-        setAttendance(dates);
-        calculateStreak(dates);
-    }, []);
-
-    const calculateStreak = (dates) => {
-        if (dates.length === 0) return 0;
-        
-        const sortedDates = [...dates].sort().reverse();
-        let currentStreak = 0;
-        let today = new Date();
-        today.setHours(0, 0, 0, 0);
-
-        let lastDate = new Date(sortedDates[0]);
-        lastDate.setHours(0, 0, 0, 0);
-
-        // If last attendance was not today or yesterday, streak is broken
-        const diffDays = Math.round((today - lastDate) / (1000 * 60 * 60 * 24));
-        if (diffDays > 1) {
-            setStreak(0);
-            return;
-        }
-
-        // Count consecutive days
-        for (let i = 0; i < sortedDates.length; i++) {
-            const d1 = new Date(sortedDates[i]);
-            d1.setHours(0, 0, 0, 0);
-            
-            if (i === 0) {
-                currentStreak = 1;
-            } else {
-                const d2 = new Date(sortedDates[i-1]);
-                d2.setHours(0, 0, 0, 0);
-                const diff = Math.round((d2 - d1) / (1000 * 60 * 60 * 24));
-                if (diff === 1) {
-                    currentStreak++;
-                } else if (diff > 1) {
-                    break;
+        const fetchAttendance = async () => {
+            try {
+                // First mark today's attendance
+                await api.post('/api/attendance');
+                
+                // Then fetch the updated attendance data
+                const response = await api.get('/api/attendance');
+                if (response.data) {
+                    setAttendance(response.data.attended_dates || []);
+                    setStreak(response.data.streak || 0);
                 }
+            } catch (error) {
+                console.error("Failed to fetch/mark attendance:", error);
             }
-        }
-        setStreak(currentStreak);
-    };
+        };
+
+        fetchAttendance();
+    }, []);
 
     const dayNamesKo = ['일', '월', '화', '수', '목', '금', '토'];
     const dayNamesEn = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
@@ -190,7 +156,7 @@ const AttendanceTracker = ({ language = 'ko' }) => {
                 gap: '5px'
             }}>
                 <CheckCircle2 size={14} />
-                {t(language, 'todayAttendance')}
+                {t(language, 'todayAttendance').replace('{date}', new Date().getDate())}
             </div>
         </div>
     );

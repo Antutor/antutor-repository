@@ -16,7 +16,7 @@ const Register = ({ onGoToLogin, language = 'ko', onLanguageChange }) => {
       alert(t(language, 'enterUserId'));
       return;
     }
-    if (!/^[A-Za-z0-9]{4,}$/.test(userId)) {
+    if (!/^[a-z0-9]{4,}$/.test(userId)) {
       alert(t(language, 'invalidUserId'));
       return;
     }
@@ -52,7 +52,7 @@ const Register = ({ onGoToLogin, language = 'ko', onLanguageChange }) => {
       alert(t(language, 'loginPasswordPlaceholder'));
       return;
     }
-    if (!/^[A-Za-z0-9]{4,}$/.test(password)) {
+    if (!/^[a-z0-9]{4,}$/.test(password)) {
       alert(t(language, 'invalidPassword'));
       return;
     }
@@ -142,6 +142,10 @@ const Register = ({ onGoToLogin, language = 'ko', onLanguageChange }) => {
                 onChange={(e) => setPassword(e.target.value)}
               />
             </div>
+          </div>
+          
+          <div style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)', marginBottom: '20px', textAlign: 'left', paddingLeft: '5px' }}>
+            * {t(language, 'inputRule')}
           </div>
 
           <button type="submit" className="login-submit-btn">

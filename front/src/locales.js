@@ -36,7 +36,7 @@ export const locales = {
     doingGreat: '정말 잘하고 있어요!',
     studyStreak: '연속 학습 {n}일째',
     attendance: '출석 현황',
-    todayAttendance: '오늘 출석 완료!',
+    todayAttendance: '오늘({date}일) 출석 완료!',
     
     // Chat & System Messages
     preparingSession: '학습 세션을 준비하고 있습니다...',
@@ -149,14 +149,15 @@ export const locales = {
     alreadyHaveAccount: '이미 계정이 있으신가요?',
     goToLogin: '로그인',
     enterUserId: '아이디를 입력해주세요.',
-    invalidUserId: '아이디는 영어 또는 숫자로만 4자리 이상 입력해야 합니다.',
+    invalidUserId: '아이디는 영문 소문자와 숫자만 사용하여 최소 4자리 이상 입력해야 합니다.',
     usernameAvailable: '사용 가능한 아이디입니다!',
     usernameTaken: '이미 사용중인 아이디입니다.',
     serverConnectionError: '서버와 연결할 수 없습니다. 로컈 백엔드 서버가 실행 중인지 확인해주세요.',
     checkIdFirst: '아이디 중복 확인을 해주세요.',
-    invalidPassword: '비밀번호는 영어 또는 숫자로만 4자리 이상 입력해야 합니다.',
+    invalidPassword: '비밀번호는 영문 소문자와 숫자만 사용하여 최소 4자리 이상 입력해야 합니다.',
     registerSuccess: '가입 성공!',
-    registerFailed: '회원가입에 실패했습니다.'
+    registerFailed: '회원가입에 실패했습니다.',
+    inputRule: '아이디와 비밀번호는 영문 소문자와 숫자를 조합하여 최소 4자리 이상 입력해주세요.'
   },
   en: {
     // Concepts
@@ -195,7 +196,7 @@ export const locales = {
     doingGreat: 'You are doing great!',
     studyStreak: '{n} Day Streak!',
     attendance: 'Attendance',
-    todayAttendance: "Today's Check-in!",
+    todayAttendance: "Today's Check-in ({date})!",
     
     // Chat & System Messages
     preparingSession: 'Preparing learning session...',
@@ -308,14 +309,15 @@ export const locales = {
     alreadyHaveAccount: 'Already have an account?',
     goToLogin: 'Sign In',
     enterUserId: 'Please enter a username.',
-    invalidUserId: 'Username must be at least 4 alphanumeric characters.',
+    invalidUserId: 'Username must be at least 4 lowercase letters and numbers.',
     usernameAvailable: 'Username is available!',
     usernameTaken: 'Username is already taken.',
     serverConnectionError: 'Cannot connect to server. Make sure the backend is running.',
     checkIdFirst: 'Please check username availability first.',
-    invalidPassword: 'Password must be at least 4 alphanumeric characters.',
+    invalidPassword: 'Password must be at least 4 lowercase letters and numbers.',
     registerSuccess: 'Registration successful!',
-    registerFailed: 'Registration failed.'
+    registerFailed: 'Registration failed.',
+    inputRule: 'ID and password must be at least 4 lowercase letters and numbers.'
   }
 };
 
