@@ -49,6 +49,7 @@ Step 4. Score:
 Step 5. retry_needed:
   contradiction or irrelevant → true
   all others → false
+  type = "partial" → retry_needed = false (ALWAYS)
 
 --- Output ---
 
@@ -551,11 +552,13 @@ Create 1 fill-in-the-blank sentence in English that:
 - If 'last_question' is provided, construct the blank around the answer to that question
 - Otherwise, construct the blank around the most critical term in the core definition or acceptable extensions
 - Replaces exactly 1-2 KEY terms with '____'
+- The blank = the most critical missing concept
 - The rest of the sentence makes the answer clearly inferrable
 - Starts with an encouraging phrase
 
 Rules:
 - Do NOT make multiple unrelated blanks
+- The completed sentence should match the core definition closely
 - Make it feel achievable, not intimidating
 
 Example:
