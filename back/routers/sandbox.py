@@ -8,7 +8,8 @@ from schemas import (
     PromptTuningSandboxRequest,
     AgentSandboxRequest,
     ModeratorSandboxRequest,
-    GraphSandboxRequest
+    GraphSandboxRequest,
+    ScaffoldingSandboxRequest
 )
 from multi_agent.graph import debate_graph
 from services.llm_agent import (
@@ -16,7 +17,8 @@ from services.llm_agent import (
     retrieve_knowledge_graph,
     call_expert_agent,
     evaluate_academic_auditor,
-    generate_moderator_guidance_message
+    generate_moderator_guidance_message,
+    call_scaffolding_agent
 )
 from services.translator import translate_ko_to_en
 from config import LOCAL_LLM_MODEL, LOCAL_LLM_ENDPOINT
@@ -242,3 +244,50 @@ async def test_graph_sandbox(request: GraphSandboxRequest, current_user: str = D
     except Exception as e:
         return {"status": "error", "detail": str(e)}
 
+
+@router.post("/ai/test/scaffolding", tags=["Sandbox"])
+async def test_scaffolding_sandbox(
+    request: ScaffoldingSandboxRequest,
+    current_user: str = Depends(get_current_user)
+):
+    """
+    ZPD 기반 스캐폴딩 4단계 프롬프트를 독립적으로 테스트합니다.
+
+    idk_count 값에 따라 아래 프롬프트가 선택됩니다:
+      1 → Level 3 (Nudge)           — RECOVERY_NUDGE_PROMPT
+      2 → Level 2 (Concept Hint)    — RECOVERY_CONCEPT_PROMPT
+      3 → Level 1 (Fill-in-blank)   — RECOVERY_FILL_BLANK_PROMPT
+      4 → Level 0 (Solution Reveal) — RECOVERY_REVEAL_PROMPT
+
+    use_real_kg=true 이면 Neo4j에서 실제 KG 컨텍스트를 조회하여 주입합니다.
+    custom_prompt 를 제공하면 기본 프롬프트를 완전히 대체합니다.
+    """
+    try:
+        kg_context = request.kg_context or ""
+
+        # 실제 KG 연동 요청 시 Neo4j 조회
+        if request.use_real_kg:
+            kg_context = await retrieve_knowledge_graph(request.concept_name.lower())
+
+        result = await call_scaffolding_agent(
+            concept_name=request.concept_name,
+            ground_truth=request.ground_truth,
+            kg_context=kg_context,
+            idk_count=request.idk_count,
+            custom_prompt=request.custom_prompt,
+            model=request.model,
+            temperature=request.temperature,
+        )
+
+        response_data = {
+            "status": "success",
+            **result,
+            "kg_context_used": kg_context or "(none)",
+        }
+
+        req_data = request.dict() if hasattr(request, "dict") else request.model_dump()
+        save_sandbox_log(req_data, response_data, "scaffolding_test")
+        return response_data
+
+    except Exception as e:
+        return {"status": "error", "detail": str(e)}

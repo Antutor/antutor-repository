@@ -311,3 +311,96 @@ Write a short, encouraging message in English (1-3 sentences) directly replying 
 Do NOT give them the direct answer.
 """
     return await call_local_llm(prompt, is_json=False, model=model, temperature=temperature)
+
+
+# ---------------------------------------------------------------------------
+# Scaffolding Agent — Recovery Flow (RECOVERY_* 프롬프트 독립 호출)
+# ---------------------------------------------------------------------------
+_SCAFFOLDING_LEVEL_MAP = {
+    1: {"level": 3, "step": "Sub-concept Nudge",   "template_name": "RECOVERY_NUDGE_PROMPT"},
+    2: {"level": 2, "step": "Concept Explanation",  "template_name": "RECOVERY_CONCEPT_PROMPT"},
+    3: {"level": 1, "step": "Fill-in-the-Blank",    "template_name": "RECOVERY_FILL_BLANK_PROMPT"},
+}
+
+async def call_scaffolding_agent(
+    concept_name: str,
+    ground_truth: str,
+    kg_context: str = "",
+    idk_count: int = 1,
+    custom_prompt: Optional[str] = None,
+    model: Optional[str] = None,
+    temperature: Optional[float] = None,
+) -> dict:
+    """
+    idk_count에 따라 적절한 RECOVERY_* 프롬프트를 호출합니다.
+
+    idk_count:
+      1  → Level 3 — Nudge          (RECOVERY_NUDGE_PROMPT)
+      2  → Level 2 — Concept Hint   (RECOVERY_CONCEPT_PROMPT)
+      3  → Level 1 — Fill-in-blank  (RECOVERY_FILL_BLANK_PROMPT)
+      4+ → Level 0 — Reveal         (RECOVERY_REVEAL_PROMPT)
+
+    Returns:
+      {
+        "idk_count": int,
+        "level": int,
+        "step": str,
+        "prompt_template": str,
+        "message": str
+      }
+    """
+    from multi_agent.prompts import (
+        RECOVERY_NUDGE_PROMPT,
+        RECOVERY_CONCEPT_PROMPT,
+        RECOVERY_FILL_BLANK_PROMPT,
+        RECOVERY_REVEAL_PROMPT,
+    )
+
+    meta = _SCAFFOLDING_LEVEL_MAP.get(idk_count, {
+        "level": 0,
+        "step": "Solution Reveal",
+        "template_name": "RECOVERY_REVEAL_PROMPT",
+    })
+
+    if custom_prompt:
+        template = custom_prompt
+    elif idk_count == 1:
+        template = RECOVERY_NUDGE_PROMPT
+    elif idk_count == 2:
+        template = RECOVERY_CONCEPT_PROMPT
+    elif idk_count == 3:
+        template = RECOVERY_FILL_BLANK_PROMPT
+    else:
+        template = RECOVERY_REVEAL_PROMPT
+
+    try:
+        prompt = template.format(
+            concept_name=concept_name,
+            ground_truth=ground_truth,
+            kg_context=kg_context,
+        )
+    except KeyError as e:
+        return {
+            "idk_count": idk_count,
+            "level": meta["level"],
+            "step": meta["step"],
+            "prompt_template": meta["template_name"],
+            "message": f"Prompt formatting error: missing key {e}",
+        }
+
+    raw = await call_local_llm(prompt, is_json=True, model=model, temperature=temperature)
+
+    try:
+        parsed = json.loads(raw)
+        message = parsed.get("message", raw)
+    except Exception:
+        message = raw
+
+    return {
+        "idk_count": idk_count,
+        "level": meta["level"],
+        "step": meta["step"],
+        "prompt_template": meta["template_name"],
+        "message": message,
+    }
+

@@ -52,6 +52,16 @@ class GraphSandboxRequest(BaseModel):
     model: Optional[str] = None
     temperature: Optional[float] = None
 
+class ScaffoldingSandboxRequest(BaseModel):
+    concept_name: str
+    ground_truth: str
+    kg_context: Optional[str] = ""
+    use_real_kg: Optional[bool] = False
+    idk_count: Optional[int] = 1           # 1=Nudge, 2=Concept, 3=Fill-blank, 4+=Reveal
+    custom_prompt: Optional[str] = None
+    model: Optional[str] = None
+    temperature: Optional[float] = None
+
 class ResumeDecisionRequest(BaseModel):
     concept: str
     decision: str  # "resume" or "fresh"
