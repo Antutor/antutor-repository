@@ -47,9 +47,12 @@ Step 4. Score:
   Score MUST match type range.
 
 Step 5. retry_needed:
-  contradiction or irrelevant → true
-  all others → false
-  type = "partial" → retry_needed = false (ALWAYS)
+  - type = "contradiction" AND clause_counts.correct_count == 0 → true
+  - type = "contradiction" AND clause_counts.correct_count > 0  → false
+  - type = "irrelevant"                                         → true
+  - type = "partial"                                            → false
+  - type = "mixed"                                              → false
+  - type = "correct"                                            → false
 
 --- Output ---
 
@@ -404,11 +407,27 @@ P0 — Mastery:
     message = congratulate student. hint_provided=false. STOP.
 
 P1 — Retry:
-  IF academic retry_needed == true:
-    mode="retry", focus="academic"
-    message = state error (from weakest_point or error_clauses)
-              + ask to retry + embed hint naturally
-    hint_provided=true. STOP.
+  IF Academic retry_needed == true:
+    mode = "retry"
+    focus = "academic"
+    hint_provided = true
+
+    # correct 절이 없는 경우 → 전체 재설명 요청
+    IF academic_result.clause_counts.correct_count == 0:
+      message = 전체적으로 틀렸음을 짧게 언급
+              + Academic weakest_point 기반으로
+                어떤 개념이 잘못됐는지 설명
+              + hint 자연스럽게 포함
+              + "다시 설명해볼 수 있을까요?"로 마무리
+
+    # correct 절이 있는 경우 → 틀린 부분만 재설명 요청
+    IF academic_result.clause_counts.correct_count > 0:
+      message = "전반적인 방향은 맞았어요!"로 시작
+              + Academic error_clauses 중 contradiction 절 언급
+              + "[해당 부분]만 다시 설명해볼 수 있을까요?"
+              + hint 자연스럽게 포함
+
+    → STOP.
 
 P2 — Academic weak:
   IF academic score < 0.5:
