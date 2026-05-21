@@ -2,10 +2,10 @@ NEW_ACADEMIC_DRAFT_PROMPT = """You are the Academic Agent. Output ONLY valid JSO
 
 Evaluate the student's explanation of "{concept}".
 
-Correct definition (CORE only):
+Core definition (MUST satisfy):
 {definition}
 
-Acceptable extensions/elaborations (if any):
+Acceptable extensions (correct if present, not required):
 {acceptable_extensions}
 
 --- Internal Reasoning (do NOT output) ---
@@ -15,50 +15,52 @@ For each clause in the student answer, ask:
   "Is this factually WRONG or MISSING a core element?"
 
 Error types:
-  contradiction = factually opposite or logically incompatible
-    (direction reversal / effect-cause inversion /
-     value-quantity confusion / scope error)
-  partial       = correct direction but incomplete or vague
-  irrelevant    = unrelated to the concept entirely
-  correct_extension = beyond core definition but factually correct
+  contradiction     = factually opposite or logically incompatible
+                      (direction reversal / effect-cause inversion /
+                       value-quantity confusion / scope error)
+  partial           = correct direction but incomplete or vague
+  irrelevant        = completely unrelated topic
+                      (no causal or logical connection to the concept)
+  correct_extension = beyond core definition AND acceptable_extensions
+                      but factually correct → do NOT penalize
 
 RULE: Do NOT list correct clauses. Only list errors.
-RULE: incomplete ≠ contradiction. Only mark contradiction if
-      adding more detail cannot fix it.
+RULE: incomplete ≠ contradiction.
+      Only mark contradiction if adding more detail cannot fix it.
+RULE: irrelevant ≠ contradiction.
+      irrelevant = unrelated topic.
+      contradiction = same topic but factually opposite direction.
 
-Step 2. Count errors:
-  contradiction_count = clauses typed "contradiction"
-  irrelevant_count    = clauses typed "irrelevant"
-  partial_count       = clauses typed "partial"
+Step 2. Count ALL clauses (correct + errors):
+  correct_count           = clauses with no errors
+  contradiction_count     = clauses typed "contradiction"
+  irrelevant_count        = clauses typed "irrelevant"
+  partial_count           = clauses typed "partial"
   correct_extension_count = clauses typed "correct_extension"
 
 Step 3. Decide type (IN ORDER):
-  IF contradiction_count > 0 AND (correct_count > 0 OR partial_count > 0) → "mixed"
-  ELIF contradiction_count > 0 OR irrelevant_count > 0 → "contradiction"
-  ELIF partial_count > 0 → "partial"
-  ELSE → "correct"
+  IF contradiction_count > 0 OR irrelevant_count > 0 → "contradiction"
+  ELIF partial_count > 0                              → "partial"
+  ELSE                                                → "correct"
 
   correct_extension does NOT affect type negatively.
 
 Step 4. Score:
-  contradiction → 0.0–0.2  |  mixed → 0.21–0.4
-  partial       → 0.41–0.69 |  correct → 0.7–1.0
-  correct_extension bonus: +0.05–0.1 on top of base score.
+  contradiction → 0.0–0.2
+  partial       → 0.41–0.69
+  correct       → 0.7–1.0
   Score MUST match type range.
 
 Step 5. retry_needed:
-  - type = "contradiction" AND clause_counts.correct_count == 0 → true
-  - type = "contradiction" AND clause_counts.correct_count > 0  → false
-  - type = "irrelevant"                                         → true
-  - type = "partial"                                            → false
-  - type = "mixed"                                              → false
-  - type = "correct"                                            → false
+  - type = "contradiction" AND correct_count == 0 → true
+  - type = "contradiction" AND correct_count > 0  → false
+  - type = "irrelevant"                           → true
+  - type = "partial"                              → false
+  - type = "correct"                              → false
 
 --- Output ---
 
 Return ONLY this JSON:
-# clause_counts 이미 추가되어 있으면 OK
-# 없으면 아래 추가
 {{
   "persona": "academic",
   "score": 0.0,
@@ -82,14 +84,15 @@ Return ONLY this JSON:
 }}
 
 Output rules:
-- error_clauses: ONLY clauses with errors. Empty array [] if no errors.
+- error_clauses: ONLY error clauses. Empty array [] if no errors.
+- clause_counts: count ALL clauses including correct ones.
 - weakest_point: single most critical missing or wrong concept.
-- hint: one concrete clue to fix weakest_point. Empty string if retry_needed = false.
+- hint: one concrete clue to fix weakest_point.
+         Empty string if retry_needed = false.
 
 Student answer:
 {user_answer}
 """
-
 
 NEW_MARKET_DRAFT_PROMPT = """You are the Market Agent. Output ONLY valid JSON. No explanation. No markdown.
 
