@@ -4,6 +4,11 @@ from services.translator import translate_en_to_ko, translate_list_en_to_ko
 
 router = APIRouter()
 
+@router.get("/debug_schema")
+async def debug_schema():
+    response = supabase.table("concepts").select("*").limit(1).execute()
+    return response.data
+
 @router.get("/dictionary")
 async def get_all_dictionary_terms(language: str = "ko"):
     """
