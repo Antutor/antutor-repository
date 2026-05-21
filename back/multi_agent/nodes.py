@@ -105,7 +105,7 @@ async def drafting_node(state: AgentState):
     """
     concept = state["concept"]
     user_answer = state["user_answer"]
-    definition = state.get("definition") or state.get("ground_truth") or ""
+    definition = state.get("definition") or ""
     acceptable_extensions = state.get("acceptable_extensions") or ""
     news_context = state.get("news_context", "")
     kg_context = state.get("kg_context", "")

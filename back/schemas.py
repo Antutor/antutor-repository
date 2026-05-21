@@ -54,7 +54,9 @@ class GraphSandboxRequest(BaseModel):
 
 class ScaffoldingSandboxRequest(BaseModel):
     concept_name: str
-    ground_truth: str
+    definition: str
+    acceptable_extensions: Optional[str] = ""
+    last_question: Optional[str] = ""    # 빈 문자열 = 첫 또는 정의 기반 힌트
     kg_context: Optional[str] = ""
     use_real_kg: Optional[bool] = False
     idk_count: Optional[int] = 1           # 1=Nudge, 2=Concept, 3=Fill-blank, 4+=Reveal

@@ -58,7 +58,6 @@ async def websocket_chat(websocket: WebSocket):
             
         concept_data = concept_res.data[0]
         concept_name = concept_data["name"]
-        ground_truth = concept_data["definition"]
         definition = concept_data["definition"]
         acceptable_extensions = concept_data.get("acceptable_extensions", "")
         
@@ -76,7 +75,6 @@ async def websocket_chat(websocket: WebSocket):
         initial_state = {
             "concept": concept_name,
             "user_answer": eval_user_answer,
-            "ground_truth": ground_truth,
             "definition": definition,
             "acceptable_extensions": acceptable_extensions,
             "news_context": news_context,

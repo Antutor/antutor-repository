@@ -271,7 +271,9 @@ async def test_scaffolding_sandbox(
 
         result = await call_scaffolding_agent(
             concept_name=request.concept_name,
-            ground_truth=request.ground_truth,
+            definition=request.definition,
+            acceptable_extensions=request.acceptable_extensions or "",
+            last_question=request.last_question or "",
             kg_context=kg_context,
             idk_count=request.idk_count,
             custom_prompt=request.custom_prompt,

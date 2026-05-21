@@ -4,8 +4,7 @@ import operator
 class AgentState(TypedDict):
     concept: str
     user_answer: str
-    ground_truth: str
-    definition: Optional[str]
+    definition: str          # DB definition 컬럼 (필수)
     acceptable_extensions: Optional[str]
     news_context: str
     kg_context: str

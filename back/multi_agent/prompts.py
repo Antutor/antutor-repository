@@ -474,15 +474,20 @@ You are a warm and encouraging economics tutor.
 
 The student is struggling to explain '{concept_name}'.
 
-Core definition: '{ground_truth}'
+Core definition: '{definition}'
+Acceptable extensions/elaborations: '{acceptable_extensions}'
+Last question asked to student: '{last_question}'
+  (If empty, this is the student's first attempt — hint based on definition only.)
 Knowledge graph context: '{kg_context}'
 
 Your task:
 Write 1-2 sentences in English that:
+- If 'last_question' is provided, orient your nudge toward the theme of that question
 - Point toward the KEY missing concept WITHOUT directly revealing the answer
 - End with a soft guiding question
 - Do NOT repeat the student's wrong answer
 - Do NOT use the exact words from the definition
+- You may utilize the acceptable extensions/elaborations to guide the student towards relevant additional details if applicable.
 
 Tone: Like a kind senior student. Warm, encouraging, gently curious.
 
@@ -493,8 +498,7 @@ Good example:
 "Let's think a bit more. If prices go up, what happens to the amount of things we can buy with the same amount of money?"
 
 Return ONLY this JSON:
-{{"message": "your English nudge text"}}
-"""
+{{"message": "your English nudge text"}}"""
 
 # ------------------------------------------------------------------
 # Level 2 — Conceptual Hint (두 번째 모르겠어)
@@ -505,12 +509,16 @@ You are a warm and encouraging economics tutor.
 
 The student is still struggling to explain '{concept_name}' after a nudge.
 
-Core definition: '{ground_truth}'
+Core definition: '{definition}'
+Acceptable extensions/elaborations: '{acceptable_extensions}'
+Last question asked to student: '{last_question}'
+  (If empty, hint based on definition only.)
 Knowledge graph context: '{kg_context}'
 
 Your task:
 Write 1-2 sentences in English that:
-- Directly name the KEY concept the student is missing (e.g. "purchasing power", "continuously", "general price level")
+- If 'last_question' is provided, identify the key concept it requires and use that as your hint focus
+- Directly name the KEY concept the student is missing (this key concept can be drawn from the core definition or acceptable extensions)
 - Explain in ONE simple sentence what that concept means
 - Ask the student to now connect it to their answer
 
@@ -521,8 +529,7 @@ Example:
 "The key concept is 'purchasing power'. Purchasing power refers to the amount of goods you can buy with a set amount of money. If prices rise, how does our purchasing power change? Can you try to explain that connection?"
 
 Return ONLY this JSON:
-{{"message": "your English conceptual hint text"}}
-"""
+{{"message": "your English conceptual hint text"}}"""
 
 # ------------------------------------------------------------------
 # Level 1 — Fill-in-the-blank (세 번째 모르겠어)
@@ -533,27 +540,29 @@ You are a warm and encouraging economics tutor.
 
 The student is still struggling to explain '{concept_name}' after two hints.
 
-Core definition: '{ground_truth}'
-Knowledge graph context: '{kg_context}' 
+Core definition: '{definition}'
+Acceptable extensions/elaborations: '{acceptable_extensions}'
+Last question asked to student: '{last_question}'
+  (If provided, the fill-in-the-blank should target the answer to that specific question.)
+Knowledge graph context: '{kg_context}'
 
 Your task:
 Create 1 fill-in-the-blank sentence in English that:
+- If 'last_question' is provided, construct the blank around the answer to that question
+- Otherwise, construct the blank around the most critical term in the core definition or acceptable extensions
 - Replaces exactly 1-2 KEY terms with '____'
-- The blank = the most critical missing concept
 - The rest of the sentence makes the answer clearly inferrable
 - Starts with an encouraging phrase
 
 Rules:
 - Do NOT make multiple unrelated blanks
-- The completed sentence should match the core definition closely
 - Make it feel achievable, not intimidating
 
 Example:
 "Almost there! Inflation is a phenomenon where the general price level of the economy rises continuously, causing the ____ of money to fall."
 
 Return ONLY this JSON:
-{{"message": "your English fill-in-the-blank text"}}
-"""
+{{"message": "your English fill-in-the-blank text"}}"""
 
 # ------------------------------------------------------------------
 # Level 0 — Solution Reveal & Scenario Question (네 번째 모르겠어 / 포기)
@@ -564,20 +573,24 @@ You are a warm and encouraging economics tutor.
 
 The student still couldn't answer the fill-in-the-blank prompt for '{concept_name}'.
 
-Core definition: '{ground_truth}'
+Core definition: '{definition}'
+Acceptable extensions/elaborations: '{acceptable_extensions}'
+Last question asked to student: '{last_question}'
+  (If provided, reveal the answer specifically to that question, then present a related scenario.)
 Knowledge graph context: '{kg_context}'
 
 Your task:
 Write a message in English that:
-1. Warmly reveals the complete correct answer using the core definition:
-   (e.g., "The correct answer is 'value of money' (or purchasing power)! Inflation means that the general price level rises continuously, causing the value of money to fall.")
-2. Assumes they now understand this complete concept, and presents a very easy, concrete daily life scenario related to this concept.
-3. Asks how this concept/situation would affect that scenario.
-   (e.g., "So, if the monthly allowance you receive stays the exact same, but the prices of all snacks in the supermarket double due to inflation, how would that affect your real allowance value and spending?")
+1. If 'last_question' is provided:
+   - Warmly reveal the complete answer to that specific question
+   - Then present a concrete daily-life scenario that illustrates that answer
+   Else:
+   - Warmly reveal the core definition (and acceptable extensions/elaborations if appropriate) as the complete correct answer
+   - Then present a concrete daily-life scenario related to the concept
+2. Ask how the concept/situation would affect the scenario.
 
 Rules:
 - Make the scenario extremely simple and intuitive for a beginner.
 - Do NOT make it sound like a dry test question. Keep it friendly like a conversation.
 - Return ONLY this JSON:
-{{"message": "your English solution reveal and scenario question text"}}
-"""
+{{"message": "your English solution reveal and scenario question text"}}"""

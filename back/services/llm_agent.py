@@ -366,7 +366,9 @@ _SCAFFOLDING_LEVEL_MAP = {
 
 async def call_scaffolding_agent(
     concept_name: str,
-    ground_truth: str,
+    definition: str,
+    acceptable_extensions: str = "",
+    last_question: str = "",
     kg_context: str = "",
     idk_count: int = 1,
     custom_prompt: Optional[str] = None,
@@ -381,6 +383,8 @@ async def call_scaffolding_agent(
       2  → Level 2 — Concept Hint   (RECOVERY_CONCEPT_PROMPT)
       3  → Level 1 — Fill-in-blank  (RECOVERY_FILL_BLANK_PROMPT)
       4+ → Level 0 — Reveal         (RECOVERY_REVEAL_PROMPT)
+
+    last_question: 이전 턴 Moderator가 학생에게 던진 질문 (빈 문자열 = 첫 시도)
 
     Returns:
       {
@@ -418,7 +422,9 @@ async def call_scaffolding_agent(
     try:
         prompt = template.format(
             concept_name=concept_name,
-            ground_truth=ground_truth,
+            definition=definition,
+            acceptable_extensions=acceptable_extensions,
+            last_question=last_question,
             kg_context=kg_context,
         )
     except KeyError as e:

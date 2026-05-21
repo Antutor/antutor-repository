@@ -26,15 +26,15 @@ import json
 from services.guardrail import run_guardrail, run_guardrail_ws
 from services.semantic_cache import get_cached_response, save_to_cache
 
-def get_recovery_prompt(concept_name, ground_truth, kg_context, idk_count):
+def get_recovery_prompt(concept_name, definition, acceptable_extensions, last_question, kg_context, idk_count):
     if idk_count == 1:
-        template = RECOVERY_NUDGE_PROMPT.format(concept_name=concept_name, ground_truth=ground_truth, kg_context=kg_context)
+        template = RECOVERY_NUDGE_PROMPT.format(concept_name=concept_name, definition=definition, acceptable_extensions=acceptable_extensions, last_question=last_question, kg_context=kg_context)
     elif idk_count == 2:
-        template = RECOVERY_CONCEPT_PROMPT.format(concept_name=concept_name, ground_truth=ground_truth, kg_context=kg_context)
+        template = RECOVERY_CONCEPT_PROMPT.format(concept_name=concept_name, definition=definition, acceptable_extensions=acceptable_extensions, last_question=last_question, kg_context=kg_context)
     elif idk_count == 3:
-        template = RECOVERY_FILL_BLANK_PROMPT.format(concept_name=concept_name, ground_truth=ground_truth, kg_context=kg_context)
+        template = RECOVERY_FILL_BLANK_PROMPT.format(concept_name=concept_name, definition=definition, acceptable_extensions=acceptable_extensions, last_question=last_question, kg_context=kg_context)
     else:
-        template = RECOVERY_REVEAL_PROMPT.format(concept_name=concept_name, ground_truth=ground_truth, kg_context=kg_context)
+        template = RECOVERY_REVEAL_PROMPT.format(concept_name=concept_name, definition=definition, acceptable_extensions=acceptable_extensions, last_question=last_question, kg_context=kg_context)
     return "/no_think\n" + template
 
 def save_chat_log_db(chat_log_payload):
@@ -210,7 +210,6 @@ async def chat(request: ChatRequest, background_tasks: BackgroundTasks, current_
         raise HTTPException(status_code=404, detail="Target Concept is not supported.")
     concept_data = concept_res.data[0]
     concept_name = concept_data["name"]
-    ground_truth = concept_data["definition"]
     definition = concept_data["definition"]
     acceptable_extensions = concept_data.get("acceptable_extensions", "")
     
@@ -268,7 +267,6 @@ async def chat(request: ChatRequest, background_tasks: BackgroundTasks, current_
         initial_state = {
             "concept": concept_name,
             "user_answer": eval_user_answer,
-            "ground_truth": ground_truth,
             "definition": definition,
             "acceptable_extensions": acceptable_extensions,
             "news_context": news_context,
@@ -365,7 +363,15 @@ async def chat(request: ChatRequest, background_tasks: BackgroundTasks, current_
             scaffold_step = "Solution Reveal"
             scaffolding_level = 0
             
-        sys_prompt = get_recovery_prompt(concept_name, ground_truth, kg_context, current_idk_count)
+        # 마지막 AI 질문 조회 (이전 턴에 Moderator가 던진 질문 — 힌트 맥락 기준)
+        last_log = supabase.table("chat_logs") \
+            .select("ai_response") \
+            .eq("session_id", session["session_id"]) \
+            .order("turn_number", desc=True) \
+            .limit(1).execute()
+        last_question = last_log.data[0]["ai_response"] if last_log.data else ""
+
+        sys_prompt = get_recovery_prompt(concept_name, definition, acceptable_extensions, last_question, kg_context, current_idk_count)
         
         # 동기 블록 내에서 ainvoke를 호출해야 하므로 asyncio 이벤트 루프 또는 await 사용 필요
         # wait! 이 함수는 POST /chat (async def) 내부입니다. await 가능.
@@ -605,7 +611,6 @@ async def websocket_chat(websocket: WebSocket):
             
         concept_data = concept_res.data[0]
         concept_name = concept_data["name"]
-        ground_truth = concept_data["definition"]
         definition = concept_data["definition"]
         acceptable_extensions = concept_data.get("acceptable_extensions", "")
         
@@ -662,7 +667,6 @@ async def websocket_chat(websocket: WebSocket):
         initial_state = {
             "concept": concept_name,
             "user_answer": eval_user_answer,
-            "ground_truth": ground_truth,
             "definition": definition,
             "acceptable_extensions": acceptable_extensions,
             "news_context": news_context,
@@ -690,7 +694,15 @@ async def websocket_chat(websocket: WebSocket):
             else:
                 supabase.table("sessions").update({"idk_count": current_idk_count}).eq("session_id", session["session_id"]).execute()
             
-            sys_prompt = get_recovery_prompt(concept_name, ground_truth, kg_context, current_idk_count)
+            # 마지막 AI 질문 조회
+            last_log = supabase.table("chat_logs") \
+                .select("ai_response") \
+                .eq("session_id", session["session_id"]) \
+                .order("turn_number", desc=True) \
+                .limit(1).execute()
+            last_question = last_log.data[0]["ai_response"] if last_log.data else ""
+
+            sys_prompt = get_recovery_prompt(concept_name, definition, acceptable_extensions, last_question, kg_context, current_idk_count)
             
             recovery_text = ""
             think_filter = ThinkTagStreamFilter()

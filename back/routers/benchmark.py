@@ -28,7 +28,7 @@ async def benchmark_sync(request: ChatRequest):
     """
     concept = request.concept
     user_answer = request.user_answer
-    ground_truth = "Definition of " + concept  # Mock GT
+    definition = "Definition of " + concept  # Mock definition (benchmark only)
 
     print(f"\n[BENCHMARK] 🟢 Sync Mode Start (Concept: {concept})")
     start_time = time.time()
@@ -38,7 +38,7 @@ async def benchmark_sync(request: ChatRequest):
     kg_context = await retrieve_knowledge_graph(concept)
 
     # 2. Drafting — Sequential (직렬, 3 에이전트 순차 호출)
-    res1 = await call_academic(concept, ground_truth, user_answer)
+    res1 = await call_academic(concept, definition, "", user_answer)
     res2 = await call_market(concept, news_context, user_answer)
     res3 = await call_macro(concept, kg_context, user_answer)
 
@@ -90,7 +90,7 @@ async def benchmark_async(request: ChatRequest):
     """
     concept = request.concept
     user_answer = request.user_answer
-    ground_truth = "Definition of " + concept
+    definition = "Definition of " + concept  # Mock definition (benchmark only)
 
     print(f"\n[BENCHMARK] 🚀 Async Mode Start (Concept: {concept})")
     start_time = time.time()
@@ -105,7 +105,7 @@ async def benchmark_async(request: ChatRequest):
     initial_state = {
         "concept": concept,
         "user_answer": user_answer,
-        "ground_truth": ground_truth,
+        "definition": definition,
         "news_context": news_context,
         "kg_context": kg_context,
         "draft_reviews": {},
