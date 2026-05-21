@@ -57,6 +57,8 @@ Step 5. retry_needed:
 --- Output ---
 
 Return ONLY this JSON:
+# clause_counts 이미 추가되어 있으면 OK
+# 없으면 아래 추가
 {{
   "persona": "academic",
   "score": 0.0,
@@ -69,6 +71,12 @@ Return ONLY this JSON:
       "reason": ""
     }}
   ],
+  "clause_counts": {{
+    "correct_count": 0,
+    "contradiction_count": 0,
+    "partial_count": 0,
+    "irrelevant_count": 0
+  }},
   "retry_needed": false,
   "hint": ""
 }}
