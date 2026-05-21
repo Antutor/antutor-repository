@@ -45,7 +45,7 @@ const ConceptDictionary = ({ isOpen, onClose, initialSearchTerm, cameFromScaffol
               title: item.term,
               definition: item.simple_definition,
               details: item.example || "",
-              expert: 'academic',
+              rawCategory: item.category || 'Economics',
               hint: item.simple_definition
             }));
             setConcepts(detailedConcepts);
@@ -130,9 +130,41 @@ const ConceptDictionary = ({ isOpen, onClose, initialSearchTerm, cameFromScaffol
           ) : (
             <div className="concepts-grid">
               {filteredConcepts.map(concept => {
-                const EXPERT_TAGS = getExpertTags(language);
-                const tag = EXPERT_TAGS[concept.expert];
-                const TagIcon = tag.icon;
+                const formatCategoryName = (cat, lang) => {
+                  if (!cat) return lang === 'ko' ? '기타' : 'Other';
+
+                  const lower = cat.toLowerCase().trim();
+
+                  const dict = {
+                    'finance': { ko: '금융', en: 'Finance' },
+                    'investment': { ko: '투자', en: 'Investment' },
+                    'economics': { ko: '경제학', en: 'Economics' },
+                    'market': { ko: '시장', en: 'Market' },
+                    'macro': { ko: '거시경제', en: 'Macro' },
+                    'micro': { ko: '미시경제', en: 'Micro' },
+                    'academic': { ko: '학술', en: 'Academic' }
+                  };
+
+                  for (const [key, val] of Object.entries(dict)) {
+                    if (lower.includes(key)) {
+                      return lang === 'ko' ? val.ko : val.en;
+                    }
+                  }
+
+                  return cat.charAt(0).toUpperCase() + cat.slice(1);
+                };
+
+                const getTagStyle = (cat) => {
+                  const lower = (cat || '').toLowerCase();
+                  if (lower.includes('finance')) return { icon: TrendingUp, color: '#059669', bg: 'rgba(5, 150, 105, 0.1)' };
+                  if (lower.includes('investment')) return { icon: Globe, color: '#8b5cf6', bg: 'rgba(139, 92, 246, 0.1)' };
+                  return { icon: BookOpen, color: '#10b981', bg: 'rgba(16, 185, 129, 0.1)' };
+                };
+
+                const catValue = concept.rawCategory || concept.expert || 'Economics';
+                const tagName = formatCategoryName(catValue, language);
+                const tagStyle = getTagStyle(catValue);
+                const TagIcon = tagStyle.icon;
                 const isExpanded = expandedCardId === concept.id || (initialSearchTerm && concept.title.toLowerCase().includes(initialSearchTerm.toLowerCase()));
 
                 return (
@@ -142,9 +174,9 @@ const ConceptDictionary = ({ isOpen, onClose, initialSearchTerm, cameFromScaffol
                     onClick={() => setExpandedCardId(isExpanded ? null : concept.id)}
                   >
                     <div className="card-top">
-                      <div className="expert-tag" style={{ color: tag.color, backgroundColor: tag.bg, borderColor: tag.color }}>
+                      <div className="expert-tag" style={{ color: tagStyle.color, backgroundColor: tagStyle.bg, borderColor: tagStyle.color }}>
                         <TagIcon size={14} />
-                        <span>{tag.name}</span>
+                        <span>{tagName}</span>
                       </div>
                       <h3>{concept.title}</h3>
                     </div>

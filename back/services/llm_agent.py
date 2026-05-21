@@ -16,6 +16,48 @@ from multi_agent.prompts import (
     NEW_MACRO_DRAFT_PROMPT
 )
 
+def strip_think_tags(text: str) -> str:
+    """Qwen3 등의 모델이 출력하는 <think>...</think> 블록을 제거합니다."""
+    return re.sub(r'<think>.*?</think>', '', text, flags=re.DOTALL).strip()
+
+class ThinkTagStreamFilter:
+    """
+    스트리밍 청크에서 <think>...</think> 블록을 실시간으로 제거합니다.
+    청크 경계에서 태그가 잘리는 경우를 처리하기 위해 상태를 유지합니다.
+    """
+    def __init__(self):
+        self._buffer = ""
+        self._in_think = False
+
+    def feed(self, chunk: str) -> str:
+        """청크를 받아 <think> 블록이 제거된 출력 문자열을 반환합니다."""
+        self._buffer += chunk
+        result = ""
+        while True:
+            if self._in_think:
+                end = self._buffer.find("</think>")
+                if end == -1:
+                    # </think> 아직 도착 안 함 — 버퍼 유지
+                    self._buffer = ""
+                    break
+                else:
+                    # </think> 발견 — think 블록 종료
+                    self._buffer = self._buffer[end + len("</think>"):]
+                    self._in_think = False
+            else:
+                start = self._buffer.find("<think>")
+                if start == -1:
+                    # think 블록 없음 — 버퍼 전체 출력
+                    result += self._buffer
+                    self._buffer = ""
+                    break
+                else:
+                    # <think> 발견 — 그 이전 내용만 출력
+                    result += self._buffer[:start]
+                    self._buffer = self._buffer[start + len("<think>"):]
+                    self._in_think = True
+        return result
+
 async def call_local_llm(prompt: str, is_json: bool = False, model: Optional[str] = None, temperature: Optional[float] = None) -> str:
     """Helper to call local LLM API (Ollama or vLLM)"""
     model_name = model or LOCAL_LLM_MODEL
@@ -58,9 +100,9 @@ async def call_local_llm(prompt: str, is_json: bool = False, model: Optional[str
             data = response.json()
             
             if "choices" in data: # OpenAI / vLLM
-                return data["choices"][0]["message"]["content"]
+                return strip_think_tags(data["choices"][0]["message"]["content"])
             elif "message" in data: # Ollama
-                return data["message"]["content"]
+                return strip_think_tags(data["message"]["content"])
             return str(data)
     except Exception as e:
         print(f"LLM Call Error ({LLM_BACKEND_TYPE}): {str(e)}")

@@ -2,25 +2,31 @@ import React, { useState, useEffect } from 'react';
 import { Calendar, CheckCircle2, Flame } from 'lucide-react';
 import { t } from '../locales';
 
+const getLocalDateString = (d) => {
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+};
+
 const AttendanceTracker = ({ language = 'ko' }) => {
     const [attendance, setAttendance] = useState([]);
     const [streak, setStreak] = useState(0);
 
     useEffect(() => {
-        // Load attendance from localStorage
         const saved = localStorage.getItem('antutor_attendance');
-        if (saved) {
-            const dates = JSON.parse(saved);
-            setAttendance(dates);
-            calculateStreak(dates);
-        } else {
-            // First time: mark today as attended for demo
-            const today = new Date().toISOString().split('T')[0];
-            const initial = [today];
-            localStorage.setItem('antutor_attendance', JSON.stringify(initial));
-            setAttendance(initial);
-            setStreak(1);
+        let dates = saved ? JSON.parse(saved) : [];
+        
+        const todayStr = getLocalDateString(new Date());
+        
+        // Mark today as attended when user visits
+        if (!dates.includes(todayStr)) {
+            dates.push(todayStr);
+            localStorage.setItem('antutor_attendance', JSON.stringify(dates));
         }
+        
+        setAttendance(dates);
+        calculateStreak(dates);
     }, []);
 
     const calculateStreak = (dates) => {
@@ -35,7 +41,7 @@ const AttendanceTracker = ({ language = 'ko' }) => {
         lastDate.setHours(0, 0, 0, 0);
 
         // If last attendance was not today or yesterday, streak is broken
-        const diffDays = Math.floor((today - lastDate) / (1000 * 60 * 60 * 24));
+        const diffDays = Math.round((today - lastDate) / (1000 * 60 * 60 * 24));
         if (diffDays > 1) {
             setStreak(0);
             return;
@@ -51,7 +57,7 @@ const AttendanceTracker = ({ language = 'ko' }) => {
             } else {
                 const d2 = new Date(sortedDates[i-1]);
                 d2.setHours(0, 0, 0, 0);
-                const diff = (d2 - d1) / (1000 * 60 * 60 * 24);
+                const diff = Math.round((d2 - d1) / (1000 * 60 * 60 * 24));
                 if (diff === 1) {
                     currentStreak++;
                 } else if (diff > 1) {
@@ -62,19 +68,25 @@ const AttendanceTracker = ({ language = 'ko' }) => {
         setStreak(currentStreak);
     };
 
-    // Simple grid for the last 14 days
+    const dayNamesKo = ['일', '월', '화', '수', '목', '금', '토'];
+    const dayNamesEn = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
+
+    // Simple grid for the last 7 days
     const getCalendarDays = () => {
         const days = [];
         const today = new Date();
-        for (let i = 13; i >= 0; i--) {
+        const todayStr = getLocalDateString(today);
+        for (let i = 6; i >= 0; i--) {
             const date = new Date();
             date.setDate(today.getDate() - i);
-            const dateStr = date.toISOString().split('T')[0];
+            const dateStr = getLocalDateString(date);
             days.push({
                 dateStr,
                 dayNum: date.getDate(),
+                dayOfWeekKo: dayNamesKo[date.getDay()],
+                dayOfWeekEn: dayNamesEn[date.getDay()],
                 isAttended: attendance.includes(dateStr),
-                isToday: dateStr === today.toISOString().split('T')[0]
+                isToday: dateStr === todayStr
             });
         }
         return days;
@@ -132,15 +144,18 @@ const AttendanceTracker = ({ language = 'ko' }) => {
             <div className="attendance-calendar-grid" style={{ 
                 display: 'grid', 
                 gridTemplateColumns: 'repeat(7, 1fr)', 
-                gap: '6px' 
+                gap: '12px 6px' 
             }}>
                 {calendarDays.map((day, idx) => (
                     <div key={idx} style={{ 
                         display: 'flex', 
                         flexDirection: 'column', 
                         alignItems: 'center', 
-                        gap: '4px' 
+                        gap: '6px' 
                     }}>
+                        <div style={{ fontSize: '0.65rem', color: 'var(--color-text-secondary)', fontWeight: '700' }}>
+                            {language === 'ko' ? day.dayOfWeekKo : day.dayOfWeekEn}
+                        </div>
                         <div style={{ 
                             width: '26px', 
                             height: '26px', 

@@ -110,7 +110,9 @@ async def websocket_chat(websocket: WebSocket):
                     if "synthesis_llm" in tags:
                         chunk = event["data"]["chunk"]
                         if chunk.content:
-                            await websocket.send_json({"type": "stream", "chunk": chunk.content})
+                            filtered = think_filter.feed(chunk.content)
+                            if filtered:
+                                await websocket.send_json({"type": "stream", "chunk": filtered})
                 
                 elif kind == "on_chain_end":
                     if event["name"] == "LangGraph":

@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import './App.css';
-import { Menu, Send, BookOpen, TrendingUp, Gem, Radar, X, Library, CheckCircle, Lock, Star, Globe, Tag, Landmark, Scale, Circle, AlertCircle, Lightbulb, Info, HelpCircle } from 'lucide-react';
+import { Menu, Send, BookOpen, TrendingUp, Gem, Radar, X, Library, CheckCircle, Lock, Star, Globe, Tag, Landmark, Scale, Circle, AlertCircle, Lightbulb, Info, HelpCircle, PlusCircle } from 'lucide-react';
 import SummaryModal from './SummaryModal';
 import ConceptDictionary from './ConceptDictionary';
 import ReviewModal from './ReviewModal';
@@ -38,6 +38,11 @@ const getMissionConcepts = (lang) => [
         id: '복리',
         title: t(lang, 'compoundInterest'),
         icon: TrendingUp
+    },
+    {
+        id: 'coming_soon',
+        title: lang === 'ko' ? '추가 예정' : 'Coming Soon',
+        icon: PlusCircle
     }
 ];
 
@@ -61,6 +66,7 @@ function App() {
     // Auth State
     const [isLoggedIn, setIsLoggedIn] = useState(false);
     const [authPage, setAuthPage] = useState('login'); // 'login' or 'register'
+    const [showSplash, setShowSplash] = useState(false);
     const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
     const [showLeftSidebarProfile, setShowLeftSidebarProfile] = useState(false);
     const [userName, setUserName] = useState('');
@@ -85,6 +91,7 @@ function App() {
     // Scaffolding Counter States
     const [helpCountLevel1, setHelpCountLevel1] = useState(0);
     const [helpCountLevel2, setHelpCountLevel2] = useState(0);
+    const [helpCountLevel3, setHelpCountLevel3] = useState(0);
 
     // Review Modal State
     const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
@@ -144,6 +151,7 @@ function App() {
         }
     }, [isLoggedIn, showWelcomeBubble]);
 
+
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     };
@@ -190,7 +198,7 @@ function App() {
         setThinkingText(t(language, 'connecting'));
 
         const token = localStorage.getItem('access_token');
-        const wsUrl = `ws://localhost:8080/ws/chat`;
+        const wsUrl = `ws://localhost:8000/ws/chat`;
         const ws = new WebSocket(wsUrl);
 
         let accumulatedString = "";
@@ -275,18 +283,29 @@ function App() {
 
                     if (decision?.status === "scaffold") {
                         const step = plan?.step;
-                        if (step === "Concept Dictionary Link" || String(step) === "1") {
+                        if (step === "Sub-concept Nudge") {
                             setHelpCountLevel1(prev => prev + 1);
-                        } else {
+                        } else if (step === "Concept Explanation") {
                             setHelpCountLevel2(prev => prev + 1);
+                        } else if (step === "Fill-in-the-Blank") {
+                            setHelpCountLevel3(prev => prev + 1);
                         }
 
                         // Scaffolding UI 상태 업데이트
-                        if (step === "Sub-concept Nudge" || step === "Fill-in-the-Blank") {
+                        if (["Sub-concept Nudge", "Concept Explanation", "Fill-in-the-Blank", "Solution Reveal"].includes(step)) {
                             setCurrentScaffold({
                                 type: step,
                                 message: plan.message
                             });
+                        }
+                    } else if (decision?.probe_triggered) {
+                        setHelpCountLevel3(prev => prev + 1);
+                        setCurrentScaffold({
+                            type: 'Counterfactual Probe',
+                            message: decision.counterfactual_probe
+                        });
+                        if (!moderatorText) {
+                            moderatorText = decision.counterfactual_probe;
                         }
                     } else {
                         setCurrentScaffold(null);
@@ -352,6 +371,7 @@ function App() {
     };
 
     const handleMissionSelect = async (mission) => {
+        if (mission.id === 'coming_soon') return;
         // Optimistic UI Update: Switch to chat screen immediately
         setSelectedMission(mission.id);
         setActiveNodeId('strategic');
@@ -381,6 +401,7 @@ function App() {
             
             setHelpCountLevel1(0);
             setHelpCountLevel2(0);
+            setHelpCountLevel3(0);
             setReportData(null);
             setExpertFeedbackData([]);
             setScoreHistory([]);
@@ -426,8 +447,50 @@ function App() {
     };
 
     if (!isLoggedIn) {
-        if (authPage === 'login') return <Login onLogin={(uid) => { setUserName(uid); setIsLoggedIn(true); }} onGoToRegister={() => setAuthPage('register')} language={language} onLanguageChange={setLanguage} />;
+        if (authPage === 'login') return <Login onLogin={(uid) => { setUserName(uid); setIsLoggedIn(true); setShowSplash(true); }} onGoToRegister={() => setAuthPage('register')} language={language} onLanguageChange={setLanguage} />;
         if (authPage === 'register') return <Register onGoToLogin={() => setAuthPage('login')} language={language} onLanguageChange={setLanguage} />;
+    }
+
+    if (showSplash) {
+        return (
+            <div className="splash-screen fade-in" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', backgroundColor: 'var(--color-bg-main)', textAlign: 'center' }}>
+                <h1 style={{ fontSize: '2.5rem', color: 'var(--color-deep-navy)', marginBottom: '50px', fontWeight: '800', animation: 'fadeInDown 0.8s ease-out' }}>
+                    {language === 'ko' ? '저희와 함께 경제 지식을 학습해볼까요?' : 'Shall we learn economics together?'}
+                </h1>
+                <div style={{ display: 'flex', gap: '40px', alignItems: 'center', justifyContent: 'center', flexWrap: 'wrap' }}>
+                    {experts.map((expert, index) => (
+                        <div key={expert.id} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', animation: `fadeInUp 0.8s ease-out ${index * 0.15}s both` }}>
+                            <div style={{ width: '180px', height: '180px', borderRadius: '50%', backgroundColor: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '20px', boxShadow: '0 10px 30px rgba(0,0,0,0.15)', border: '1px solid rgba(0,0,0,0.05)' }}>
+                                <img src={expert.avatar} alt={expert.name} style={{ width: '140px', height: '140px', objectFit: 'contain' }} />
+                            </div>
+                            <h3 style={{ fontSize: '1.4rem', color: expert.color, fontWeight: '700', margin: '0 0 10px 0' }}>{expert.name}</h3>
+                            <p style={{ color: 'var(--color-text-secondary)', fontSize: '1rem', maxWidth: '180px', margin: 0, lineHeight: 1.4 }}>{expert.role}</p>
+                        </div>
+                    ))}
+                </div>
+                <button
+                    onClick={() => setShowSplash(false)}
+                    style={{
+                        marginTop: '60px',
+                        padding: '16px 40px',
+                        backgroundColor: '#22c55e',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '30px',
+                        cursor: 'pointer',
+                        fontWeight: '800',
+                        fontSize: '1.2rem',
+                        boxShadow: '0 10px 25px rgba(34, 197, 94, 0.3)',
+                        transition: 'all 0.2s ease',
+                        animation: 'fadeInUp 1s ease-out 0.8s both'
+                    }}
+                    onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-3px)'; e.currentTarget.style.boxShadow = '0 15px 30px rgba(34, 197, 94, 0.4)'; e.currentTarget.style.backgroundColor = '#16a34a'; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = '0 10px 25px rgba(34, 197, 94, 0.3)'; e.currentTarget.style.backgroundColor = '#22c55e'; }}
+                >
+                    {language === 'ko' ? '학습 시작하기' : 'Start Learning'}
+                </button>
+            </div>
+        );
     }
 
     return (
@@ -528,13 +591,14 @@ function App() {
                                     key={mission.id} 
                                     className="mission-card" 
                                     onClick={() => handleMissionSelect(mission)}
-                                    onMouseEnter={() => setHoveredMission(mission.id)}
+                                    onMouseEnter={() => mission.id !== 'coming_soon' && setHoveredMission(mission.id)}
                                     onMouseLeave={() => setHoveredMission(null)}
+                                    style={mission.id === 'coming_soon' ? { cursor: 'default', opacity: 0.7, transform: 'none', boxShadow: 'none' } : {}}
                                 >
-                                    <div className="mission-card-icon">
-                                        <mission.icon size={38} color="#4ade80" />
+                                    <div className="mission-card-icon" style={mission.id === 'coming_soon' ? { backgroundColor: 'transparent' } : {}}>
+                                        <mission.icon size={38} color={mission.id === 'coming_soon' ? "#cbd5e1" : "#4ade80"} />
                                     </div>
-                                    <h3>{mission.title}</h3>
+                                    <h3 style={mission.id === 'coming_soon' ? { color: '#94a3b8' } : {}}>{mission.title}</h3>
                                 </div>
                             ))}
                         </div>
@@ -634,7 +698,7 @@ function App() {
                                         <div className={`scaffold-info-banner ${currentScaffold.type === 'Fill-in-the-Blank' ? 'fill-mode' : 'nudge-mode'}`}>
                                             <div className="scaffold-info-content">
                                                 {currentScaffold.type === 'Fill-in-the-Blank' ? <Info size={16} /> : <Lightbulb size={16} />}
-                                                <span>{currentScaffold.type === 'Fill-in-the-Blank' ? t(language, 'fillBlankHelp') : t(language, 'nudgeHelp')}</span>
+                                                <span>{currentScaffold.type === 'Fill-in-the-Blank' ? t(language, 'fillBlankHelp') : currentScaffold.type === 'Counterfactual Probe' ? t(language, 'cfProbeHelp') : t(language, 'nudgeHelp')}</span>
                                             </div>
                                         </div>
                                     )}
@@ -778,6 +842,7 @@ function App() {
                 onClose={() => setIsSummaryModalOpen(false)}
                 helpCountLevel1={helpCountLevel1}
                 helpCountLevel2={helpCountLevel2}
+                helpCountLevel3={helpCountLevel3}
                 reportData={reportData}
                 language={language}
                 scoreChart={<RadarScoreChart scores={userScores} language={language} />}

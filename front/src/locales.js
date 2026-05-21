@@ -30,7 +30,7 @@ export const locales = {
     // Main UI
     missionSelectTitle: '학습 미션을 선택하세요',
     missionSelectTitleUser: '님, 오늘의 학습 미션을 선택하세요!',
-    antSleeping: 'Zzz... 미션을 선택해주세요...',
+    antSleeping: '미션을 선택해주세요!',
     antReady: '학습할 준비가 되셨나요?',
     learningPath: '학습 경로',
     doingGreat: '정말 잘하고 있어요!',
@@ -52,6 +52,7 @@ export const locales = {
     answerPlaceholder: '답변을 입력하세요...',
     fillBlankHelp: '아래 문장의 빈칸을 채워주세요.',
     nudgeHelp: '힌트를 참고하여 답변을 완성해 보세요.',
+    cfProbeHelp: '카운터팩추얼 질문에 답해보세요.',
     iDontKnow: '모르겠어요',
     requestHint: '힌트 요청',
     
@@ -86,6 +87,7 @@ export const locales = {
     scaffoldingSummary: '학습 지원 요약',
     level1Hint: '1단계 힌트',
     level2Hint: '2단계 힌트',
+    level3Hint: '3단계 힌트',
     selfDirectedBonus: '자기 주도 보너스',
     bonusCondition: '도움 없이 세션을 완료하면 50점을 추가로 획득할 수 있습니다!',
     eduInsights: '학습 인사이트',
@@ -187,7 +189,7 @@ export const locales = {
     // Main UI
     missionSelectTitle: 'Select a Learning Mission',
     missionSelectTitleUser: ', choose your learning mission for today!',
-    antSleeping: 'Zzz... Please select a mission...',
+    antSleeping: 'Please select a mission!',
     antReady: 'Are you ready to learn?',
     learningPath: 'Learning Path',
     doingGreat: 'You are doing great!',
@@ -209,6 +211,7 @@ export const locales = {
     answerPlaceholder: 'Type your answer...',
     fillBlankHelp: 'Please fill in the blank in the sentence below.',
     nudgeHelp: 'Use the hint to complete your answer.',
+    cfProbeHelp: 'Answer the counterfactual probe.',
     iDontKnow: "I don't know",
     requestHint: 'Request Hint',
     
@@ -243,6 +246,7 @@ export const locales = {
     scaffoldingSummary: 'Scaffolding Summary',
     level1Hint: 'Level 1 Hint',
     level2Hint: 'Level 2 Hint',
+    level3Hint: 'Level 3 Hint',
     selfDirectedBonus: 'Self-Directed Bonus',
     bonusCondition: 'Earn 50 extra points if you complete without hints!',
     eduInsights: 'Educational Insights',
