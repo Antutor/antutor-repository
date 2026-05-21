@@ -6,7 +6,7 @@ import { X, Award, AlertCircle, ArrowRight } from 'lucide-react';
 import './SummaryModal.css';
 import { t } from './locales';
 
-const SummaryModal = ({ isOpen, onClose, helpCountLevel1, helpCountLevel2, reportData, language }) => {
+const SummaryModal = ({ isOpen, onClose, helpCountLevel1, helpCountLevel2, helpCountLevel3, reportData, language }) => {
   const [shouldRender, setShouldRender] = useState(false);
   const [isActive, setIsActive] = useState(false);
 
@@ -97,18 +97,22 @@ const SummaryModal = ({ isOpen, onClose, helpCountLevel1, helpCountLevel2, repor
               <div className="support-counters">
                 <div className="counter-box">
                   <span className="counter-label">{t(language, 'level1Hint')}</span>
-                  <span className="counter-value">{helpCountLevel1}</span>
+                  <span className="counter-value">{reportData?.scaffolding_summary?.nudge ?? helpCountLevel1}</span>
                 </div>
                 <div className="counter-box">
                   <span className="counter-label">{t(language, 'level2Hint')}</span>
-                  <span className="counter-value">{helpCountLevel2}</span>
+                  <span className="counter-value">{reportData?.scaffolding_summary?.concept ?? helpCountLevel2}</span>
+                </div>
+                <div className="counter-box">
+                  <span className="counter-label">{t(language, 'level3Hint')}</span>
+                  <span className="counter-value">{reportData?.scaffolding_summary?.fill_blank ?? helpCountLevel3}</span>
                 </div>
               </div>
 
               <div className="bonus-score-section">
                 <h3>{t(language, 'selfDirectedBonus')}</h3>
-                <div className={`bonus-card ${(helpCountLevel1 + helpCountLevel2) === 0 ? 'earned' : 'missed'}`}>
-                  <div className="bonus-points">+{(helpCountLevel1 + helpCountLevel2) === 0 ? 50 : 0}</div>
+                <div className={`bonus-card ${(reportData?.scaffolding_summary?.total ?? (helpCountLevel1 + helpCountLevel2 + helpCountLevel3)) === 0 ? 'earned' : 'missed'}`}>
+                  <div className="bonus-points">+{(reportData?.scaffolding_summary?.total ?? (helpCountLevel1 + helpCountLevel2 + helpCountLevel3)) === 0 ? 50 : 0}</div>
                   <div className="bonus-caption">{t(language, 'bonusCondition')}</div>
                 </div>
               </div>
