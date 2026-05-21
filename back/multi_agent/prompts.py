@@ -33,7 +33,7 @@ Step 2. Count errors:
   correct_extension_count = clauses typed "correct_extension"
 
 Step 3. Decide type (IN ORDER):
-  IF contradiction_count > 0 AND partial_count > 0 → "mixed"
+  IF contradiction_count > 0 AND (correct_count > 0 OR partial_count > 0) → "mixed"
   ELIF contradiction_count > 0 OR irrelevant_count > 0 → "contradiction"
   ELIF partial_count > 0 → "partial"
   ELSE → "correct"
