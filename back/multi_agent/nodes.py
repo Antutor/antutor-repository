@@ -141,6 +141,73 @@ async def drafting_node(state: AgentState):
         "critiques": []
     }
 
+
+def retry_router(state: AgentState) -> str:
+    """
+    drafting_node 직후 라우터.
+
+    Academic Agent의 retry_needed=true 판정이 나오면
+    cross_review + synthesis_node 를 완전히 건너뜁니다.
+    → Moderator LLM 추론 비용(cross_review 1회 + synthesis 1회) 절약.
+
+    retry_needed=false(일반 평가)이면 기존 토론 흐름을 그대로 실행합니다.
+    """
+    academic = state.get("draft_reviews", {}).get("The Academic Auditor", {})
+    retry_needed = academic.get("retry_needed", False)
+    if retry_needed is True or str(retry_needed).lower() == "true":
+        print(
+            "\n[LangGraph] ⏩ retry_needed=true 감지 — "
+            "cross_review·synthesis 스킵, retry_node로 직행합니다.",
+            flush=True,
+        )
+        return "retry_node"
+    return "cross_review_node"
+
+
+async def retry_node(state: AgentState):
+    """
+    retry_needed=true 전용 경량 노드.
+
+    Moderator LLM 없이 Academic Agent의 hint + weakest_point만으로
+    final_synthesis를 구성하고 바로 END로 향합니다.
+
+    반환값은 synthesis_node와 동일한 키셋을 사용하여
+    chat.py·WS 핸들러가 동일하게 처리할 수 있도록 합니다.
+    """
+    academic = state.get("draft_reviews", {}).get("The Academic Auditor", {})
+    hint_text = academic.get("hint", "")
+    weakest   = academic.get("weakest_point", "")
+    language  = state.get("language", "ko")
+
+    if hint_text:
+        if language == "ko":
+            message = f"{weakest} {hint_text} 다시 설명해볼 수 있을까요?"
+        else:
+            message = f"{weakest} {hint_text} Could you try explaining it again?"
+    else:
+        # hint가 비어있는 엣지 케이스 — weakest_point만으로 구성
+        if language == "ko":
+            message = (
+                f"답변에 핵심 개념이 빠져있거나 잘못 서술된 부분이 있습니다. "
+                f"({weakest}) 다시 한번 설명해볼 수 있을까요?"
+            )
+        else:
+            message = (
+                f"Your answer contains a key conceptual error or missing element. "
+                f"({weakest}) Could you try again?"
+            )
+
+    print(
+        f"  ✅ Retry Node 완료! hint 기반 메시지 생성 완료 "
+        f"(hint_present={bool(hint_text)})\n",
+        flush=True,
+    )
+    return {
+        "final_synthesis": message,
+        "moderator_action": "retry",
+        "hint_provided": True,
+    }
+
 @with_retry_and_fallback(
     max_retries=3, 
     fallback_value={
