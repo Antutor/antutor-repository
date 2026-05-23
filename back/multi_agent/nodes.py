@@ -435,6 +435,8 @@ async def synthesis_node(state: AgentState):
     if retry_needed is True or str(retry_needed).lower() == "true":
         mode = "retry"
         hint_provided = True
+    else:
+        hint_provided = False
     
     print("  ✅ Synthesis Node 완료! 최종 피드백 산출 완료 🎉\n", flush=True)
     return {"final_synthesis": final_message, "hint_provided": hint_provided, "moderator_action": mode}

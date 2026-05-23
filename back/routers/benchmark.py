@@ -34,7 +34,7 @@ async def benchmark_sync(request: ChatRequest):
     start_time = time.time()
 
     # 1. RAG — Sequential (직렬)
-    news_context = await retrieve_news_rag(concept)
+    news_context = await retrieve_news_rag(concept, user_answer)
     kg_context = await retrieve_knowledge_graph(concept)
 
     # 2. Drafting — Sequential (직렬, 3 에이전트 순차 호출)
@@ -97,7 +97,7 @@ async def benchmark_async(request: ChatRequest):
 
     # 1. RAG — Parallel (병렬)
     news_context, kg_context = await asyncio.gather(
-        retrieve_news_rag(concept),
+        retrieve_news_rag(concept, user_answer),
         retrieve_knowledge_graph(concept)
     )
 

@@ -68,7 +68,7 @@ async def websocket_chat(websocket: WebSocket):
         
         concept_name_kr = await translate_en_to_ko(concept_name, language)
         news_context, kg_context = await asyncio.gather(
-            retrieve_news_rag(concept_name),
+            retrieve_news_rag(concept_name, eval_user_answer),
             retrieve_knowledge_graph(concept_name_kr)
         )
         

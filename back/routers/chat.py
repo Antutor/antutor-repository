@@ -283,7 +283,7 @@ async def chat(request: ChatRequest, background_tasks: BackgroundTasks, current_
         propositions = ["(Evaluated by Multi-Agent Debate Graph)"]
 
         # news_context: Market Agent 및 debate graph에만 필요 (give_up 시 불필요)
-        news_context = await retrieve_news_rag(concept_name)
+        news_context = await retrieve_news_rag(concept_name, eval_user_answer)
 
         # ── session_context 히스토리 빌드 ────────────────────────────────
         history_res = supabase.table("chat_logs") \
@@ -707,7 +707,7 @@ async def websocket_chat(websocket: WebSocket):
         await websocket.send_json({"type": "status", "message": await translate_en_to_ko("🌐 Searching Knowledge Graph & News...", language)})
         
         news_context, kg_context = await asyncio.gather(
-            retrieve_news_rag(concept_name),
+            retrieve_news_rag(concept_name, eval_user_answer),
             retrieve_knowledge_graph(concept_name.lower())
         )
 
