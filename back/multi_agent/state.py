@@ -36,3 +36,4 @@ class AgentState(TypedDict):
     consecutive_high_score_count: int   # Mastery 모드 판단용
     hint_provided: bool                 # Scaffolding Counter 집계용
     language: str                       # 출력 언어 (ko / en)
+    session_context: str                # 이전 턴 대화 히스토리 (JSON 직렬화 문자열)

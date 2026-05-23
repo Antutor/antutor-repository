@@ -195,7 +195,8 @@ async def retry_node(state: AgentState):
     # retry 경로에서는 Market/Macro 초안과 rebuttal이 없으므로 빈값 전달
     empty_json   = json.dumps({}, ensure_ascii=False)
     empty_list   = json.dumps([], ensure_ascii=False)
-    session_context_str = f"consecutive_high_score_count: {state.get('consecutive_high_score_count', 0)}"
+    # state에 session_context가 있으면 사용, 없으면 fallback
+    session_context_str = state.get("session_context") or f"consecutive_high_score_count: {state.get('consecutive_high_score_count', 0)}"
 
     sys_msg = "/no_think\n" + NEW_MODERATOR_AGENT_PROMPT.format(
         concept=concept,
@@ -376,9 +377,10 @@ async def synthesis_node(state: AgentState):
     rebuttal_results = state.get("rebuttal_results", [])
     rebuttals_str = json.dumps(rebuttal_results, ensure_ascii=False, indent=2)
     
-    session_context_str = f"consecutive_high_score_count: {state.get('consecutive_high_score_count', 0)}"
+    # state에 session_context가 있으면 사용, 없으면 fallback
+    session_context_str = state.get("session_context") or f"consecutive_high_score_count: {state.get('consecutive_high_score_count', 0)}"
     language = state.get("language", "ko")
-    output_language = "Korean" if language == "ko" else "English"
+    output_language = "English"  # LLM은 항상 영어로 생성 → chat.py의 translate_en_to_ko()가 번역 담당
     
     sys_msg = "/no_think\n" + NEW_MODERATOR_AGENT_PROMPT.format(
         concept=concept,
