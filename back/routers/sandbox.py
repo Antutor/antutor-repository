@@ -151,7 +151,7 @@ async def test_agent_sandbox(request: AgentSandboxRequest, current_user: str = D
             # 실제 RAG 파이프라인을 연동할 것인지 여부
             if request.use_real_context:
                 if persona == "The Market Practitioner":
-                    context = await retrieve_news_rag(request.concept)
+                    context = await retrieve_news_rag(request.concept, eval_user_answer)
                 elif persona == "The Macro-Connector":
                     context = await retrieve_knowledge_graph(request.concept)
             
@@ -209,7 +209,7 @@ async def test_graph_sandbox(request: GraphSandboxRequest, current_user: str = D
         kg_context = ""
         if request.use_real_context:
             news_context, kg_context = await asyncio.gather(
-                retrieve_news_rag(request.concept),
+                retrieve_news_rag(request.concept, eval_user_answer),
                 retrieve_knowledge_graph(request.concept)
             )
             

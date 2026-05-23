@@ -254,7 +254,7 @@ except Exception as _e:
     print(f"⚠️ [Tavily] 초기화 오류: {_e}")
     _tavily_tool = None
 
-async def retrieve_tavily_news(concept: str) -> str:
+async def retrieve_tavily_news(concept: str, user_answer: str = "") -> str:
     """
     TavilySearch(langchain-tavily) 를 사용하여 개념 관련 최신 뉴스를 검색합니다.
     Market Practitioner 에이전트의 news_context 로 연결됩니다.
@@ -276,7 +276,16 @@ async def retrieve_tavily_news(concept: str) -> str:
 
     try:
         # ① 뉴스성 쿼리: 최신 사건·영향·반응 위주로 검색
-        query = f"{concept} news recent impact market 2024 2025"
+        keyword_str = ""
+        if user_answer:
+            import re
+            stopwords = {"this", "that", "there", "their", "what", "which", "when", "where", "because", "would", "should", "could"}
+            words = re.findall(r'\b[a-zA-Z]{4,}\b', user_answer.lower())
+            filtered_words = [w for w in words if w not in stopwords]
+            if filtered_words:
+                keyword_str = " " + " ".join(filtered_words[:3])
+
+        query = f"{concept}{keyword_str} news recent impact market 2024 2025"
         loop = asyncio.get_event_loop()
         results = await loop.run_in_executor(
             None, lambda: _tavily_tool.invoke(query)
@@ -318,6 +327,10 @@ async def retrieve_tavily_news(concept: str) -> str:
                 print(f"  🚫 [Tavily] 교과서 소스 제외: {url[:60]}", flush=True)
                 continue
 
+            if "youtube.com" in url.lower() or "youtu.be" in url.lower():
+                print(f"  🚫 [Tavily] YouTube 소스 제외: {url[:60]}", flush=True)
+                continue
+
             # ④ 제목 기반 중복 제거
             title = (r.get("title") or "").strip().lower()[:60]
             if title and title in seen_titles:
@@ -326,20 +339,16 @@ async def retrieve_tavily_news(concept: str) -> str:
             if title:
                 seen_titles.add(title)
 
-            # ⑤ 내용 정제 + 문장 필터링 (기사당 max 300자)
+            # ⑤ 내용 정제 + 문장 필터링 (기사당 max 500자)
             raw_content = r.get("content") or r.get("snippet") or ""
-            content = _trim_to_sentences(_clean_content(raw_content), max_chars=300)
+            content = _trim_to_sentences(_clean_content(raw_content), max_chars=500)
 
             if not content:
                 print(f"  ⚠️ [Tavily] 유효 문장 없음 (필터 후): {url[:60]}", flush=True)
                 continue
 
-            # 제목이 있으면 함께 포함해 맥락 제공
-            display_title = (r.get("title") or "").strip()
-            if display_title:
-                snippets.append(f"- [{display_title}] {content}")
-            else:
-                snippets.append(f"- {content}")
+            # 제목을 제외하고 내용만 리스트에 추가 (제목은 노이즈로 작용할 수 있으므로 제거)
+            snippets.append(f"- {content}")
 
             if len(snippets) >= 3:  # 최대 3개 기사
                 break
