@@ -142,6 +142,11 @@ async def test_agent_sandbox(request: AgentSandboxRequest, current_user: str = D
                 model=request.model,
                 temperature=request.temperature
             )
+            
+            language = request.language or "ko"
+            if language == "ko" and result.get("feedback"):
+                result["feedback"] = await translate_en_to_ko(result["feedback"], language)
+
             response_data = {"status": "success", "persona": persona, "result": result}
             save_sandbox_log(req_data, response_data, "agent_test")
             return response_data
@@ -165,6 +170,11 @@ async def test_agent_sandbox(request: AgentSandboxRequest, current_user: str = D
                 model=request.model,
                 temperature=request.temperature
             )
+            
+            language = request.language or "ko"
+            if language == "ko" and result.get("feedback"):
+                result["feedback"] = await translate_en_to_ko(result["feedback"], language)
+
             response_data = {"status": "success", "persona": persona, "context_used": context, "result": result}
             save_sandbox_log(req_data, response_data, "agent_test")
             return response_data
@@ -186,6 +196,11 @@ async def test_moderator_sandbox(request: ModeratorSandboxRequest, current_user:
             model=request.model,
             temperature=request.temperature
         )
+        
+        language = request.language or "ko"
+        if language == "ko" and guidance:
+            guidance = await translate_en_to_ko(guidance, language)
+
         response_data = {"status": "success", "guidance_message": guidance}
         req_data = request.dict() if hasattr(request, 'dict') else request.model_dump()
         save_sandbox_log(req_data, response_data, "moderator_test")
@@ -306,6 +321,11 @@ async def test_scaffolding_sandbox(
             model=request.model,
             temperature=request.temperature,
         )
+
+        # 언어 설정이 "ko"이면 scaffolding 메시지를 한국어로 번역합니다.
+        language = request.language or "ko"
+        if language == "ko" and result.get("message"):
+            result["message"] = await translate_en_to_ko(result["message"], language)
 
         response_data = {
             "status": "success",

@@ -32,6 +32,7 @@ class AgentSandboxRequest(BaseModel):
     context: Optional[str] = None
     use_real_context: Optional[bool] = False
     custom_prompt: Optional[str] = None
+    language: Optional[str] = "ko"
     model: Optional[str] = None
     temperature: Optional[float] = None
 
@@ -40,6 +41,7 @@ class ModeratorSandboxRequest(BaseModel):
     lowest_persona: str
     expert_results: List[Dict[str, Any]]
     custom_prompt: Optional[str] = None
+    language: Optional[str] = "ko"
     model: Optional[str] = None
     temperature: Optional[float] = None
 
@@ -65,6 +67,7 @@ class ScaffoldingSandboxRequest(BaseModel):
     student_answer: Optional[str] = ""     # 학생의 현재 턴 답변
     session_context: Optional[str] = ""   # 이전 턴 히스토리 (JSON string)
     custom_prompt: Optional[str] = None
+    language: Optional[str] = "ko"
     model: Optional[str] = None
     temperature: Optional[float] = None
 
