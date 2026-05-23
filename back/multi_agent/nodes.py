@@ -168,16 +168,73 @@ async def retry_node(state: AgentState):
     """
     retry_needed=true 전용 경량 노드.
 
-    Moderator LLM 없이 Academic Agent의 hint + weakest_point만으로
-    final_synthesis를 구성하고 바로 END로 향합니다.
+    NEW_MODERATOR_AGENT_PROMPT의 P1(Retry) 로직을 통해 LLM 1회 호출하여
+    news_context / KG context가 반영된 자연스러운 retry 메시지를 생성합니다.
+
+    LLM 호출 실패 시 Academic Agent의 hint + weakest_point 문자열 조합으로 fallback합니다.
 
     반환값은 synthesis_node와 동일한 키셋을 사용하여
     chat.py·WS 핸들러가 동일하게 처리할 수 있도록 합니다.
     """
-    academic = state.get("draft_reviews", {}).get("The Academic Auditor", {})
+    concept   = state["concept"]
+    user_answer = state["user_answer"]
+    academic  = state.get("draft_reviews", {}).get("The Academic Auditor", {})
+    drafts    = state.get("draft_reviews", {})
+    language  = state.get("language", "ko")
+    # LLM은 항상 영어로 생성 → chat.py의 translate_en_to_ko()가 번역을 담당
+    output_language = "English"
+
+    print(
+        "\n[LangGraph] 🔁 Retry Node 진행 중... "
+        "(Moderator LLM P1 로직으로 retry 메시지 생성)",
+        flush=True,
+    )
+
+    # ── LLM 호출 (NEW_MODERATOR_AGENT_PROMPT P1 경로) ──────────────────────
+    academic_res = json.dumps(academic, ensure_ascii=False, indent=2)
+    # retry 경로에서는 Market/Macro 초안과 rebuttal이 없으므로 빈값 전달
+    empty_json   = json.dumps({}, ensure_ascii=False)
+    empty_list   = json.dumps([], ensure_ascii=False)
+    session_context_str = f"consecutive_high_score_count: {state.get('consecutive_high_score_count', 0)}"
+
+    sys_msg = "/no_think\n" + NEW_MODERATOR_AGENT_PROMPT.format(
+        concept=concept,
+        user_answer=user_answer,
+        session_context=session_context_str,
+        academic_result=academic_res,
+        market_result=empty_json,
+        macro_result=empty_json,
+        rebuttal_results=empty_list,
+        news_context=state.get("news_context", ""),
+        output_language=output_language,
+    )
+
+    llm_result = await call_synthesis(sys_msg)
+
+    if llm_result is not None:
+        # LLM 응답에서 message 추출
+        moderator_data = extract_json(llm_result)
+        message = moderator_data.get("message", "").strip()
+        if message:
+            print(
+                f"  ✅ Retry Node 완료! LLM P1 메시지 생성 성공\n",
+                flush=True,
+            )
+            return {
+                "final_synthesis": message,
+                "moderator_action": "retry",
+                "hint_provided": True,
+            }
+
+    # ── Fallback: LLM 실패 또는 빈 message → 문자열 조합 ──────────────────
     hint_text = academic.get("hint", "")
     weakest   = academic.get("weakest_point", "")
-    language  = state.get("language", "ko")
+
+    print(
+        f"  ⚠️ Retry Node fallback: LLM 호출 실패 또는 빈 응답. "
+        f"문자열 조합으로 retry 메시지 생성 (hint_present={bool(hint_text)})\n",
+        flush=True,
+    )
 
     if hint_text:
         if language == "ko":
@@ -185,7 +242,6 @@ async def retry_node(state: AgentState):
         else:
             message = f"{weakest} {hint_text} Could you try explaining it again?"
     else:
-        # hint가 비어있는 엣지 케이스 — weakest_point만으로 구성
         if language == "ko":
             message = (
                 f"답변에 핵심 개념이 빠져있거나 잘못 서술된 부분이 있습니다. "
@@ -197,11 +253,6 @@ async def retry_node(state: AgentState):
                 f"({weakest}) Could you try again?"
             )
 
-    print(
-        f"  ✅ Retry Node 완료! hint 기반 메시지 생성 완료 "
-        f"(hint_present={bool(hint_text)})\n",
-        flush=True,
-    )
     return {
         "final_synthesis": message,
         "moderator_action": "retry",
