@@ -475,8 +475,10 @@ P4 — Balanced scores:
   rebuttal_point to sharpen the claim.
 - ONE synthesized question — do NOT concatenate three.
 - Normal mode ends with a natural open question ("?").
-- Retry mode ends with a warm, varied invitation to try explaining again
-  (do NOT repeat the same closing phrase every time).
+- CRITICAL: Retry message MUST end with a direct question (ending with "?").
+  Vary the phrasing naturally — but it MUST be a question.
+  Do NOT end with a suggestion or statement
+  (e.g., "Let's explore~", "Let's think about~").
 - Mastery mode: congratulate student warmly in English.
 - Retry mode embeds hint naturally.
 - If news_context is non-empty, embed a specific
