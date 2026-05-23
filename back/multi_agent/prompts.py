@@ -15,48 +15,43 @@ For each clause in the student answer, ask:
   "Is this factually WRONG or MISSING a core element?"
 
 Error types:
-  contradiction     = factually opposite or logically incompatible
+  incorrect         = factually opposite, logically incompatible,
+                      OR completely unrelated topic
                       (direction reversal / effect-cause inversion /
-                       value-quantity confusion / scope error)
+                       value-quantity confusion / scope error /
+                       no causal or logical connection to the concept)
   partial           = correct direction but incomplete or vague
-  irrelevant        = completely unrelated topic
-                      (no causal or logical connection to the concept)
   correct_extension = beyond core definition AND acceptable_extensions
                       but factually correct → do NOT penalize
 
 RULE: Do NOT list correct clauses. Only list errors.
-RULE: incomplete ≠ contradiction.
-      Only mark contradiction if adding more detail cannot fix it.
-RULE: irrelevant ≠ contradiction.
-      irrelevant = unrelated topic.
-      contradiction = same topic but factually opposite direction.
+RULE: incomplete ≠ incorrect.
+      Only mark incorrect if adding more detail cannot fix it.
 
 Step 2. Count ALL clauses (correct + errors):
   correct_count           = clauses with no errors
-  contradiction_count     = clauses typed "contradiction"
-  irrelevant_count        = clauses typed "irrelevant"
+  incorrect_count         = clauses typed "incorrect"
   partial_count           = clauses typed "partial"
   correct_extension_count = clauses typed "correct_extension"
 
 Step 3. Decide type (IN ORDER):
-  IF contradiction_count > 0 OR irrelevant_count > 0 → "contradiction"
+  IF incorrect_count > 0                              → "incorrect"
   ELIF partial_count > 0                              → "partial"
   ELSE                                                → "correct"
 
   correct_extension does NOT affect type negatively.
 
 Step 4. Score:
-  contradiction → 0.0–0.2
+  incorrect     → 0.0–0.2
   partial       → 0.41–0.69
   correct       → 0.7–1.0
   Score MUST match type range.
 
 Step 5. retry_needed:
-  - type = "contradiction" AND correct_count == 0 → true
-  - type = "contradiction" AND correct_count > 0  → false
-  - type = "irrelevant"                           → true
-  - type = "partial"                              → false
-  - type = "correct"                              → false
+  - type = "incorrect" AND correct_count == 0 → true
+  - type = "incorrect" AND correct_count > 0  → false
+  - type = "partial"                          → false
+  - type = "correct"                          → false
 
 --- Output ---
 
@@ -75,9 +70,8 @@ Return ONLY this JSON:
   ],
   "clause_counts": {{
     "correct_count": 0,
-    "contradiction_count": 0,
-    "partial_count": 0,
-    "irrelevant_count": 0
+    "incorrect_count": 0,
+    "partial_count": 0
   }},
   "retry_needed": false,
   "hint": ""
@@ -180,8 +174,8 @@ Step 3. Final type decision:
   - Macro signal exists but the stated relationship is
     factually incorrect or economically unsound                    → type = "contradiction"
   - Macro signal exists with clear, specific
-    economic relationship stated
-  - If none of the above apply, default to               → type = "irrelevant"                                   → type = "correct"
+    economic relationship stated              → type = "correct"
+  - If none of the above apply              → type = "irrelevant"
 
 Constraint: Do NOT evaluate basic definition accuracy (Academic Agent handles this).
 Do NOT treat daily-life examples as macro unless explicitly linked to a macro relationship.
@@ -423,18 +417,20 @@ P1 — Retry:
     focus = "academic"
     hint_provided = true
 
-    # correct 절이 없는 경우 → 전체 재설명 요청
-    IF academic_result.clause_counts.correct_count == 0:
+    # incorrect 절이 있고 correct 절이 없는 경우 → 전체 재설명 요청
+    IF academic_result.clause_counts.incorrect_count > 0
+       AND academic_result.clause_counts.correct_count == 0:
       message = 전체적으로 틀렸음을 짧게 언급
               + Academic weakest_point 기반으로
                 어떤 개념이 잘못됐는지 설명
               + hint 자연스럽게 포함
               + "다시 설명해볼 수 있을까요?"로 마무리
 
-    # correct 절이 있는 경우 → 틀린 부분만 재설명 요청
-    IF academic_result.clause_counts.correct_count > 0:
+    # incorrect 절이 있고 correct 절도 있는 경우 → 틀린 부분만 재설명 요청
+    IF academic_result.clause_counts.incorrect_count > 0
+       AND academic_result.clause_counts.correct_count > 0:
       message = "전반적인 방향은 맞았어요!"로 시작
-              + Academic error_clauses 중 contradiction 절 언급
+              + Academic error_clauses 중 incorrect 절 언급
               + "[해당 부분]만 다시 설명해볼 수 있을까요?"
               + hint 자연스럽게 포함
 
@@ -465,6 +461,10 @@ P4 — Balanced scores:
 - ONE synthesized question — do NOT concatenate three.
 - Normal mode ends with "?".
 - Retry mode embeds hint naturally.
+- If news_context is non-empty, embed a specific
+  real-world reference into retry message too.
+  Example: "최근 뉴스에서 ~한 사례가 있었는데,
+            이를 참고해서 다시 설명해볼 수 있을까요?"
 - Korean endings: "~할까요?", "~어떻게 될까요?", "~설명해볼 수 있을까요?"
 - 2~3 sentences max.
 - If news_context is non-empty, anchor the question to a specific
