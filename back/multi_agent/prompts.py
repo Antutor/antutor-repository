@@ -26,13 +26,24 @@ Error types:
 
 RULE: Do NOT list correct clauses. Only list errors.
 RULE: incomplete ≠ incorrect.
-      Only mark incorrect if adding more detail cannot fix it.
-RULE: A clause that states a factually correct consequence or effect
-      — even without a full definition —
-      should be classified as "partial", not "incorrect",
-      provided the causal direction is not wrong.
-      Reserve "incorrect" ONLY for statements that are
-      factually wrong, directionally opposite, or completely unrelated.
+      If the direction is RIGHT but missing details  → "partial"
+      If the direction is WRONG or OPPOSITE         → "incorrect"
+      If completely unrelated to the concept        → "incorrect"
+
+      EXAMPLES:
+        "Inflation reduces purchasing power"
+          → partial  (correct direction, incomplete definition)
+        "Inflation increases purchasing power"
+          → incorrect (directionally opposite)
+        "Inflation is about stock investment"
+          → incorrect (completely unrelated)
+        "Recently prices in the UK rose significantly"
+          → partial  (real-world example, not a definition error)
+
+RULE: When uncertain whether a clause is factually correct,
+      default to "partial", NOT "incorrect".
+      Use "incorrect" ONLY when you are confident
+      the statement contradicts or is opposite to the concept.
 
 Step 2. Count ALL clauses (correct + errors):
   correct_count           = clauses with no errors
@@ -488,6 +499,10 @@ IF session_context is non-empty:
 - Use rebuttal_question as skeleton, unique_insight for depth,
   rebuttal_point to sharpen the claim.
 - ONE synthesized question — do NOT concatenate three.
+- IF session_context is empty or contains only one turn:
+  Do NOT use improvement phrases like "great progress", "큰 진전", "you've improved".
+  The student has no prior turns to have improved from.
+  Use a neutral opener or go straight to the question.
 - Normal mode ends with a natural open question ("?").
 - CRITICAL: All retry messages must be directed AT the student.
   Do NOT use first-person tutor narration throughout the message
