@@ -278,14 +278,16 @@ async def chat(request: ChatRequest, background_tasks: BackgroundTasks, current_
     # ── session_context 히스토리 빌드 ────────────────────────────────
     # give_up 경로(scaffolding)와 정상 경로 모두에서 사용하므로 분기 전에 빌드합니다.
     history_res = supabase.table("chat_logs") \
-        .select("turn_number, user_message, ai_response") \
+        .select("turn_number, user_message, ai_response, scaffold_step") \
         .eq("session_id", session["session_id"]) \
         .order("turn_number", desc=False) \
         .execute()
     session_history = {
         f"turn_{log['turn_number']}": {
             "user_answer": log.get("user_message") or "",
-            "final_synthesis": log.get("ai_response") or ""
+            "final_synthesis": log.get("ai_response") or "",
+            # Scaffolding 레벨 정보 포함: Moderator가 이전 힌트 단계를 인식할 수 있도록
+            **({"scaffold_step": log["scaffold_step"]} if log.get("scaffold_step") else {})
         }
         for log in history_res.data
     }
@@ -733,14 +735,16 @@ async def websocket_chat(websocket: WebSocket):
 
         # ── session_context 히스토리 빌드 ────────────────────────────────
         history_res = supabase.table("chat_logs") \
-            .select("turn_number, user_message, ai_response") \
+            .select("turn_number, user_message, ai_response, scaffold_step") \
             .eq("session_id", session["session_id"]) \
             .order("turn_number", desc=False) \
             .execute()
         session_history = {
             f"turn_{log['turn_number']}": {
                 "user_answer": log.get("user_message") or "",
-                "final_synthesis": log.get("ai_response") or ""
+                "final_synthesis": log.get("ai_response") or "",
+                # Scaffolding 레벨 정보 포함: Moderator가 이전 힌트 단계를 인식할 수 있도록
+                **({"scaffold_step": log["scaffold_step"]} if log.get("scaffold_step") else {})
             }
             for log in history_res.data
         }
