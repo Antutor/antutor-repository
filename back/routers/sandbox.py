@@ -300,6 +300,8 @@ async def test_scaffolding_sandbox(
             last_question=request.last_question or "",
             kg_context=kg_context,
             idk_count=request.idk_count,
+            student_answer=request.student_answer or "",
+            session_context=request.session_context or "",
             custom_prompt=request.custom_prompt,
             model=request.model,
             temperature=request.temperature,

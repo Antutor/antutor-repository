@@ -462,6 +462,8 @@ async def call_scaffolding_agent(
     last_question: str = "",
     kg_context: str = "",
     idk_count: int = 1,
+    student_answer: str = "",
+    session_context: str = "",
     custom_prompt: Optional[str] = None,
     model: Optional[str] = None,
     temperature: Optional[float] = None,
@@ -517,6 +519,8 @@ async def call_scaffolding_agent(
             acceptable_extensions=acceptable_extensions,
             last_question=last_question,
             kg_context=kg_context,
+            student_answer=student_answer,
+            session_context=session_context,
         )
     except KeyError as e:
         return {

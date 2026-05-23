@@ -27,15 +27,17 @@ import json
 from services.guardrail import run_guardrail, run_guardrail_ws
 from services.semantic_cache import get_cached_response, save_to_cache
 
-def get_recovery_prompt(concept_name, definition, acceptable_extensions, last_question, kg_context, idk_count):
+def get_recovery_prompt(concept_name, definition, acceptable_extensions, last_question, kg_context, idk_count, student_answer="", session_context=""):
+    fmt = dict(concept_name=concept_name, definition=definition, acceptable_extensions=acceptable_extensions,
+               last_question=last_question, kg_context=kg_context, student_answer=student_answer, session_context=session_context)
     if idk_count == 1:
-        template = RECOVERY_NUDGE_PROMPT.format(concept_name=concept_name, definition=definition, acceptable_extensions=acceptable_extensions, last_question=last_question, kg_context=kg_context)
+        template = RECOVERY_NUDGE_PROMPT.format(**fmt)
     elif idk_count == 2:
-        template = RECOVERY_CONCEPT_PROMPT.format(concept_name=concept_name, definition=definition, acceptable_extensions=acceptable_extensions, last_question=last_question, kg_context=kg_context)
+        template = RECOVERY_CONCEPT_PROMPT.format(**fmt)
     elif idk_count == 3:
-        template = RECOVERY_FILL_BLANK_PROMPT.format(concept_name=concept_name, definition=definition, acceptable_extensions=acceptable_extensions, last_question=last_question, kg_context=kg_context)
+        template = RECOVERY_FILL_BLANK_PROMPT.format(**fmt)
     else:
-        template = RECOVERY_REVEAL_PROMPT.format(concept_name=concept_name, definition=definition, acceptable_extensions=acceptable_extensions, last_question=last_question, kg_context=kg_context)
+        template = RECOVERY_REVEAL_PROMPT.format(**fmt)
     return "/no_think\n" + template
 
 def save_chat_log_db(chat_log_payload):
@@ -273,6 +275,26 @@ async def chat(request: ChatRequest, background_tasks: BackgroundTasks, current_
             print(f"  ⚠️ Scaffolding 답변 오답 — 다음 scaffolding 레벨로 진입", flush=True)
             is_give_up = True
 
+    # ── session_context 히스토리 빌드 ────────────────────────────────
+    # give_up 경로(scaffolding)와 정상 경로 모두에서 사용하므로 분기 전에 빌드합니다.
+    history_res = supabase.table("chat_logs") \
+        .select("turn_number, user_message, ai_response") \
+        .eq("session_id", session["session_id"]) \
+        .order("turn_number", desc=False) \
+        .execute()
+    session_history = {
+        f"turn_{log['turn_number']}": {
+            "user_answer": log.get("user_message") or "",
+            "final_synthesis": log.get("ai_response") or ""
+        }
+        for log in history_res.data
+    }
+    session_context_payload = {
+        "consecutive_high_score_count": session.get("consecutive_high_score_count", 0),
+        "conversation_history": session_history
+    }
+    session_context_str = json.dumps(session_context_payload, ensure_ascii=False)
+
     if is_give_up:
         antutor_score = 0.0
         expert_scores = {"The Market Practitioner": 0.0, "The Macro-Connector": 0.0, "The Academic Auditor": 0.0}
@@ -284,25 +306,6 @@ async def chat(request: ChatRequest, background_tasks: BackgroundTasks, current_
 
         # news_context: Market Agent 및 debate graph에만 필요 (give_up 시 불필요)
         news_context = await retrieve_news_rag(concept_name, eval_user_answer)
-
-        # ── session_context 히스토리 빌드 ────────────────────────────────
-        history_res = supabase.table("chat_logs") \
-            .select("turn_number, user_message, ai_response") \
-            .eq("session_id", session["session_id"]) \
-            .order("turn_number", desc=False) \
-            .execute()
-        session_history = {
-            f"turn_{log['turn_number']}": {
-                "user_answer": log.get("user_message") or "",
-                "final_synthesis": log.get("ai_response") or ""
-            }
-            for log in history_res.data
-        }
-        session_context_payload = {
-            "consecutive_high_score_count": session.get("consecutive_high_score_count", 0),
-            "conversation_history": session_history
-        }
-        session_context_str = json.dumps(session_context_payload, ensure_ascii=False)
 
         initial_state = {
             "concept": concept_name,
@@ -412,8 +415,9 @@ async def chat(request: ChatRequest, background_tasks: BackgroundTasks, current_
             .limit(1).execute()
         last_question = last_log.data[0]["ai_response"] if last_log.data else ""
 
-        sys_prompt = get_recovery_prompt(concept_name, definition, acceptable_extensions, last_question, kg_context, current_idk_count)
-        
+        sys_prompt = get_recovery_prompt(concept_name, definition, acceptable_extensions, last_question, kg_context, current_idk_count,
+                                          student_answer=eval_user_answer, session_context=session_context_str)
+
         # 동기 블록 내에서 ainvoke를 호출해야 하므로 asyncio 이벤트 루프 또는 await 사용 필요
         # wait! 이 함수는 POST /chat (async def) 내부입니다. await 가능.
         res = await draft_llm.ainvoke([SystemMessage(content=sys_prompt)])
@@ -785,8 +789,9 @@ async def websocket_chat(websocket: WebSocket):
                 .limit(1).execute()
             last_question = last_log.data[0]["ai_response"] if last_log.data else ""
 
-            sys_prompt = get_recovery_prompt(concept_name, definition, acceptable_extensions, last_question, kg_context, current_idk_count)
-            
+            sys_prompt = get_recovery_prompt(concept_name, definition, acceptable_extensions, last_question, kg_context, current_idk_count,
+                                              student_answer=eval_user_answer, session_context=session_context_str)
+
             recovery_text = ""
             think_filter = ThinkTagStreamFilter()
             async for chunk in draft_llm.astream([SystemMessage(content=sys_prompt)]):

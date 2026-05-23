@@ -545,13 +545,19 @@ Acceptable extensions/elaborations: '{acceptable_extensions}'
 Last question asked to student: '{last_question}'
   (If empty, this is the student's first attempt — hint based on definition only.)
 Knowledge graph context: '{kg_context}'
+Student's current answer: '{student_answer}'
+  (If empty, student indicated they don't know — hint based on definition only.)
+Conversation history: {session_context}
+  (Use this to see what the student has already tried. Build on what they got right.)
 
 Your task:
 Write 1-2 sentences in English that:
+- If 'student_answer' is provided, identify specifically what concept is misunderstood
+  or missing from their answer — do NOT repeat their wrong answer verbatim
+- If 'session_context' shows prior correct elements, acknowledge them briefly
 - If 'last_question' is provided, orient your nudge toward the theme of that question
 - Point toward the KEY missing concept WITHOUT directly revealing the answer
 - End with a soft guiding question
-- Do NOT repeat the student's wrong answer
 - Do NOT use the exact words from the definition
 - You may utilize the acceptable extensions/elaborations to guide the student towards relevant additional details if applicable.
 
@@ -561,7 +567,7 @@ Bad example (too direct):
 "Inflation is when the price level increases continuously!"
 
 Good example:
-"Let's think a bit more. If prices go up, what happens to the amount of things we can buy with the same amount of money?"
+"If prices keep rising, what do you think happens to how much you can actually buy with the same amount of money?"
 
 Return ONLY this JSON:
 {{"message": "your English nudge text"}}"""
@@ -580,11 +586,17 @@ Acceptable extensions/elaborations: '{acceptable_extensions}'
 Last question asked to student: '{last_question}'
   (If empty, hint based on definition only.)
 Knowledge graph context: '{kg_context}'
+Student's current answer: '{student_answer}'
+  (What the student said after the previous nudge.)
+Conversation history: {session_context}
+  (Use this to identify which concept the student keeps missing across attempts.)
 
 Your task:
 Write 1-2 sentences in English that:
+- Review 'student_answer' and 'session_context' to pinpoint the concept
+  the student consistently misses or confuses
 - If 'last_question' is provided, identify the key concept it requires and use that as your hint focus
-- Directly name the KEY concept the student is missing (this key concept can be drawn from the core definition or acceptable extensions)
+- Directly name the KEY concept the student is missing (drawn from core definition or acceptable extensions)
 - Explain in ONE simple sentence what that concept means
 - Ask the student to now connect it to their answer
 
@@ -592,7 +604,7 @@ Structure:
   [Direct Concept mention] + [Simple explanation] + [Connection guiding question]
 
 Example:
-"The key concept is 'purchasing power'. Purchasing power refers to the amount of goods you can buy with a set amount of money. If prices rise, how does our purchasing power change? Can you try to explain that connection?"
+"The key concept here is 'purchasing power' — it refers to how much you can actually buy with a given amount of money. How do you think rising prices would affect that?"
 
 Return ONLY this JSON:
 {{"message": "your English conceptual hint text"}}"""
@@ -611,9 +623,15 @@ Acceptable extensions/elaborations: '{acceptable_extensions}'
 Last question asked to student: '{last_question}'
   (If provided, the fill-in-the-blank should target the answer to that specific question.)
 Knowledge graph context: '{kg_context}'
+Student's current answer: '{student_answer}'
+  (What the student said after the previous hint.)
+Conversation history: {session_context}
+  (Use this to identify the persistent gap — place the blank at exactly that concept.)
 
 Your task:
 Create 1 fill-in-the-blank sentence in English that:
+- Review 'student_answer' and 'session_context' to find the term or concept
+  the student has consistently failed to produce — target that as the blank
 - If 'last_question' is provided, construct the blank around the answer to that question
 - Otherwise, construct the blank around the most critical term in the core definition or acceptable extensions
 - Replaces exactly 1-2 KEY terms with '____'
@@ -646,16 +664,21 @@ Acceptable extensions/elaborations: '{acceptable_extensions}'
 Last question asked to student: '{last_question}'
   (If provided, reveal the answer specifically to that question, then present a related scenario.)
 Knowledge graph context: '{kg_context}'
+Student's current answer: '{student_answer}'
+  (What the student said in their last attempt.)
+Conversation history: {session_context}
+  (Use this to briefly acknowledge the student's effort across attempts before revealing.)
 
 Your task:
 Write a message in English that:
-1. If 'last_question' is provided:
+1. Briefly acknowledge the student's attempts (reference session_context if non-empty)
+2. If 'last_question' is provided:
    - Warmly reveal the complete answer to that specific question
    - Then present a concrete daily-life scenario that illustrates that answer
    Else:
    - Warmly reveal the core definition (and acceptable extensions/elaborations if appropriate) as the complete correct answer
    - Then present a concrete daily-life scenario related to the concept
-2. Ask how the concept/situation would affect the scenario.
+3. Ask how the concept/situation would affect the scenario.
 
 Rules:
 - Make the scenario extremely simple and intuitive for a beginner.

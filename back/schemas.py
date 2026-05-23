@@ -62,6 +62,8 @@ class ScaffoldingSandboxRequest(BaseModel):
     kg_context: Optional[str] = ""
     use_real_kg: Optional[bool] = False
     idk_count: Optional[int] = 1           # 1=Nudge, 2=Concept, 3=Fill-blank, 4+=Reveal
+    student_answer: Optional[str] = ""     # 학생의 현재 턴 답변
+    session_context: Optional[str] = ""   # 이전 턴 히스토리 (JSON string)
     custom_prompt: Optional[str] = None
     model: Optional[str] = None
     temperature: Optional[float] = None
