@@ -261,7 +261,9 @@ function App() {
                     // 최종 결과 처리 (기존 Axios 응답과 동일한 구조)
                     const finalData = data.data;
 
-                    if (finalData.expert_feedback) {
+                    const decision = finalData?.moderator_decision;
+
+                    if (decision?.status !== "scaffold" && finalData.expert_feedback) {
                         setExpertFeedbackData(finalData.expert_feedback);
                         
                         const newScores = { ...userScores };
@@ -287,9 +289,8 @@ function App() {
                         });
                     }
                     
-                    const decision = finalData?.moderator_decision;
                     let moderatorText = decision?.message || "";
-                    const plan = decision?.scaffold_plan || decision?.scaffolding_plan;
+                    const plan = decision?.scaffold_plan;
                     
                     if (plan && plan.message) {
                         moderatorText = plan.message;

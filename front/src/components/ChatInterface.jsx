@@ -18,7 +18,7 @@ function ChatInterface({ concept, sessionId }) {
 
             // 💡 백엔드 지침에 따른 스캐폴딩 분기 처리
             if (data.moderator_decision.status === "scaffold") {
-                const plan = data.moderator_decision.scaffolding_plan;
+                const plan = data.moderator_decision.scaffold_plan;
 
                 if (plan.step === "Sub-concept Nudge") {
                     alert(`힌트: ${plan.message}`); // 화면에 힌트 메시지 노출

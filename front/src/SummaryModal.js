@@ -16,13 +16,19 @@ const SummaryModal = ({ isOpen, onClose, helpCountLevel1, helpCountLevel2, helpC
     { subject: t(language, 'insight'), value: 0, fullMark: 100 },
   ];
   let insightText = t(language, 'noEvalData');
+  let maxScore = 100;
 
   if (reportData && reportData.growth_visualization) {
       const gv = reportData.growth_visualization;
+      const calcTotal = (arr) => arr && arr.length > 0 ? arr.reduce((sum, val) => sum + val, 0) : 0;
+      
+      const turnCount = gv.Academic ? gv.Academic.length : 0;
+      maxScore = turnCount > 0 ? turnCount * 100 : 100;
+
       radarData = [
-        { subject: t(language, 'accuracy'), value: gv.Academic ? gv.Academic[gv.Academic.length - 1] : 0, fullMark: 100 },
-        { subject: t(language, 'practicality'), value: gv.Market ? gv.Market[gv.Market.length - 1] : 0, fullMark: 100 },
-        { subject: t(language, 'insight'), value: gv.Macro ? gv.Macro[gv.Macro.length - 1] : 0, fullMark: 100 },
+        { subject: t(language, 'accuracy'), value: calcTotal(gv.Academic), fullMark: maxScore },
+        { subject: t(language, 'practicality'), value: calcTotal(gv.Market), fullMark: maxScore },
+        { subject: t(language, 'insight'), value: calcTotal(gv.Macro), fullMark: maxScore },
       ];
       insightText = reportData.educational_insights || insightText;
   }
@@ -71,7 +77,7 @@ const SummaryModal = ({ isOpen, onClose, helpCountLevel1, helpCountLevel2, helpC
                   </defs>
                   <PolarGrid stroke="#e2e8f0" />
                   <PolarAngleAxis dataKey="subject" tick={{ fill: 'var(--color-text-secondary)', fontSize: 12, fontWeight: 500 }} />
-                  <PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} axisLine={false} />
+                  <PolarRadiusAxis angle={30} domain={[0, maxScore]} tick={false} axisLine={false} />
                   <Radar
                     name="Student"
                     dataKey="value"

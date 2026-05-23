@@ -44,7 +44,13 @@ def save_chat_log_db(chat_log_payload):
     try:
         supabase.table("chat_logs").insert(chat_log_payload).execute()
     except Exception as e:
-        print(f"Failed to save chat log to DB: {e}")
+        error_msg = f"Failed to save chat log to DB: {e}"
+        print(error_msg, flush=True)
+        try:
+            with open("db_error.log", "a", encoding="utf-8") as f:
+                f.write(f"[{datetime.now().isoformat()}] {error_msg} | Payload: {json.dumps(chat_log_payload, ensure_ascii=False)}\n")
+        except:
+            pass
 
 def save_debate_log(session_id, concept, user_answer, draft_reviews, critiques, final_synthesis):
     try:
