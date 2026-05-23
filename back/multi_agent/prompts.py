@@ -680,13 +680,18 @@ Write a message in English that:
    Else:
    - Warmly reveal the core definition (and acceptable extensions/elaborations if appropriate) as the complete correct answer
    - Then present a concrete daily-life scenario related to the concept
-3. Ask ONE simple, concrete question that:
-   - Has a clear, short answer the student can give
-   - Directly tests if they understood the revealed answer
-   - Is NOT open-ended like "how does this affect your life?"
+3. Ask ONE concrete question that:
+   - Directly relates to 'last_question's theme
+   - Tests whether the student can now answer
+     the original question after seeing the explanation
+   - Should be a simplified version of last_question,
+     NOT a completely different or easier question
    - The student should be able to answer in 1~2 sentences
-   - Example: "So if bread costs more tomorrow than today,
-               what happened to your purchasing power?"
+   - Example: if last_question asked about
+     "how money supply leads to inflation",
+     ask "Now that you've seen the explanation,
+     can you describe in your own words
+     how more money in circulation leads to rising prices?"
 
 Rules:
 - Make the scenario extremely simple and intuitive for a beginner.
