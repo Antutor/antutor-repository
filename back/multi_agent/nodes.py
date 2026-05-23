@@ -126,9 +126,11 @@ async def drafting_node(state: AgentState):
     for agent_name, data in results:
         draft_reviews[agent_name] = data
         raw_scores[agent_name] = data.get("score", 0.0)
-        # Academic Agent 가 모순을 감지했는지 확인
+        # Academic Agent 가 모순/오답을 감지했는지 확인
+        # - "contradiction": 사실과 반대되는 내용 포함
+        # - "incorrect": 틀린 답변 (AI팀 요청: incorrect도 is_contradiction=True로 처리)
         if agent_name == "The Academic Auditor":
-            if data.get("type") == "contradiction":
+            if data.get("type") in ("contradiction", "incorrect"):
                 is_contradict = True
         
     print(f"  ✅ Drafting Node 완료! (모순 감지 여부: {is_contradict})", flush=True)
