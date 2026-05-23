@@ -49,6 +49,7 @@ class GraphSandboxRequest(BaseModel):
     definition: str
     acceptable_extensions: Optional[str] = ""
     use_real_context: Optional[bool] = False
+    language: Optional[str] = "ko"
     model: Optional[str] = None
     temperature: Optional[float] = None
 
