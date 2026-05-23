@@ -680,7 +680,13 @@ Write a message in English that:
    Else:
    - Warmly reveal the core definition (and acceptable extensions/elaborations if appropriate) as the complete correct answer
    - Then present a concrete daily-life scenario related to the concept
-3. Ask how the concept/situation would affect the scenario.
+3. Ask ONE simple, concrete question that:
+   - Has a clear, short answer the student can give
+   - Directly tests if they understood the revealed answer
+   - Is NOT open-ended like "how does this affect your life?"
+   - The student should be able to answer in 1~2 sentences
+   - Example: "So if bread costs more tomorrow than today,
+               what happened to your purchasing power?"
 
 Rules:
 - Make the scenario extremely simple and intuitive for a beginner.
