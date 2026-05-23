@@ -205,12 +205,14 @@ function App() {
         setMessages(prev => [...prev, userMessage]);
         setInputValue('');
         setCurrentScaffold(null); 
+        
+        const thinkingStartTime = Date.now();
         setIsThinking(true);
         setNewFeedback({ academic: true, market: true, macro: true });
         setThinkingText(t(language, 'connecting'));
 
         const token = localStorage.getItem('access_token');
-        const wsUrl = `ws://localhost:8000/ws/chat`;
+        const wsUrl = `ws://localhost:8080/ws/chat`;
         const ws = new WebSocket(wsUrl);
 
         let accumulatedString = "";
@@ -347,14 +349,26 @@ function App() {
                         setTimeout(() => setFallbackToast(false), 5000);
                     }
 
-                    setIsThinking(false);
+                    const elapsed = Date.now() - thinkingStartTime;
+                    setTimeout(() => setIsThinking(false), Math.max(0, 600 - elapsed));
                     ws.close();
                 } 
                 else if (data.type === "error") {
                     console.error("Server Error via WebSocket:", data.message);
-                    setFailedUserMessage(textToSend);
-                    setIsErrorModalOpen(true);
-                    setIsThinking(false);
+                    
+                    if (data.message.includes("[Guardrail")) {
+                        setMessages(prev => [...prev, {
+                            id: Date.now(),
+                            sender: 'moderator',
+                            text: data.message
+                        }]);
+                    } else {
+                        setFailedUserMessage(textToSend);
+                        setIsErrorModalOpen(true);
+                    }
+
+                    const elapsed = Date.now() - thinkingStartTime;
+                    setTimeout(() => setIsThinking(false), Math.max(0, 600 - elapsed));
                     ws.close();
                 }
             } catch (err) {
@@ -366,12 +380,14 @@ function App() {
             console.error("WebSocket Connection Error:", error);
             setFailedUserMessage(textToSend);
             setIsErrorModalOpen(true);
-            setIsThinking(false);
+            const elapsed = Date.now() - thinkingStartTime;
+            setTimeout(() => setIsThinking(false), Math.max(0, 600 - elapsed));
         };
 
         ws.onclose = (event) => {
             console.log("WebSocket connection closed:", event.code);
-            setIsThinking(false);
+            const elapsed = Date.now() - thinkingStartTime;
+            setTimeout(() => setIsThinking(false), Math.max(0, 600 - elapsed));
         };
     };
 
@@ -391,6 +407,8 @@ function App() {
         
         // Hide initial question and show only loading state
         setMessages([]); 
+        
+        const thinkingStartTime = Date.now();
         setIsThinking(true);
         setThinkingText(t(language, 'preparingSession'));
 
@@ -417,17 +435,23 @@ function App() {
             setReportData(null);
             setExpertFeedbackData([]);
             setScoreHistory([]);
-            setIsThinking(false);
+            
+            const elapsed = Date.now() - thinkingStartTime;
+            setTimeout(() => setIsThinking(false), Math.max(0, 600 - elapsed));
         } catch (error) {
             console.error("Failed to start session:", error);
             alert(t(language, 'startFailed'));
             setSelectedMission(null);
-            setIsThinking(false);
+            
+            const elapsed = Date.now() - thinkingStartTime;
+            setTimeout(() => setIsThinking(false), Math.max(0, 600 - elapsed));
         }
     };
 
     const handleResumeDecision = async (decision) => {
         if (!selectedMission) return;
+        
+        const thinkingStartTime = Date.now();
         setIsThinking(true);
         try {
             const response = await studyAPI.resolveResume({ concept: selectedMission, decision, language });
@@ -439,12 +463,14 @@ function App() {
             setTimeout(() => {
                 let finalQuestion = response.data.question || t(language, 'questionFailed');
                 setMessages(prev => [...prev, { id: Date.now() + 1, sender: 'moderator', text: finalQuestion }]);
-                setIsThinking(false);
+                const elapsed = Date.now() - thinkingStartTime;
+                setTimeout(() => setIsThinking(false), Math.max(0, 600 - elapsed));
             }, 500);
         } catch (error) {
             console.error("Failed to resolve resume:", error);
             alert(t(language, 'resumeFailed'));
-            setIsThinking(false);
+            const elapsed = Date.now() - thinkingStartTime;
+            setTimeout(() => setIsThinking(false), Math.max(0, 600 - elapsed));
         }
     };
 
