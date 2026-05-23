@@ -250,6 +250,11 @@ async def chat(request: ChatRequest, background_tasks: BackgroundTasks, current_
             }
     
     any_fallback = False
+
+    # kg_context: give_up 시 스캐폴딩 프롬프트에도 필요하므로 is_give_up 여부와 무관하게 항상 조회합니다.
+    # (첫 턴에서 바로 give_up 시 NameError 방지)
+    kg_context = await retrieve_knowledge_graph(concept_name.lower())
+
     if is_give_up:
         antutor_score = 0.0
         expert_scores = {"The Market Practitioner": 0.0, "The Macro-Connector": 0.0, "The Academic Auditor": 0.0}
@@ -258,11 +263,9 @@ async def chat(request: ChatRequest, background_tasks: BackgroundTasks, current_
         lowest_persona = "System"
     else:
         propositions = ["(Evaluated by Multi-Agent Debate Graph)"]
-        
-        news_context, kg_context = await asyncio.gather(
-            retrieve_news_rag(concept_name),
-            retrieve_knowledge_graph(concept_name.lower())
-        )
+
+        # news_context: Market Agent 및 debate graph에만 필요 (give_up 시 불필요)
+        news_context = await retrieve_news_rag(concept_name)
 
         initial_state = {
             "concept": concept_name,
@@ -392,6 +395,12 @@ async def chat(request: ChatRequest, background_tasks: BackgroundTasks, current_
     else:
         if session["idk_count"] > 0:
             supabase.table("sessions").update({"idk_count": 0}).eq("session_id", session["session_id"]).execute()
+
+        # graph 내 retry_router가 retry_needed=true를 감지했으면
+        # retry_node가 final_synthesis와 moderator_action="retry"를 이미 설정합니다.
+        # 그 외의 경우 synthesis_node가 moderate_action을 설정합니다.
+        synth_mode = final_state.get("moderator_action", "proceed")
+
         if raw_avg_score >= 85:
             moderator_action = "suggest_termination"
             guidance_message = "You have achieved a high level of mastery. Would you like to terminate the session? (Yes/No)"
@@ -399,9 +408,10 @@ async def chat(request: ChatRequest, background_tasks: BackgroundTasks, current_
                 "step": "Termination Suggestion",
                 "message": guidance_message
             }
-        elif is_contradiction:
+        elif is_contradiction or synth_mode == "retry":
+            # retry_node 또는 is_contradiction → final_synthesis는 이미 올바른 retry 메시지
             moderator_action = "retry"
-            guidance_message = "Your answer seems to contradict the core facts. Please review the concept once more or ask for a 'hint'!"
+            guidance_message = final_state.get("final_synthesis") or "Your answer seems to contradict the core facts. Please review the concept once more or ask for a 'hint'!"
             scaffold_plan = {
                 "step": "Retry Prompt",
                 "message": guidance_message
@@ -409,7 +419,6 @@ async def chat(request: ChatRequest, background_tasks: BackgroundTasks, current_
         else:
             moderator_action = "proceed"
             guidance_message = final_state.get("final_synthesis", "Good job, but let's explore more deeply.")
-            
             scaffold_plan = {
                 "step": "Guidance Prompt",
                 "message": guidance_message
@@ -831,13 +840,18 @@ async def websocket_chat(websocket: WebSocket):
             scaffold_plan = final_state.get("scaffold_plan")
             guidance_message = final_state.get("final_synthesis", "")
         else:
+            # graph 내 retry_router가 retry_needed=true를 감지했으면
+            # retry_node가 final_synthesis와 moderator_action="retry"를 이미 설정합니다.
+            synth_mode = final_state.get("moderator_action", "proceed")
+
             if raw_avg_score >= 85:
                 moderator_action = "suggest_termination"
                 guidance_message = "You have achieved a high level of mastery. Would you like to terminate the session? (Yes/No)"
                 scaffold_plan = {"step": "Termination Suggestion", "message": guidance_message}
-            elif is_contradiction:
+            elif is_contradiction or synth_mode == "retry":
+                # retry_node 또는 is_contradiction → final_synthesis는 이미 올바른 retry 메시지
                 moderator_action = "retry"
-                guidance_message = "Your answer seems to contradict the core facts. Please review the concept once more or ask for a 'hint'!"
+                guidance_message = final_state.get("final_synthesis") or "Your answer seems to contradict the core facts. Please review the concept once more or ask for a 'hint'!"
                 scaffold_plan = {"step": "Retry Prompt", "message": guidance_message}
             else:
                 moderator_action = "proceed"

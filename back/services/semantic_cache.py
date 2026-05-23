@@ -3,13 +3,25 @@ back/services/semantic_cache.py
 ================================
 시맨틱 캐싱 — 임베딩 기반 유사 질문 캐시
 
-DB 미구축 상태:
-  - get_cached_response() : 항상 None 반환 (캐시 미스)
-  - save_to_cache()        : print()로 임시 처리
+임베딩 모델: sentence-transformers (all-MiniLM-L6-v2, 384차원 코사인 유사도)
 
-실제 운영 시 TODO 주석 위치에 pgvector 조회/저장 로직을 추가합니다.
-임베딩 모델은 sentence-transformers(all-MiniLM-L6-v2)를 사용하며,
-패키지가 없으면 경고만 출력하고 캐시 기능은 조용히 비활성화됩니다.
+임계값 두 개 정리 (역할과 근거)
+-----------------------------------------------------------------------
+[1] 캐시 조회 임계값  p_match_threshold = 0.65  (get_cached_response)
+  · 목적: 새 답변이 "의미적으로 유사한" 과거 답변과 매치되는지 판단
+  · 근거: all-MiniLM-L6-v2 벤치마크 기준, 0.65는 다른 표현·철자가 달라도
+          같은 개념을 설명하면 히트되는 범위
+          (예: "prices rise" vs "cost increases" ≈ 0.72 → 같은 피드백 재사용 OK)
+  · 0.65 미만 = 의미상 실질적 차이 존재 → LLM 교사가 직접 평가해야 한다 판단
+
+[2] 중복 저장 방지 임계값  p_match_threshold = 0.98  (save_to_cache)
+  · 목적: DB에 거의 동일한 항목이 반복 INSERT되는 것을 차단
+  · 근거: 0.98 이상은 대소문자·조사 정도의 차이만 있는 사실상 동일 답변을 의미
+          (완전히 새로운 학습자 답변은 0.97 이하로 유지됨)
+  · 0.65(조회 임계값)보다 높게 설정한 이유:
+          캐시 히트 범위(0.65~0.97)에서는 다양한 새 답변이 유입될 수 있고
+          그것들은 서로 다른 맥락 → 별도 항목으로 저장해야 캐시 품질 유지
+-----------------------------------------------------------------------
 """
 
 from __future__ import annotations
@@ -120,6 +132,7 @@ async def get_cached_response(concept: str, user_answer: str) -> Optional[str]:
 async def save_to_cache(concept: str, user_answer: str, response: str) -> None:
     """
     새로운 사용자 답변과 튜터의 피드백 쌍을 벡터 DB에 저장합니다.
+    저장 전에 동일·유사(similarity >= 0.98) 항목이 이미 존재하면 건너뜁니다.
 
     Args:
         concept: 대상 개념 이름 (예: "inflation")
@@ -129,6 +142,27 @@ async def save_to_cache(concept: str, user_answer: str, response: str) -> None:
     embedding = await get_embedding(user_answer)
 
     if embedding is not None:
+        # ── 중복 저장 방지 ────────────────────────────────────────────
+        # 0.98 이상의 고유사도 항목이 이미 있으면 INSERT를 건너뜁니다.
+        try:
+            dup_check = supabase.rpc("match_semantic_cache", {
+                "p_concept": concept,
+                "p_embedding": embedding,
+                "p_match_threshold": 0.98,
+                "p_match_count": 1
+            }).execute()
+            if dup_check.data:
+                print(
+                    f"⏭️  [SemanticCache] 중복 항목 감지 — 저장 건너뜀 "
+                    f"(similarity={dup_check.data[0]['similarity']:.4f}) "
+                    f"| concept='{concept}'",
+                    flush=True,
+                )
+                return
+        except Exception as e:
+            # 중복 체크 실패 시 저장은 계속 진행 (안전한 폴백)
+            print(f"⚠️ [SemanticCache] 중복 체크 오류 (저장 계속 진행): {e}", flush=True)
+
         try:
             supabase.table("semantic_cache").insert({
                 "concept": concept,

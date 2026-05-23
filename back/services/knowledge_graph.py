@@ -32,11 +32,11 @@ _SSL_CONTEXT = ssl.create_default_context(cafile=certifi.where())
 
 # 관계 타입 → 한글 설명 매핑
 ACTION_KR_MAP = {
-    "INCREASES": "상승시킨다(증가시킨다)",
-    "DECREASES": "하락시킨다(감소시킨다)",
-    "CONTROLS": "통제한다(억제한다)",
-    "INDICATES": "나타내는 지표이다",
-    "AFFECTS": "영향을 미친다",
+    "CAUSES": "원인이 되거나 영향을 미친다",
+    "RELATED_TO": "밀접하게 관련되어 있다",
+    "PART_OF": "포함되는 상/하위 개념이다",
+    "CONTRASTS_WITH": "서로 대비되는 개념이다",
+    "REQUIRES": "이해하기 위해 선행되어야 할 개념이다",
 }
 
 _CYPHER_QUERY = """
