@@ -157,26 +157,60 @@ _BOILERPLATE_PATTERNS = [
     "click here", "read more", "learn more",          # 네비게이션 링크
 ]
 
+# 교과서·위키·강의자료 스타일 소스 — 최신 뉴스가 아닌 개념 설명 위주이므로 제외
+_ENCYCLOPEDIA_DOMAINS = [
+    "wikipedia.org", "investopedia.com", "khanacademy.org",
+    "britannica.com", "coursera.org", "edx.org", "study.com",
+    "thoughtco.com", "cliffsnotes.com", "sparknotes.com",
+]
+
+def _is_encyclopedia_source(url: str) -> bool:
+    """URL이 교과서/백과사전 도메인에 속하는지 확인합니다."""
+    lower = (url or "").lower()
+    return any(domain in lower for domain in _ENCYCLOPEDIA_DOMAINS)
+
 def _is_boilerplate(sentence: str) -> bool:
     """웹페이지 면책/네비게이션 문구인지 확인합니다."""
     lower = sentence.lower()
     return any(pat in lower for pat in _BOILERPLATE_PATTERNS)
 
+# 교과서 문체 식별 패턴 — 개념 정의 문장을 걸러냅니다
+_TEXTBOOK_SENTENCE_PATTERNS = [
+    r"^in (economics|finance|macroeconomics),?",
+    r"refers? to the",
+    r"is defined as",
+    r"in this (lesson|chapter|section|video|tutorial)",
+    r"by the end of this",
+    r"today,? we('ll| will) (explore|learn|discuss|cover)",
+    r"economists? (generally |typically )?(agree|define|describe|consider)",
+]
+
+def _is_textbook_sentence(sentence: str) -> bool:
+    """교과서/강의 스타일의 개념 정의 문장인지 확인합니다."""
+    import re as _re
+    lower = sentence.lower()
+    return any(_re.search(pat, lower) for pat in _TEXTBOOK_SENTENCE_PATTERNS)
+
 def _trim_to_sentences(text: str, max_chars: int = 300) -> str:
     """
     max_chars 미만에서 완성된 문장만 포함하도록 자릅니다.
-    - 짧거나(< 25자) 물음표로 끝나는 소제목 형태 문장은 건너뜁니다.
-    - 보일러플레이트(정부 면책, 쿠키 안내 등) 문장을 제거합니다.
+    - 짧은 문장(< 40자), 물음표로 끝나는 소제목 형태, 보일러플레이트, 교과서 문체 제거
     """
     import re as _re
 
     def _keep(s: str) -> bool:
-        return len(s) >= 25 and not s.strip().endswith('?') and not _is_boilerplate(s)
+        s = s.strip()
+        return (
+            len(s) >= 40
+            and not s.endswith('?')
+            and not _is_boilerplate(s)
+            and not _is_textbook_sentence(s)
+        )
 
     if len(text) <= max_chars:
         sentences = _re.split(r'(?<=[.!?])\s+', text)
         kept = [s for s in sentences if _keep(s)]
-        return ' '.join(kept).strip() or text
+        return ' '.join(kept).strip() or ""
 
     sentences = _re.split(r'(?<=[.!?])\s+', text)
     result = ""
@@ -187,7 +221,7 @@ def _trim_to_sentences(text: str, max_chars: int = 300) -> str:
         if len(candidate) > max_chars:
             break
         result = candidate
-    return result if result else text[:max_chars]
+    return result
 
 def _clean_content(text: str) -> str:
     """
@@ -213,7 +247,8 @@ try:
     # setdefault 대신 직접 할당: 빈 문자열로 이미 설정된 경우에도 덮어씁니다.
     if TAVILY_API_KEY:
         _os.environ["TAVILY_API_KEY"] = TAVILY_API_KEY
-    _tavily_tool = TavilySearch(max_results=3)
+    # max_results=5로 늘려서 필터링 후에도 충분한 결과 확보
+    _tavily_tool = TavilySearch(max_results=5)
     print(f"✅ [Tavily] 초기화 완료 (key={'설정됨' if TAVILY_API_KEY else '없음'})", flush=True)
 except Exception as _e:
     print(f"⚠️ [Tavily] 초기화 오류: {_e}")
@@ -223,6 +258,14 @@ async def retrieve_tavily_news(concept: str) -> str:
     """
     TavilySearch(langchain-tavily) 를 사용하여 개념 관련 최신 뉴스를 검색합니다.
     Market Practitioner 에이전트의 news_context 로 연결됩니다.
+
+    후처리 파이프라인:
+      1. 검색 쿼리에 'news recent impact' 추가 → 교과서 대신 뉴스 기사 우선
+      2. 교과서·위키 도메인 소스 제외 (_ENCYCLOPEDIA_DOMAINS)
+      3. Tavily score 내림차순 정렬 → 관련성 높은 기사 우선
+      4. 교과서 문체·보일러플레이트 문장 필터 (_trim_to_sentences)
+      5. 기사 제목 기반 중복 제거 (title 유사도)
+      6. 기사당 max 300자, 전체 max 3개 기사
     """
     if not TAVILY_API_KEY or TAVILY_API_KEY == "your-tavily-api-key-here":
         print("⚠️ [Tavily] API 키가 설정되지 않았습니다. 빈 컨텍스트 반환.", flush=True)
@@ -232,11 +275,12 @@ async def retrieve_tavily_news(concept: str) -> str:
         return f"No recent news found for {concept}. (Tavily tool initialization failed)"
 
     try:
+        # ① 뉴스성 쿼리: 최신 사건·영향·반응 위주로 검색
+        query = f"{concept} news recent impact market 2024 2025"
         loop = asyncio.get_event_loop()
         results = await loop.run_in_executor(
-            None, lambda: _tavily_tool.invoke(f"{concept} economics market")
+            None, lambda: _tavily_tool.invoke(query)
         )
-        # 디버그: 실제 반환값 타입과 내용 확인
         print(f"🔍 [Tavily] type={type(results).__name__}, preview={str(results)[:300]}", flush=True)
 
         if not results:
@@ -252,23 +296,61 @@ async def retrieve_tavily_news(concept: str) -> str:
         elif isinstance(results, list):
             items = results
         elif isinstance(results, str):
-            return f"Recent news context for {concept}:\n{_clean_content(results)[:600]}"
+            cleaned = _clean_content(results)
+            trimmed = _trim_to_sentences(cleaned, max_chars=500)
+            if trimmed:
+                return f"Recent news context for {concept}:\n- {trimmed}"
+            return f"No relevant news found for {concept}."
+
+        # ② score 내림차순 정렬 → 관련성 높은 기사 우선
+        items = sorted(items, key=lambda r: r.get("score", 0) if isinstance(r, dict) else 0, reverse=True)
 
         snippets = []
+        seen_titles: set = set()
+
         for r in items:
-            if isinstance(r, dict):
-                content = _trim_to_sentences(
-                    _clean_content(r.get("content", r.get("snippet", ""))),
-                    max_chars=600
-                )
-                if content:
-                    # 제목·URL은 AI 컨텍스트에 불필요하므로 내용만 포함
-                    snippets.append(f"- {content}")
+            if not isinstance(r, dict):
+                continue
+
+            # ③ 교과서·위키 도메인 소스 제외
+            url = r.get("url", "")
+            if _is_encyclopedia_source(url):
+                print(f"  🚫 [Tavily] 교과서 소스 제외: {url[:60]}", flush=True)
+                continue
+
+            # ④ 제목 기반 중복 제거
+            title = (r.get("title") or "").strip().lower()[:60]
+            if title and title in seen_titles:
+                print(f"  🔁 [Tavily] 중복 기사 제외: {title}", flush=True)
+                continue
+            if title:
+                seen_titles.add(title)
+
+            # ⑤ 내용 정제 + 문장 필터링 (기사당 max 300자)
+            raw_content = r.get("content") or r.get("snippet") or ""
+            content = _trim_to_sentences(_clean_content(raw_content), max_chars=300)
+
+            if not content:
+                print(f"  ⚠️ [Tavily] 유효 문장 없음 (필터 후): {url[:60]}", flush=True)
+                continue
+
+            # 제목이 있으면 함께 포함해 맥락 제공
+            display_title = (r.get("title") or "").strip()
+            if display_title:
+                snippets.append(f"- [{display_title}] {content}")
+            else:
+                snippets.append(f"- {content}")
+
+            if len(snippets) >= 3:  # 최대 3개 기사
+                break
 
         if snippets:
             news_text = "\n".join(snippets)
+            print(f"✅ [Tavily] 최종 뉴스 컨텍스트 ({len(snippets)}건):", flush=True)
+            print(news_text[:400], flush=True)
             return f"Recent news context for {concept}:\n{news_text}"
         else:
+            print(f"⚠️ [Tavily] 필터 후 유효 결과 없음", flush=True)
             return f"No relevant news found for {concept}."
     except Exception as e:
         print(f"⚠️ [Tavily] 검색 오류: {e}", flush=True)
