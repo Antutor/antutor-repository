@@ -489,10 +489,13 @@ IF session_context is non-empty:
   rebuttal_point to sharpen the claim.
 - ONE synthesized question — do NOT concatenate three.
 - Normal mode ends with a natural open question ("?").
+- CRITICAL: All retry messages must be directed AT the student.
+  Do NOT use first-person tutor narration throughout the message
+  ("Let's explore~", "I'll explain~", "We'll look at~").
+  Use second-person framing aimed at the student instead
+  ("Can you explain~?", "How would you describe~?", "What do you think happens when~?").
 - CRITICAL: Retry message MUST end with a direct question (ending with "?").
   Vary the phrasing naturally — but it MUST be a question.
-  Do NOT end with a suggestion or statement
-  (e.g., "Let's explore~", "Let's think about~").
 - Mastery mode: congratulate student warmly in English.
 - Retry mode embeds hint naturally.
 - If news_context is non-empty, embed a specific
