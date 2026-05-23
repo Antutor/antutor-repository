@@ -637,7 +637,9 @@ Create 1 fill-in-the-blank sentence in English that:
 - Replaces exactly 1-2 KEY terms with '____'
 - The blank = the most critical missing concept
 - The rest of the sentence makes the answer clearly inferrable
-- Starts with an encouraging phrase
+- Starts with a warm, varied encouraging phrase.
+  Do NOT repeat the same opener every time.
+  Do NOT use "Great progress!" as a default.
 
 Rules:
 - Do NOT make multiple unrelated blanks
