@@ -27,6 +27,12 @@ Error types:
 RULE: Do NOT list correct clauses. Only list errors.
 RULE: incomplete ≠ incorrect.
       Only mark incorrect if adding more detail cannot fix it.
+RULE: A clause that states a factually correct consequence or effect
+      — even without a full definition —
+      should be classified as "partial", not "incorrect",
+      provided the causal direction is not wrong.
+      Reserve "incorrect" ONLY for statements that are
+      factually wrong, directionally opposite, or completely unrelated.
 
 Step 2. Count ALL clauses (correct + errors):
   correct_count           = clauses with no errors
@@ -469,6 +475,14 @@ P4 — Balanced scores:
   Layer in the other two agents' unique_insights.
   Final question must require Academic + Market + Macro.
 
+
+--- Session Context Rules ---
+IF session_context is non-empty:
+  - Acknowledge the student's improvement or change from the previous turn.
+  - Reference what was corrected or added.
+  - Then steer toward the next missing element.
+  Example: "Great improvement — you correctly identified that purchasing power
+            decreases. Now can you explain what inflation itself means?"
 
 --- Message Rules ---
 - Use rebuttal_question as skeleton, unique_insight for depth,
