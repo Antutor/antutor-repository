@@ -14,6 +14,7 @@ from services.llm_agent import (
     strip_think_tags
 )
 from multi_agent.graph import debate_graph
+from multi_agent.nodes import call_academic
 from services.translator import translate_en_to_ko, translate_ko_to_en
 from datetime import datetime
 import json
@@ -255,6 +256,23 @@ async def chat(request: ChatRequest, background_tasks: BackgroundTasks, current_
     # (첫 턴에서 바로 give_up 시 NameError 방지)
     kg_context = await retrieve_knowledge_graph(concept_name.lower())
 
+    # ── Scaffolding 답변 평가 ─────────────────────────────────────────
+    # idk_count > 0 이고 give_up이 아닌 실제 답변이 들어온 경우:
+    # Academic Agent로 평가 후 correct이면 정상 흐름 복귀, 아니면 다음 scaffolding 레벨로 진입
+    if not is_give_up and session["idk_count"] > 0:
+        print(f"\n[ChatRouter] 📋 Scaffolding 답변 평가 중... (idk_count={session['idk_count']})", flush=True)
+        _, scaffold_eval = await call_academic(
+            concept_name, definition, acceptable_extensions or "", eval_user_answer
+        )
+        if scaffold_eval.get("type") == "correct":
+            # 정답 → idk_count 초기화 후 정상 debate 흐름으로
+            print(f"  ✅ Scaffolding 답변 정답 인정 — idk_count 초기화, 정상 흐름으로 복귀", flush=True)
+            supabase.table("sessions").update({"idk_count": 0}).eq("session_id", session["session_id"]).execute()
+        else:
+            # 오답 → is_give_up=True로 전환해 다음 scaffolding 레벨 힌트 생성
+            print(f"  ⚠️ Scaffolding 답변 오답 — 다음 scaffolding 레벨로 진입", flush=True)
+            is_give_up = True
+
     if is_give_up:
         antutor_score = 0.0
         expert_scores = {"The Market Practitioner": 0.0, "The Macro-Connector": 0.0, "The Academic Auditor": 0.0}
@@ -266,6 +284,25 @@ async def chat(request: ChatRequest, background_tasks: BackgroundTasks, current_
 
         # news_context: Market Agent 및 debate graph에만 필요 (give_up 시 불필요)
         news_context = await retrieve_news_rag(concept_name)
+
+        # ── session_context 히스토리 빌드 ────────────────────────────────
+        history_res = supabase.table("chat_logs") \
+            .select("turn_number, user_message, ai_response") \
+            .eq("session_id", session["session_id"]) \
+            .order("turn_number", desc=False) \
+            .execute()
+        session_history = {
+            f"turn_{log['turn_number']}": {
+                "user_answer": log.get("user_message") or "",
+                "final_synthesis": log.get("ai_response") or ""
+            }
+            for log in history_res.data
+        }
+        session_context_payload = {
+            "consecutive_high_score_count": session.get("consecutive_high_score_count", 0),
+            "conversation_history": session_history
+        }
+        session_context_str = json.dumps(session_context_payload, ensure_ascii=False)
 
         initial_state = {
             "concept": concept_name,
@@ -282,7 +319,8 @@ async def chat(request: ChatRequest, background_tasks: BackgroundTasks, current_
             "debate_count": 0,
             "moderator_action": "",
             "consecutive_high_score_count": session.get("consecutive_high_score_count", 0),
-            "hint_provided": False
+            "hint_provided": False,
+            "session_context": session_context_str
         }
         
         print(f"👉 [ChatRouter] 랭그래프 호출 진입 전... (RAG 완료, State 준비 완료)", flush=True)
@@ -672,7 +710,42 @@ async def websocket_chat(websocket: WebSocket):
             retrieve_news_rag(concept_name),
             retrieve_knowledge_graph(concept_name.lower())
         )
-        
+
+        # ── Scaffolding 답변 평가 ─────────────────────────────────────────
+        # idk_count > 0 이고 give_up이 아닌 실제 답변이 들어온 경우:
+        # Academic Agent로 평가 후 correct이면 정상 흐름 복귀, 아니면 다음 scaffolding 레벨로 진입
+        if not is_give_up and session["idk_count"] > 0:
+            print(f"\n[WS ChatRouter] 📋 Scaffolding 답변 평가 중... (idk_count={session['idk_count']})", flush=True)
+            await websocket.send_json({"type": "status", "message": await translate_en_to_ko("📋 Evaluating your answer...", language)})
+            _, scaffold_eval = await call_academic(
+                concept_name, definition, acceptable_extensions or "", eval_user_answer
+            )
+            if scaffold_eval.get("type") == "correct":
+                print(f"  ✅ Scaffolding 답변 정답 인정 — idk_count 초기화, 정상 흐름으로 복귀", flush=True)
+                supabase.table("sessions").update({"idk_count": 0}).eq("session_id", session["session_id"]).execute()
+            else:
+                print(f"  ⚠️ Scaffolding 답변 오답 — 다음 scaffolding 레벨로 진입", flush=True)
+                is_give_up = True
+
+        # ── session_context 히스토리 빌드 ────────────────────────────────
+        history_res = supabase.table("chat_logs") \
+            .select("turn_number, user_message, ai_response") \
+            .eq("session_id", session["session_id"]) \
+            .order("turn_number", desc=False) \
+            .execute()
+        session_history = {
+            f"turn_{log['turn_number']}": {
+                "user_answer": log.get("user_message") or "",
+                "final_synthesis": log.get("ai_response") or ""
+            }
+            for log in history_res.data
+        }
+        session_context_payload = {
+            "consecutive_high_score_count": session.get("consecutive_high_score_count", 0),
+            "conversation_history": session_history
+        }
+        session_context_str = json.dumps(session_context_payload, ensure_ascii=False)
+
         initial_state = {
             "concept": concept_name,
             "user_answer": eval_user_answer,
@@ -689,7 +762,8 @@ async def websocket_chat(websocket: WebSocket):
             "moderator_action": "",
             "consecutive_high_score_count": session.get("consecutive_high_score_count", 0),
             "hint_provided": False,
-            "language": language
+            "language": language,
+            "session_context": session_context_str
         }
         
         await websocket.send_json({"type": "status", "message": await translate_en_to_ko("🤖 AI Agents are drafting & debating...", language)})
