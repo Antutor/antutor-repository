@@ -20,7 +20,7 @@ from services.llm_agent import (
     generate_moderator_guidance_message,
     call_scaffolding_agent
 )
-from services.translator import translate_ko_to_en
+from services.translator import translate_ko_to_en, translate_en_to_ko
 from config import LOCAL_LLM_MODEL, LOCAL_LLM_ENDPOINT
 from dependencies import get_current_user
 
@@ -197,10 +197,12 @@ async def test_moderator_sandbox(request: ModeratorSandboxRequest, current_user:
 async def test_graph_sandbox(request: GraphSandboxRequest, current_user: str = Depends(get_current_user)):
     """
     전체 랭그래프(debate_graph) 파이프라인(초안 -> 교차검증 -> 최종요약)을 테스트합니다.
+    language 파라미터가 "ko"이면 final_synthesis를 한국어로 번역하여 반환합니다.
     """
     import asyncio
     try:
-        eval_user_answer = await translate_ko_to_en(request.user_answer)
+        language = request.language or "ko"
+        eval_user_answer = await translate_ko_to_en(request.user_answer, language)
         
         # 실제 RAG/KG 컨텍스트 연동 여부
         news_context = ""
@@ -233,13 +235,21 @@ async def test_graph_sandbox(request: GraphSandboxRequest, current_user: str = D
         end_time = time.time()
         execution_time = round(end_time - start_time, 2)
         
+        # ── 번역 파이프라인 ─────────────────────────────────────────────
+        # chat.py와 동일하게 language="ko"인 경우 final_synthesis를 한국어로 번역
+        translated_final_synthesis = await translate_en_to_ko(
+            final_state.get("final_synthesis", ""), language
+        )
+        final_state_translated = dict(final_state)
+        final_state_translated["final_synthesis"] = translated_final_synthesis
+        
         req_data = request.dict() if hasattr(request, 'dict') else request.model_dump()
-        save_sandbox_log(req_data, final_state, "graph_test")
+        save_sandbox_log(req_data, final_state, "graph_test")  # 로그는 영어 원문 저장
         
         return {
             "status": "success",
             "execution_time_seconds": execution_time,
-            "final_state": final_state
+            "final_state": final_state_translated
         }
     except Exception as e:
         return {"status": "error", "detail": str(e)}
