@@ -213,6 +213,19 @@ async def test_graph_sandbox(request: GraphSandboxRequest, current_user: str = D
                 retrieve_knowledge_graph(request.concept)
             )
             
+        # session_context JSON 직렬화 처리
+        session_context_str = ""
+        if request.session_context:
+            # 사용자가 conversation_history 형태 그대로 보낸 경우를 대비해 유연하게 래핑
+            if "conversation_history" in request.session_context:
+                session_context_payload = request.session_context
+            else:
+                session_context_payload = {
+                    "consecutive_high_score_count": 0,
+                    "conversation_history": request.session_context
+                }
+            session_context_str = json.dumps(session_context_payload, ensure_ascii=False)
+
         initial_state = {
             "concept": request.concept,
             "user_answer": eval_user_answer,
@@ -227,7 +240,8 @@ async def test_graph_sandbox(request: GraphSandboxRequest, current_user: str = D
             "is_contradiction": False,
             "final_synthesis": "",
             "debate_count": 0,
-            "moderator_action": ""
+            "moderator_action": "",
+            "session_context": session_context_str
         }
         
         start_time = time.time()
