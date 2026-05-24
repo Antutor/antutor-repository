@@ -283,14 +283,16 @@ Other agents' evaluations:
 3. Form a clear position: agree / partial_agree / disagree
 
 When generating rebuttal_question:
-- If session_context shows consecutive_high_score_count >= 1,
-  the student has shown basic understanding — push deeper.
+Determine turn count from the number of entries in session_context.conversation_history.
+If session_context is empty or missing, treat turn count as 0.
+
+- Turn 0–2: focus on the core definition.
+  Ask whether the student understands the basic concept.
+- Turn 3–4: begin pushing deeper.
   Base the question on acceptable_extensions rather than the core definition.
-  Example: if student defined inflation correctly,
-           ask about a specific threshold, adjustment mechanism,
-           or nuance from acceptable_extensions.
-- If consecutive_high_score_count == 0 or session is new,
-  focus on the core definition first.
+- Turn 5+: push for nuance and precision.
+  Ask about a specific threshold, adjustment mechanism,
+  or nuance drawn from acceptable_extensions.
 
 --- Output ---
 
@@ -358,14 +360,16 @@ Other agents' evaluations:
 3. Form a clear position: agree / partial_agree / disagree
 
 When generating rebuttal_question:
-- If session_context shows consecutive_high_score_count >= 1,
-  the student has shown basic understanding — push deeper.
-  Reference a specific, concrete signal from news_context
-  to make the question timely and grounded in reality.
+Determine turn count from the number of entries in session_context.conversation_history.
+If session_context is empty or missing, treat turn count as 0.
+
+- Turn 0–2: ask a foundational real-world connection question.
+  Keep it relatable to everyday life.
+- Turn 3–4: begin referencing news_context.
+  Connect the concept to a real-world market signal.
+- Turn 5+: reference a specific, concrete signal from news_context.
   Example: "Given that [specific news event], how would
            consumers or businesses respond?"
-- If consecutive_high_score_count == 0 or session is new,
-  ask a foundational real-world connection question first.
 
 --- Output ---
 
@@ -434,16 +438,19 @@ Other agents' evaluations:
 3. Form a clear position: agree / partial_agree / disagree
 
 When generating rebuttal_question:
-- If session_context shows consecutive_high_score_count >= 1,
-  the student has shown basic understanding — push deeper.
-  Pick the most relevant causal relationship from kg_context
+Determine turn count from the number of entries in session_context.conversation_history.
+If session_context is empty or missing, treat turn count as 0.
+
+- Turn 0–2: ask a foundational macro linkage question.
+  Focus on whether the student sees any connection between macro variables.
+- Turn 3–4: pick one causal relationship from kg_context
+  and ask the student to explain the mechanism.
+- Turn 5+: pick the most relevant causal relationship from kg_context
   that connects to the student's answer and ask about the mechanism.
   Example: if student mentioned purchasing power,
            use a kg_context relationship like
            "nominal interest rate → inflation" to ask about
            how monetary policy connects.
-- If consecutive_high_score_count == 0 or session is new,
-  ask a foundational macro linkage question first.
 
 --- Output ---
 
@@ -571,21 +578,22 @@ IF session_context contains turns with scaffold_step
             Can you describe in your own words what [concept] means?"
 
 --- Difficulty Progression Rules ---
-Adjust question difficulty based on consecutive_high_score_count in session_context.
+Determine turn count from the number of entries in session_context.conversation_history.
+If session_context is empty or missing, treat turn count as 0.
 
-- consecutive_high_score_count == 0 (early turns):
+- Turn 0–2 (beginner):
   Use simple, everyday language. Avoid jargon.
   Focus on core concept connections the student can relate to daily life.
   Example level: "If prices keep rising, how do you think that affects
                   what people can buy with the same amount of money?"
 
-- consecutive_high_score_count == 1 (mid turns):
+- Turn 3–4 (intermediate):
   Introduce ONE technical term at a time.
   Always explain the term briefly in parentheses.
   Example level: "How does monetary policy (the way central banks control
                   the money supply) affect inflation?"
 
-- consecutive_high_score_count >= 2 (advanced turns):
+- Turn 5+ (advanced):
   Use technical terms freely.
   Push for causal chain explanations and cross-concept linkages.
   Example level: "In a disinflation environment, how should investors
