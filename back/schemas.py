@@ -75,3 +75,33 @@ class ResumeDecisionRequest(BaseModel):
     concept: str
     decision: str  # "resume" or "fresh"
     language: Optional[str] = "ko"
+
+class QuizQuestionOut(BaseModel):
+    id: Any
+    concept: str
+    question: str
+    choices: List[str]
+
+class QuizAnswerSubmit(BaseModel):
+    question_id: Any
+    selected_choice: int
+    confidence_level: int # 1(low), 2(mid), 3(high), 0(No Reply)
+
+class QuizSubmission(BaseModel):
+    session_id: str
+    user_id: str
+    concept: str
+    is_pre_test: bool
+    answers: List[QuizAnswerSubmit]
+
+class QuizAnswerDetailOut(BaseModel):
+    question_id: Any
+    correct_option: int
+    commentary: Optional[str] = None
+
+class QuizResultOut(BaseModel):
+    session_id: str
+    score: int
+    max_score: int
+    skill_improvement: Optional[float] = None
+    details: Optional[List[QuizAnswerDetailOut]] = None

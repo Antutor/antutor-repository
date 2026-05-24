@@ -10,7 +10,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 # Import standard routers
-from routers import users, dictionary, chat, sandbox, benchmark, attendance
+from routers import users, dictionary, chat, sandbox, benchmark, attendance, quiz
 
 app = FastAPI(title="Antutor Metric AI Backend", description="Sejong University Capstone Backend")
 
@@ -34,6 +34,7 @@ app.include_router(chat.router)
 app.include_router(sandbox.router)
 app.include_router(benchmark.router)
 app.include_router(attendance.router)
+app.include_router(quiz.router)
 
 @app.get("/debug-concepts")
 def debug_concepts():
