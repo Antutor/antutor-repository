@@ -570,6 +570,27 @@ IF session_context contains turns with scaffold_step
             now let's make sure the core idea is clear.
             Can you describe in your own words what [concept] means?"
 
+--- Difficulty Progression Rules ---
+Adjust question difficulty based on consecutive_high_score_count in session_context.
+
+- consecutive_high_score_count == 0 (early turns):
+  Use simple, everyday language. Avoid jargon.
+  Focus on core concept connections the student can relate to daily life.
+  Example level: "If prices keep rising, how do you think that affects
+                  what people can buy with the same amount of money?"
+
+- consecutive_high_score_count == 1 (mid turns):
+  Introduce ONE technical term at a time.
+  Always explain the term briefly in parentheses.
+  Example level: "How does monetary policy (the way central banks control
+                  the money supply) affect inflation?"
+
+- consecutive_high_score_count >= 2 (advanced turns):
+  Use technical terms freely.
+  Push for causal chain explanations and cross-concept linkages.
+  Example level: "In a disinflation environment, how should investors
+                  adjust their portfolio allocation strategy?"
+
 --- Message Rules ---
 - Use rebuttal_question as skeleton, unique_insight for depth,
   rebuttal_point to sharpen the claim.
@@ -640,12 +661,16 @@ Student's current answer: '{student_answer}'
 Conversation history: {session_context}
   (Use this to see what the student has already tried. Build on what they got right.)
 
+CRITICAL: If 'last_question' is provided and non-empty,
+your nudge MUST help the student answer THAT SPECIFIC QUESTION.
+Do NOT give a generic concept hint. Do NOT fall back to the core definition.
+If last_question is about an advanced or applied topic, stay on that topic.
+
 Your task:
 Write 1-2 sentences in English that:
 - If 'student_answer' is provided, identify specifically what concept is misunderstood
   or missing from their answer — do NOT repeat their wrong answer verbatim
 - If 'session_context' shows prior correct elements, acknowledge them briefly
-- If 'last_question' is provided, orient your nudge toward the theme of that question
 - Point toward the KEY missing concept WITHOUT directly revealing the answer
 - End with a soft guiding question
 - Do NOT use the exact words from the definition
@@ -681,11 +706,14 @@ Student's current answer: '{student_answer}'
 Conversation history: {session_context}
   (Use this to identify which concept the student keeps missing across attempts.)
 
+CRITICAL: If 'last_question' is provided and non-empty,
+your hint MUST name the key concept required to answer THAT SPECIFIC QUESTION.
+Do NOT explain the general concept. Focus only on what last_question demands.
+
 Your task:
 Write 1-2 sentences in English that:
 - Review 'student_answer' and 'session_context' to pinpoint the concept
   the student consistently misses or confuses
-- If 'last_question' is provided, identify the key concept it requires and use that as your hint focus
 - Directly name the KEY concept the student is missing (drawn from core definition or acceptable extensions)
 - Explain in ONE simple sentence what that concept means
 - Ask the student to now connect it to their answer
@@ -717,6 +745,10 @@ Student's current answer: '{student_answer}'
   (What the student said after the previous hint.)
 Conversation history: {session_context}
   (Use this to identify the persistent gap — place the blank at exactly that concept.)
+
+CRITICAL: If 'last_question' is provided and non-empty,
+the blank MUST target the key term required to answer THAT SPECIFIC QUESTION.
+Do NOT fall back to a generic definition-based blank.
 
 Your task:
 Create 1 fill-in-the-blank sentence in English that:
@@ -799,6 +831,10 @@ Student's current answer: '{student_answer}'
   (What the student said in their last attempt.)
 Conversation history: {session_context}
   (Use this to briefly acknowledge the student's effort across attempts before revealing.)
+
+CRITICAL: If 'last_question' is provided and non-empty,
+reveal the complete answer TO THAT SPECIFIC QUESTION — not the general concept definition.
+The scenario and follow-up question must also stay on the theme of last_question.
 
 Your task:
 Write a message in English that:
