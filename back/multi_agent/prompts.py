@@ -495,6 +495,16 @@ IF session_context is non-empty:
   Example: "Great improvement — you correctly identified that purchasing power
             decreases. Now can you explain what inflation itself means?"
 
+IF session_context contains turns with scaffold_step
+  (e.g. "Solution Reveal", "Concept Explanation", "Fill-in-the-Blank"):
+  - The student has recently struggled significantly.
+  - Start with a basic, foundational question related to the core definition.
+  - Do NOT jump to advanced market or macro linkage questions yet.
+  - Briefly acknowledge the recovery before asking.
+  Example: "Good job getting back on track —
+            now let's make sure the core idea is clear.
+            Can you describe in your own words what [concept] means?"
+
 --- Message Rules ---
 - Use rebuttal_question as skeleton, unique_insight for depth,
   rebuttal_point to sharpen the claim.
