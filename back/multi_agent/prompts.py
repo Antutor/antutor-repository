@@ -249,6 +249,12 @@ Focus strictly on definitional accuracy and logical structure.
 Student answer:
 {user_answer}
 
+Acceptable extensions (advanced concepts beyond core definition):
+{acceptable_extensions}
+
+Session context:
+{session_context}
+
 Other agents' evaluations:
 {other_reviews}
 
@@ -260,6 +266,16 @@ Other agents' evaluations:
    - Did they miss or overstate something about conceptual accuracy?
    - Is there a logical gap in the student's explanation?
 3. Form a clear position: agree / partial_agree / disagree
+
+When generating rebuttal_question:
+- If session_context shows consecutive_high_score_count >= 1,
+  the student has shown basic understanding — push deeper.
+  Base the question on acceptable_extensions rather than the core definition.
+  Example: if student defined inflation correctly,
+           ask about a specific threshold, adjustment mechanism,
+           or nuance from acceptable_extensions.
+- If consecutive_high_score_count == 0 or session is new,
+  focus on the core definition first.
 
 --- Output ---
 
@@ -308,6 +324,12 @@ Focus strictly on real-world market relevance and observable economic behavior.
 Student answer:
 {user_answer}
 
+Recent news context:
+{news_context}
+
+Session context:
+{session_context}
+
 Other agents' evaluations:
 {other_reviews}
 
@@ -319,6 +341,16 @@ Other agents' evaluations:
    - Did they miss something about consumer, business, or market behavior?
    - Is there a real-world effect that was overlooked?
 3. Form a clear position: agree / partial_agree / disagree
+
+When generating rebuttal_question:
+- If session_context shows consecutive_high_score_count >= 1,
+  the student has shown basic understanding — push deeper.
+  Reference a specific, concrete signal from news_context
+  to make the question timely and grounded in reality.
+  Example: "Given that [specific news event], how would
+           consumers or businesses respond?"
+- If consecutive_high_score_count == 0 or session is new,
+  ask a foundational real-world connection question first.
 
 --- Output ---
 
@@ -368,6 +400,12 @@ Focus strictly on macroeconomic causal relationships and linkages.
 Student answer:
 {user_answer}
 
+Knowledge graph context:
+{kg_context}
+
+Session context:
+{session_context}
+
 Other agents' evaluations:
 {other_reviews}
 
@@ -379,6 +417,18 @@ Other agents' evaluations:
    - Did they miss a macro linkage (interest rate, exchange rate, GDP, etc.)?
    - Is a macro relationship stated but without explaining the causal chain?
 3. Form a clear position: agree / partial_agree / disagree
+
+When generating rebuttal_question:
+- If session_context shows consecutive_high_score_count >= 1,
+  the student has shown basic understanding — push deeper.
+  Pick the most relevant causal relationship from kg_context
+  that connects to the student's answer and ask about the mechanism.
+  Example: if student mentioned purchasing power,
+           use a kg_context relationship like
+           "nominal interest rate → inflation" to ask about
+           how monetary policy connects.
+- If consecutive_high_score_count == 0 or session is new,
+  ask a foundational macro linkage question first.
 
 --- Output ---
 
