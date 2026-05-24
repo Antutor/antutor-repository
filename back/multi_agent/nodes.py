@@ -12,7 +12,8 @@ from multi_agent.prompts import (
     NEW_MODERATOR_AGENT_PROMPT,
     AGENT_REBUTTAL_PROMPT_ACADEMIC,
     AGENT_REBUTTAL_PROMPT_MARKET,
-    AGENT_REBUTTAL_PROMPT_MACRO
+    AGENT_REBUTTAL_PROMPT_MACRO,
+    SCAFFOLD_EVAL_PROMPT
 )
 from multi_agent.llm_config import draft_llm, debate_llm, synthesis_llm, gpu_semaphore
 from services.llm_agent import strip_think_tags
@@ -70,17 +71,21 @@ def with_retry_and_fallback(max_retries=3, fallback_value=None):
     return decorator
 
 @with_retry_and_fallback(max_retries=3, fallback_value=("The Academic Auditor", {"score": 0.5, "feedback": "System fallback due to timeout or error.", "is_contradiction": False, "is_fallback": True}))
-async def call_academic(concept, definition, acceptable_extensions, user_answer):
+async def call_academic(concept, definition, acceptable_extensions, user_answer, session_context="", last_question=""):
     async with gpu_semaphore:
         sys_msg = "/no_think\n" + NEW_ACADEMIC_DRAFT_PROMPT.format(
             concept=concept, 
             definition=definition, 
             acceptable_extensions=acceptable_extensions, 
-            user_answer=user_answer
+            user_answer=user_answer,
+            session_context=session_context,
+            last_question=last_question
         )
         res = await draft_llm.ainvoke([SystemMessage(content=sys_msg)])
         data = extract_json(strip_think_tags(res.content))
         return "The Academic Auditor", data
+
+
 
 @with_retry_and_fallback(max_retries=3, fallback_value=("The Market Practitioner", {"score": 0.5, "feedback": "System fallback due to timeout or error.", "is_contradiction": False, "is_fallback": True}))
 async def call_market(concept, news_context, user_answer):
@@ -109,12 +114,14 @@ async def drafting_node(state: AgentState):
     acceptable_extensions = state.get("acceptable_extensions") or ""
     news_context = state.get("news_context", "")
     kg_context = state.get("kg_context", "")
+    session_context = state.get("session_context", "")
+    last_question = state.get("last_question", "")
     
     print(f"\n[LangGraph] 🚀 1. Drafting Node 진행 중... (개념: {concept})", flush=True)
     print(f"  - 3명의 에이전트(Academic, Market, Macro)가 초안을 작성 중입니다...", flush=True)
     
     results = await asyncio.gather(
-        call_academic(concept, definition, acceptable_extensions, user_answer), 
+        call_academic(concept, definition, acceptable_extensions, user_answer, session_context=session_context, last_question=last_question), 
         call_market(concept, news_context, user_answer), 
         call_macro(concept, kg_context, user_answer)
     )
@@ -273,23 +280,47 @@ async def retry_node(state: AgentState):
         "rebuttal_question": "N/A"
     }
 )
-async def call_rebuttal(persona, concept, user_answer, drafts):
+async def call_rebuttal(persona, state):
     async with gpu_semaphore:
+        concept = state["concept"]
+        user_answer = state["user_answer"]
+        drafts = state.get("draft_reviews", {})
+        session_context = state.get("session_context") or f"consecutive_high_score_count: {state.get('consecutive_high_score_count', 0)}"
+
         # 본인을 제외한 다른 에이전트들의 리뷰만 취합
         other_reviews = "\n".join([f"[{p}] \n{rev}\n" for p, rev in drafts.items() if p != persona])
         
         if persona == "The Academic Auditor":
             prompt_template = AGENT_REBUTTAL_PROMPT_ACADEMIC
+            acceptable_extensions = state.get("acceptable_extensions", "")
+            sys_msg = "/no_think\n" + prompt_template.format(
+                concept=concept, 
+                user_answer=user_answer, 
+                acceptable_extensions=acceptable_extensions,
+                session_context=session_context,
+                other_reviews=other_reviews
+            )
         elif persona == "The Market Practitioner":
             prompt_template = AGENT_REBUTTAL_PROMPT_MARKET
+            news_context = state.get("news_context", "")
+            sys_msg = "/no_think\n" + prompt_template.format(
+                concept=concept, 
+                user_answer=user_answer, 
+                news_context=news_context,
+                session_context=session_context,
+                other_reviews=other_reviews
+            )
         else:
             prompt_template = AGENT_REBUTTAL_PROMPT_MACRO
+            kg_context = state.get("kg_context", "")
+            sys_msg = "/no_think\n" + prompt_template.format(
+                concept=concept, 
+                user_answer=user_answer, 
+                kg_context=kg_context,
+                session_context=session_context,
+                other_reviews=other_reviews
+            )
             
-        sys_msg = "/no_think\n" + prompt_template.format(
-            concept=concept, 
-            user_answer=user_answer, 
-            other_reviews=other_reviews
-        )
         res = await debate_llm.ainvoke([SystemMessage(content=sys_msg)])
         
         # JSON 기반 파싱: 필드 추출 후 dict로 반환
@@ -317,9 +348,9 @@ async def cross_review_node(state: AgentState):
     drafts = state.get("draft_reviews", {})
     
     tasks = [
-        call_rebuttal("The Academic Auditor", concept, user_answer, drafts),
-        call_rebuttal("The Market Practitioner", concept, user_answer, drafts),
-        call_rebuttal("The Macro-Connector", concept, user_answer, drafts)
+        call_rebuttal("The Academic Auditor", state),
+        call_rebuttal("The Market Practitioner", state),
+        call_rebuttal("The Macro-Connector", state)
     ]
     
     rebuttals = await asyncio.gather(*tasks)

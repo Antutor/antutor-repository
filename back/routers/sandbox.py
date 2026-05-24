@@ -9,7 +9,8 @@ from schemas import (
     AgentSandboxRequest,
     ModeratorSandboxRequest,
     GraphSandboxRequest,
-    ScaffoldingSandboxRequest
+    ScaffoldingSandboxRequest,
+    ScaffoldEvalSandboxRequest
 )
 from multi_agent.graph import debate_graph
 from services.llm_agent import (
@@ -18,7 +19,8 @@ from services.llm_agent import (
     call_expert_agent,
     evaluate_academic_auditor,
     generate_moderator_guidance_message,
-    call_scaffolding_agent
+    call_scaffolding_agent,
+    call_scaffold_eval
 )
 from services.translator import translate_ko_to_en, translate_en_to_ko
 from config import LOCAL_LLM_MODEL, LOCAL_LLM_ENDPOINT
@@ -337,5 +339,43 @@ async def test_scaffolding_sandbox(
         save_sandbox_log(req_data, response_data, "scaffolding_test")
         return response_data
 
+    except Exception as e:
+        return {"status": "error", "detail": str(e)}
+
+@router.post("/ai/test/scaffold-eval", tags=["Sandbox"])
+async def test_scaffold_eval_sandbox(
+    request: ScaffoldEvalSandboxRequest,
+    current_user: str = Depends(get_current_user)
+):
+    """
+    Scaffolding 이후 학생의 단답형 답변에 대한 정오 체크 로직을 단독으로 테스트합니다.
+    (SCAFFOLD_EVAL_PROMPT 활용)
+    """
+    try:
+        language = request.language or "ko"
+        eval_user_answer = await translate_ko_to_en(request.user_answer, language)
+        
+        last_hint_en = request.last_hint
+        if language == "ko":
+             # 사용자가 샌드박스에 한글로 힌트를 넣었을 경우를 대비해 번역
+             last_hint_en = await translate_ko_to_en(request.last_hint, language)
+        
+        result = await call_scaffold_eval(
+            concept=request.concept,
+            definition=request.definition,
+            acceptable_extensions=request.acceptable_extensions or "",
+            scaffold_step=request.scaffold_step,
+            user_answer=eval_user_answer,
+            last_hint=last_hint_en
+        )
+        
+        response_data = {
+            "status": "success",
+            "result": result
+        }
+        
+        req_data = request.dict() if hasattr(request, "dict") else request.model_dump()
+        save_sandbox_log(req_data, response_data, "scaffold_eval_test")
+        return response_data
     except Exception as e:
         return {"status": "error", "detail": str(e)}

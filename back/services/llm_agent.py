@@ -13,7 +13,8 @@ from services.knowledge_graph import retrieve_knowledge_graph  # noqa: F401 — 
 from multi_agent.prompts import (
     NEW_ACADEMIC_DRAFT_PROMPT,
     NEW_MARKET_DRAFT_PROMPT,
-    NEW_MACRO_DRAFT_PROMPT
+    NEW_MACRO_DRAFT_PROMPT,
+    SCAFFOLD_EVAL_PROMPT
 )
 
 def strip_think_tags(text: str) -> str:
@@ -127,6 +128,8 @@ async def evaluate_academic_auditor(
     format_kwargs = {
         "concept": concept,
         "user_answer": user_answer,
+        "session_context": "",
+        "last_question": ""
     }
     
     if "{definition}" in template or "{acceptable_extensions}" in template:
@@ -546,4 +549,31 @@ async def call_scaffolding_agent(
         "prompt_template": meta["template_name"],
         "message": message,
     }
+
+async def call_scaffold_eval(
+    concept: str, 
+    definition: str, 
+    acceptable_extensions: str, 
+    scaffold_step: str,
+    last_hint: str,
+    user_answer: str,
+    model: Optional[str] = None,
+    temperature: Optional[float] = None
+) -> dict:
+    prompt = "/no_think\n" + SCAFFOLD_EVAL_PROMPT.format(
+        concept=concept, 
+        definition=definition, 
+        acceptable_extensions=acceptable_extensions, 
+        scaffold_step=scaffold_step,
+        last_hint=last_hint,
+        user_answer=user_answer
+    )
+    raw_response = await call_local_llm(prompt, is_json=True, model=model, temperature=temperature)
+    try:
+        data = json.loads(raw_response)
+        if data.get("type") not in ("correct", "incorrect"):
+            data["type"] = "incorrect"
+        return data
+    except Exception:
+        return {"type": "incorrect"}
 

@@ -71,6 +71,15 @@ class ScaffoldingSandboxRequest(BaseModel):
     model: Optional[str] = None
     temperature: Optional[float] = None
 
+class ScaffoldEvalSandboxRequest(BaseModel):
+    concept: str
+    definition: str
+    acceptable_extensions: Optional[str] = ""
+    scaffold_step: str
+    user_answer: str
+    last_hint: str
+    language: Optional[str] = "ko"
+
 class ResumeDecisionRequest(BaseModel):
     concept: str
     decision: str  # "resume" or "fresh"
