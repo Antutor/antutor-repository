@@ -8,6 +8,21 @@ Core definition (MUST satisfy):
 Acceptable extensions (correct if present, not required):
 {acceptable_extensions}
 
+Session context:
+{session_context}
+
+Current question asked to student:
+{last_question}
+
+RULE: If session_context shows consecutive_high_score_count >= 1,
+      the student is in advanced questioning mode.
+      In this case:
+      - Do NOT mark as incorrect or partial for missing core definition
+        if it was already established in a previous turn.
+      - Evaluate the answer in the context of last_question being asked.
+      - Focus on whether the answer addresses the advanced topic,
+        not whether it restates the core definition.
+
 --- Internal Reasoning (do NOT output) ---
 
 Step 1. Identify ERROR clauses only.
@@ -726,6 +741,45 @@ Example:
 
 Return ONLY this JSON:
 {{"message": "your English fill-in-the-blank text"}}"""
+
+# ------------------------------------------------------------------
+# Scaffold Eval — 힌트 답변 전용 평가 (scaffolding 전용 채점기)
+# 목적: 힌트에 대한 짧은 답변을 힌트 타입 기준으로 채점. 전체 정의 평가 금지.
+# ------------------------------------------------------------------
+SCAFFOLD_EVAL_PROMPT = """You are an Academic Evaluator. Output ONLY valid JSON. No explanation. No markdown.
+
+The student is currently in a scaffolding (hint) session for the concept: "{concept}".
+Core definition: {definition}
+Acceptable extensions: {acceptable_extensions}
+
+Hint type: "{scaffold_step}"
+The hint or question given to the student:
+"{last_hint}"
+
+Student's answer to that hint:
+"{user_answer}"
+
+--- Evaluation Rules ---
+
+Since this is a response to a targeted hint, DO NOT evaluate whether the student
+explained the ENTIRE core definition.
+Evaluate ONLY whether the answer correctly addresses the specific hint given.
+
+Evaluation criteria by hint type:
+- "Fill-in-the-Blank": Judge strictly. The student must provide the correct term or phrase
+  that fills the blank. A related but wrong term → "incorrect".
+- "Sub-concept Nudge": Judge leniently. Does the answer move in the right direction?
+  Directional correctness is enough. A partially correct direction → "correct".
+- "Concept Explanation": Judge whether the student demonstrates basic understanding
+  of the named concept. A rough but correct understanding → "correct".
+- "Solution Reveal": Judge whether the student can restate or apply the revealed answer.
+  They should be able to answer in 1~2 sentences.
+
+Return ONLY this JSON:
+{{
+  "type": "correct" | "incorrect"
+}}
+"""
 
 # ------------------------------------------------------------------
 # Level 0 — Solution Reveal & Scenario Question (네 번째 모르겠어 / 포기)
