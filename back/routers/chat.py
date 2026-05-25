@@ -349,6 +349,7 @@ async def chat(request: ChatRequest, background_tasks: BackgroundTasks, current_
             "debate_count": 0,
             "moderator_action": "",
             "consecutive_high_score_count": session.get("consecutive_high_score_count", 0),
+            "source_turn_count": session.get("source_turn_count", 0),
             "hint_provided": False,
             "session_context": session_context_str,
             "last_question": last_question_from_history,
@@ -408,13 +409,26 @@ async def chat(request: ChatRequest, background_tasks: BackgroundTasks, current_
     ) / 3.0
 
     avg_score = raw_avg_score / 100
-    if avg_score >= 0.55:
-        new_count = session.get("consecutive_high_score_count", 0) + 1
+
+    # 1. consecutive_high_score_count 로직
+    academic_score = expert_scores.get("The Academic Auditor", 0)
+    current_count = session.get("consecutive_high_score_count", 0)
+
+    if current_count == 0:
+        new_count = 1 if academic_score >= 0.7 else 0
     else:
-        new_count = 0
+        new_count = current_count + 1 if avg_score >= 0.6 else 1
+
+    # 2. source_turn_count 로직
+    current_source_turn = session.get("source_turn_count", 0)
+    if avg_score >= 0.5:
+        new_source_turn = current_source_turn + 1
+    else:
+        new_source_turn = current_source_turn
 
     supabase.table("sessions").update({
-        "consecutive_high_score_count": new_count
+        "consecutive_high_score_count": new_count,
+        "source_turn_count": new_source_turn
     }).eq("session_id", session["session_id"]).execute()
 
     moderator_action = "proceed"
