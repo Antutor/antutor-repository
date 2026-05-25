@@ -1,16 +1,23 @@
 from fastapi import APIRouter, Depends, HTTPException
 from datetime import datetime, date, timedelta
+try:
+    from zoneinfo import ZoneInfo
+except ImportError:
+    from backports.zoneinfo import ZoneInfo
 from dependencies import get_current_user
 from database import supabase
 
 router = APIRouter(prefix="/api/attendance", tags=["Attendance"])
 
+def get_kst_today():
+    return datetime.now(ZoneInfo("Asia/Seoul")).date()
+
 @router.get("")
 async def get_attendance(current_user: dict = Depends(get_current_user)):
     user_id = current_user.get("user_id", current_user.get("id"))
     
-    # 현재 달의 1일 날짜 문자열
-    today = date.today()
+    # 현재 달의 1일 날짜 문자열 (KST 기준)
+    today = get_kst_today()
     first_day_of_month = today.replace(day=1).isoformat()
     
     # 1. 이번 달 출석한 날짜 목록 가져오기
@@ -42,7 +49,7 @@ async def get_attendance(current_user: dict = Depends(get_current_user)):
 @router.post("")
 async def mark_attendance(current_user: dict = Depends(get_current_user)):
     user_id = current_user.get("user_id", current_user.get("id"))
-    today = date.today().isoformat()
+    today = get_kst_today().isoformat()
     
     # 이미 출석했는지 확인
     response = supabase.table("user_attendance").select("attendance_date").eq("user_id", user_id).eq("attendance_date", today).execute()

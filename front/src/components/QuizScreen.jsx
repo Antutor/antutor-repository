@@ -85,10 +85,16 @@ const QuizScreen = ({ questions, sessionId, concept, userId, language, isPostTes
             <section className="quiz-container glass-panel fade-in" style={{ justifyContent: 'center', alignItems: 'center', minHeight: '50vh' }}>
                 <div style={{ textAlign: 'center', color: 'var(--color-deep-navy)' }}>
                     <div className="spinner" style={{ margin: '0 auto 30px auto', width: '50px', height: '50px' }} />
-                    <h2 style={{ fontSize: '1.8rem', marginBottom: '15px' }}>{language === 'ko' ? '퀴즈를 준비 중입니다' : 'Preparing the quiz'}</h2>
-                    <p style={{ color: 'var(--color-text-secondary)', fontSize: '1.1rem' }}>
-                        {language === 'ko' ? '데이터를 불러오는 중입니다.' : 'Loading data.'}
+                    <h2 style={{ fontSize: '1.8rem', marginBottom: '15px' }}>{language === 'ko' ? '퀴즈를 준비중입니다. 잠시만 기다려주세요.' : 'Preparing the quiz. Please wait a moment.'}</h2>
+                    <p style={{ color: 'var(--color-text-secondary)', fontSize: '1.1rem', marginBottom: '30px', fontWeight: 'bold' }}>
+                        {language === 'ko' ? '학습을 시작하기 전에 먼저 퀴즈를 응시해야 합니다.' : 'You must take the quiz before starting the lesson.'}
                     </p>
+                    
+                    <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', marginTop: '20px' }}>
+                        <div style={{ width: '12px', height: '12px', backgroundColor: 'var(--color-expert-academic)', borderRadius: '50%', animation: 'bounce 1.4s infinite ease-in-out both' }}></div>
+                        <div style={{ width: '12px', height: '12px', backgroundColor: 'var(--color-expert-academic)', borderRadius: '50%', animation: 'bounce 1.4s infinite ease-in-out both', animationDelay: '0.2s' }}></div>
+                        <div style={{ width: '12px', height: '12px', backgroundColor: 'var(--color-expert-academic)', borderRadius: '50%', animation: 'bounce 1.4s infinite ease-in-out both', animationDelay: '0.4s' }}></div>
+                    </div>
                 </div>
             </section>
         );
