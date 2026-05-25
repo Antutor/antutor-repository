@@ -30,3 +30,8 @@ export const studyAPI = {
 export const sandboxAPI = {
     testPrompt: (data) => api.post('/ai/test/sandbox', data), // 4.1 프롬프트 튜닝 샌드박스
 };
+
+export const quizAPI = {
+    getQuestions: (concept) => api.get(`/quiz/${concept}`), // 5.1 개념별 퀴즈 조회
+    submitQuiz: (data) => api.post('/quiz/submit', data), // 5.2 퀴즈 결과 제출
+};

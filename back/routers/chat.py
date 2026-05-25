@@ -97,7 +97,7 @@ async def get_concept_by_term(term: str):
 
 @router.get("/start/{concept}")
 async def start_session(concept: str, language: str = "ko", current_user: dict = Depends(get_current_user)):
-    user_id = current_user["user_id"]
+    user_id = current_user.get("user_id", current_user.get("id"))
     
     # 1. 지원하는 개념 DB 확인
     target_concept = await get_concept_by_term(concept)
@@ -159,7 +159,7 @@ async def resolve_resume(request: ResumeDecisionRequest, current_user: dict = De
     """
     사용자의 재개 여부 결정(resume/fresh)에 따라 세션을 생성하고 첫 질문을 반환합니다.
     """
-    user_id = current_user["user_id"]
+    user_id = current_user.get("user_id", current_user.get("id"))
     concept = request.concept
     decision = request.decision # "resume" or "fresh"
     language = request.language or "ko"
@@ -203,7 +203,7 @@ async def resolve_resume(request: ResumeDecisionRequest, current_user: dict = De
 @router.post("/chat")
 async def chat(request: ChatRequest, background_tasks: BackgroundTasks, current_user: dict = Depends(get_current_user)):
     print(f"\n[DEBUG] 📩 유저로부터 /chat 요청 도착! (답변: {request.user_answer[:30]}...)", flush=True)
-    user_id = current_user["user_id"]
+    user_id = current_user.get("user_id", current_user.get("id"))
     language = request.language or "ko"
     
     sess_res = supabase.table("sessions").select("*").eq("session_id", int(request.session_id)).execute()
@@ -397,8 +397,6 @@ async def chat(request: ChatRequest, background_tasks: BackgroundTasks, current_
         if is_contradiction:
             antutor_score = 0.0
             propositions = ["Local LLM Blocked: Explicit contradiction found."]
-            expert_results = [{"persona": "System", "score": 0.0, "feedback": "Answer contradicts the ground truth."}]
-            expert_scores = {"System": 0.0, "The Market Practitioner": 0.0, "The Macro-Connector": 0.0, "The Academic Auditor": 0.0}
             lowest_persona = "System"
         else:
             lowest_persona = min(expert_scores.keys(), key=lambda k: expert_scores[k])
@@ -562,7 +560,7 @@ async def chat(request: ChatRequest, background_tasks: BackgroundTasks, current_
 
 @router.post("/end_session")
 async def end_session(request: EndSessionRequest, current_user: dict = Depends(get_current_user)):
-    user_id = current_user["user_id"]
+    user_id = current_user.get("user_id", current_user.get("id"))
     language = request.language or "ko"
     
     sess_res = supabase.table("sessions").select("*").eq("session_id", int(request.session_id)).execute()
@@ -676,7 +674,7 @@ async def websocket_chat(websocket: WebSocket):
             return
             
         current_user = user_res.data[0]
-        user_id = current_user["user_id"]
+        user_id = current_user.get("user_id", current_user.get("id"))
         
         # 2. 세션 및 개념 데이터 조회
         await websocket.send_json({"type": "status", "message": await translate_en_to_ko("🔍 Checking session data...", language)})
@@ -953,8 +951,6 @@ async def websocket_chat(websocket: WebSocket):
         if is_contradiction:
             antutor_score = 0.0
             propositions = ["Local LLM Blocked: Explicit contradiction found."]
-            expert_results = [{"persona": "System", "score": 0.0, "feedback": "Answer contradicts the ground truth."}]
-            expert_scores = {"System": 0.0, "The Market Practitioner": 0.0, "The Macro-Connector": 0.0, "The Academic Auditor": 0.0}
             lowest_persona = "System"
         elif is_give_up:
             propositions = []

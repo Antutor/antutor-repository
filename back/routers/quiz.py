@@ -13,8 +13,8 @@ def get_quiz_questions(concept: str):
     """
     특정 개념(예: '인플레이션')에 대한 퀴즈 문항들을 반환합니다.
     """
-    if concept != "인플레이션":
-        raise HTTPException(status_code=404, detail="현재 '인플레이션' 주제의 퀴즈만 제공됩니다.")
+    # if concept != "인플레이션":
+    #     raise HTTPException(status_code=404, detail="현재 '인플레이션' 주제의 퀴즈만 제공됩니다.")
     
     return QuizService.get_inflation_questions()
 

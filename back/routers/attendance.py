@@ -7,7 +7,7 @@ router = APIRouter(prefix="/api/attendance", tags=["Attendance"])
 
 @router.get("")
 async def get_attendance(current_user: dict = Depends(get_current_user)):
-    user_id = current_user["user_id"]
+    user_id = current_user.get("user_id", current_user.get("id"))
     
     # 현재 달의 1일 날짜 문자열
     today = date.today()
@@ -41,7 +41,7 @@ async def get_attendance(current_user: dict = Depends(get_current_user)):
 
 @router.post("")
 async def mark_attendance(current_user: dict = Depends(get_current_user)):
-    user_id = current_user["user_id"]
+    user_id = current_user.get("user_id", current_user.get("id"))
     today = date.today().isoformat()
     
     # 이미 출석했는지 확인

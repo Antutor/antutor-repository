@@ -10,7 +10,8 @@ import Register from './Register';
 import RadarScoreChart from './components/RadarChart';
 import LineScoreChart from './components/LineChart';
 import AttendanceTracker from './components/AttendanceTracker';
-import { studyAPI, dictionaryAPI } from './api/services';
+import QuizScreen from './components/QuizScreen';
+import { studyAPI, dictionaryAPI, quizAPI } from './api/services';
 import { t } from './locales';
 
 const getInitialPath = (lang) => [
@@ -29,6 +30,9 @@ function App() {
     const [dictionarySearchTerm, setDictionarySearchTerm] = useState('');
     const [language, setLanguage] = useState('ko');
     const [expandedSidebarExpert, setExpandedSidebarExpert] = useState(null);
+
+    const [showQuiz, setShowQuiz] = useState(false);
+    const [quizQuestions, setQuizQuestions] = useState([]);
 
     const [missionConcepts, setMissionConcepts] = useState([]);
     const [isLoadingMissions, setIsLoadingMissions] = useState(true);
@@ -420,6 +424,21 @@ function App() {
             setSessionId(data.session_id);
             setIsResumePending(data.resume_available || false);
             
+            // Fetch Quiz Questions
+            try {
+                const quizRes = await quizAPI.getQuestions(mission.id);
+                if (quizRes.data && quizRes.data.length > 0) {
+                    setQuizQuestions(quizRes.data);
+                    setShowQuiz(true);
+                } else {
+                    alert(`[DB 알림] '${mission.id}'에 대한 퀴즈 데이터가 비어있습니다. (빈 배열 반환)`);
+                }
+            } catch (qError) {
+                console.error("Quiz API Error:", qError);
+                const errorDetail = qError.response?.data?.detail || qError.message;
+                alert(`[API 에러] 퀴즈를 불러오지 못했습니다.\n이유: ${errorDetail}`);
+            }
+
             // Populate messages only after the session is ready
             if (data.resume_available) {
                 const resumeText = `${data.resume_prompt}\n\n(${t(language, 'lastQuestion')}: ${data.last_ai_response})`;
@@ -643,6 +662,15 @@ function App() {
                             ))}
                         </div>
                     </section>
+                ) : showQuiz ? (
+                    <QuizScreen 
+                        questions={quizQuestions}
+                        sessionId={sessionId}
+                        concept={selectedMission}
+                        userId={userName}
+                        language={language}
+                        onComplete={() => setShowQuiz(false)}
+                    />
                 ) : (
                     <section className="chat-container glass-panel">
                         <div className="chat-history">

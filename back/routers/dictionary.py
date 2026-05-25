@@ -16,44 +16,50 @@ async def get_all_dictionary_terms(language: str = "ko"):
     If language='ko', translates names and definitions via DeepL batch call.
     If language='en', returns original English text directly.
     """
-    response = supabase.table("concepts").select("name, definition, category").execute()
-    concepts = response.data
+    try:
+        response = supabase.table("concepts").select("name, dict_content, category").execute()
+        concepts = response.data
 
-    if not concepts:
-        return []
+        if not concepts:
+            return []
 
-    if language != "ko":
-        # Return raw English directly — no translation needed
-        return [
-            {
-                "term": row["name"],
-                "simple_definition": row.get("definition") or "",
-                "original_name": row["name"],
+        if language != "ko":
+            # Return raw English directly — no translation needed
+            return [
+                {
+                    "term": row["name"],
+                    "simple_definition": row.get("dict_content") or "",
+                    "original_name": row["name"],
+                    "example": "",
+                    "category": row.get("category", "academic")
+                }
+                for row in concepts
+            ]
+
+        # Korean: batch-translate with DeepL
+        to_translate = []
+        for row in concepts:
+            to_translate.append(row["name"])
+            to_translate.append(row.get("dict_content") or "")
+
+        translated_list = await translate_list_en_to_ko(to_translate)
+
+        results = []
+        for i in range(len(concepts)):
+            results.append({
+                "term": translated_list[i*2],
+                "simple_definition": translated_list[i*2 + 1],
+                "original_name": concepts[i]["name"],
                 "example": "",
-                "category": row.get("category", "academic")
-            }
-            for row in concepts
-        ]
+                "category": concepts[i].get("category", "academic")
+            })
 
-    # Korean: batch-translate with DeepL
-    to_translate = []
-    for row in concepts:
-        to_translate.append(row["name"])
-        to_translate.append(row.get("definition") or "")
-
-    translated_list = await translate_list_en_to_ko(to_translate)
-
-    results = []
-    for i in range(len(concepts)):
-        results.append({
-            "term": translated_list[i*2],
-            "simple_definition": translated_list[i*2 + 1],
-            "original_name": concepts[i]["name"],
-            "example": "",
-            "category": concepts[i].get("category", "academic")
-        })
-
-    return results
+        return results
+    except Exception as e:
+        import traceback
+        with open("dict_error.log", "w", encoding="utf-8") as f:
+            f.write(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/dictionary/{term}")
 async def get_dictionary_term(term: str, language: str = "ko"):
@@ -87,12 +93,12 @@ async def get_dictionary_term(term: str, language: str = "ko"):
     if language != "ko":
         return {
             "term": target_concept["name"],
-            "simple_definition": target_concept.get("definition") or "",
+            "simple_definition": target_concept.get("dict_content") or "",
             "example": "",
             "category": target_concept.get("category", "academic")
         }
 
-    final_translations = await translate_list_en_to_ko([target_concept["name"], target_concept.get("definition") or ""])
+    final_translations = await translate_list_en_to_ko([target_concept["name"], target_concept.get("dict_content") or ""])
 
     return {
         "term": final_translations[0],

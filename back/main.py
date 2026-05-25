@@ -14,13 +14,19 @@ from routers import users, dictionary, chat, sandbox, benchmark, attendance, qui
 
 app = FastAPI(title="Antutor Metric AI Backend", description="Sejong University Capstone Backend")
 
-# 이 코드가 있어야 프론트엔드에서 백엔드 데이터를 읽을 수 있음
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"], # 리액트 주소
+    allow_origins=[
+        "http://localhost:3000",
+        "http://localhost:3001",
+        "http://localhost:8080",
+        "http://127.0.0.1:3000",
+        "http://127.0.0.1:3001",
+        "http://127.0.0.1:8080"
+    ],
     allow_credentials=True,
-    allow_methods=["*"], # 모든 방식(GET, POST 등) 허용
-    allow_headers=["*"], # 모든 헤더 허용
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # ---------------------------------------------------------
