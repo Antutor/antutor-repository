@@ -332,6 +332,8 @@ async def chat(request: ChatRequest, background_tasks: BackgroundTasks, current_
         # news_context: Market Agent 및 debate graph에만 필요 (give_up 시 불필요)
         news_context = await retrieve_news_rag(concept_name, eval_user_answer)
 
+        turn_count = len(session_history)
+
         initial_state = {
             "concept": concept_name,
             "user_answer": eval_user_answer,
@@ -349,7 +351,8 @@ async def chat(request: ChatRequest, background_tasks: BackgroundTasks, current_
             "consecutive_high_score_count": session.get("consecutive_high_score_count", 0),
             "hint_provided": False,
             "session_context": session_context_str,
-            "last_question": last_question_from_history
+            "last_question": last_question_from_history,
+            "turn_count": turn_count
         }
         
         print(f"👉 [ChatRouter] 랭그래프 호출 진입 전... (RAG 완료, State 준비 완료)", flush=True)
@@ -405,6 +408,16 @@ async def chat(request: ChatRequest, background_tasks: BackgroundTasks, current_
         expert_scores.get("The Market Practitioner", 0) * 100 +
         expert_scores.get("The Macro-Connector", 0) * 100
     ) / 3.0
+
+    avg_score = raw_avg_score / 100
+    if avg_score >= 0.55:
+        new_count = session.get("consecutive_high_score_count", 0) + 1
+    else:
+        new_count = 0
+
+    supabase.table("sessions").update({
+        "consecutive_high_score_count": new_count
+    }).eq("session_id", session["session_id"]).execute()
 
     moderator_action = "proceed"
     scaffold_plan = None

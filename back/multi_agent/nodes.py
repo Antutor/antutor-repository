@@ -217,6 +217,7 @@ async def retry_node(state: AgentState):
         rebuttal_results=empty_list,
         news_context=state.get("news_context", ""),
         output_language=output_language,
+        turn_count=state.get("turn_count", 0)
     )
 
     llm_result = await call_synthesis(sys_msg)
@@ -298,7 +299,8 @@ async def call_rebuttal(persona, state):
                 user_answer=user_answer, 
                 acceptable_extensions=acceptable_extensions,
                 session_context=session_context,
-                other_reviews=other_reviews
+                other_reviews=other_reviews,
+                turn_count=state.get("turn_count", 0)
             )
         elif persona == "The Market Practitioner":
             prompt_template = AGENT_REBUTTAL_PROMPT_MARKET
@@ -308,7 +310,8 @@ async def call_rebuttal(persona, state):
                 user_answer=user_answer, 
                 news_context=news_context,
                 session_context=session_context,
-                other_reviews=other_reviews
+                other_reviews=other_reviews,
+                turn_count=state.get("turn_count", 0)
             )
         else:
             prompt_template = AGENT_REBUTTAL_PROMPT_MACRO
@@ -318,7 +321,8 @@ async def call_rebuttal(persona, state):
                 user_answer=user_answer, 
                 kg_context=kg_context,
                 session_context=session_context,
-                other_reviews=other_reviews
+                other_reviews=other_reviews,
+                turn_count=state.get("turn_count", 0)
             )
             
         res = await debate_llm.ainvoke([SystemMessage(content=sys_msg)])
@@ -424,7 +428,8 @@ async def synthesis_node(state: AgentState):
         macro_result=macro_res,
         rebuttal_results=rebuttals_str,
         news_context=state.get("news_context", ""),
-        output_language=output_language
+        output_language=output_language,
+        turn_count=state.get("turn_count", 0)
     )
     
     res_content = await call_synthesis(sys_msg)

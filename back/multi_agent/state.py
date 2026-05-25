@@ -38,3 +38,4 @@ class AgentState(TypedDict):
     language: str                       # 출력 언어 (ko / en)
     session_context: str                # 이전 턴 대화 히스토리 (JSON 직렬화 문자열)
     last_question: Optional[str]        # 이전 턴에 Moderator가 던진 질문
+    turn_count: int                     # 현재 세션의 턴 수
