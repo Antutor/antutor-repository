@@ -107,6 +107,7 @@ class QuizAnswerDetailOut(BaseModel):
     question_id: Any
     correct_option: int
     commentary: Optional[str] = None
+    earned_score: Optional[int] = 0
 
 class QuizResultOut(BaseModel):
     session_id: str

@@ -121,11 +121,13 @@ class QuizService:
         # 3. 사후 퀴즈인 경우 사전 퀴즈 점수 조회 및 Hake's Gain 계산, 그리고 세션 테이블 업데이트
         if quiz_type == "POST":
             # 사후 퀴즈인 경우에만 정답과 해설 상세 내역 제공
+            earned_scores_map = {ea["question_id"]: ea["earned_score"] for ea in evaluated_answers}
             details = [
                 QuizAnswerDetailOut(
                     question_id=ans.question_id,
                     correct_option=questions_map.get(ans.question_id, {}).get("correct_option", 0),
-                    commentary=questions_map.get(ans.question_id, {}).get("commentary", "")
+                    commentary=questions_map.get(ans.question_id, {}).get("commentary", ""),
+                    earned_score=earned_scores_map.get(ans.question_id, 0)
                 )
                 for ans in submission.answers
             ]
