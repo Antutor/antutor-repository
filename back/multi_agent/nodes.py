@@ -71,7 +71,7 @@ def with_retry_and_fallback(max_retries=3, fallback_value=None):
     return decorator
 
 @with_retry_and_fallback(max_retries=3, fallback_value=("The Academic Auditor", {"score": 0.5, "feedback": "System fallback due to timeout or error.", "is_contradiction": False, "is_fallback": True}))
-async def call_academic(concept, definition, acceptable_extensions, user_answer, session_context="", last_question=""):
+async def call_academic(concept, definition, acceptable_extensions, user_answer, session_context="", last_question="", consecutive_high_score_count=0):
     async with gpu_semaphore:
         sys_msg = "/no_think\n" + NEW_ACADEMIC_DRAFT_PROMPT.format(
             concept=concept, 
@@ -79,7 +79,8 @@ async def call_academic(concept, definition, acceptable_extensions, user_answer,
             acceptable_extensions=acceptable_extensions, 
             user_answer=user_answer,
             session_context=session_context,
-            last_question=last_question
+            last_question=last_question,
+            consecutive_high_score_count=consecutive_high_score_count
         )
         res = await draft_llm.ainvoke([SystemMessage(content=sys_msg)])
         data = extract_json(strip_think_tags(res.content))
@@ -116,12 +117,17 @@ async def drafting_node(state: AgentState):
     kg_context = state.get("kg_context", "")
     session_context = state.get("session_context", "")
     last_question = state.get("last_question", "")
+    consecutive_high_score_count = state.get("consecutive_high_score_count", 0)
     
     print(f"\n[LangGraph] 🚀 1. Drafting Node 진행 중... (개념: {concept})", flush=True)
     print(f"  - 3명의 에이전트(Academic, Market, Macro)가 초안을 작성 중입니다...", flush=True)
     
     results = await asyncio.gather(
-        call_academic(concept, definition, acceptable_extensions, user_answer, session_context=session_context, last_question=last_question), 
+        call_academic(
+            concept, definition, acceptable_extensions, user_answer, 
+            session_context=session_context, last_question=last_question, 
+            consecutive_high_score_count=consecutive_high_score_count
+        ), 
         call_market(concept, news_context, user_answer), 
         call_macro(concept, kg_context, user_answer)
     )
@@ -218,7 +224,8 @@ async def retry_node(state: AgentState):
         news_context=state.get("news_context", ""),
         output_language=output_language,
         turn_count=state.get("turn_count", 0),
-        source_turn_count=state.get("source_turn_count", 0)
+        source_turn_count=state.get("source_turn_count", 0),
+        mode="retry"
     )
 
     llm_result = await call_synthesis(sys_msg)
@@ -423,6 +430,24 @@ async def synthesis_node(state: AgentState):
     language = state.get("language", "ko")
     output_language = "English"  # LLM은 항상 영어로 생성 → chat.py의 translate_en_to_ko()가 번역 담당
     
+    # Calculate mode for mastery check
+    current_count = state.get("consecutive_high_score_count", 0)
+    raw_scores = state.get("raw_scores", {})
+    academic_score = raw_scores.get("The Academic Auditor", 0)
+    
+    avg_score = (
+        raw_scores.get("The Academic Auditor", 0) * 100 +
+        raw_scores.get("The Market Practitioner", 0) * 100 +
+        raw_scores.get("The Macro-Connector", 0) * 100
+    ) / 300.0
+
+    if current_count == 0:
+        new_count = 1 if academic_score >= 0.69 else 0
+    else:
+        new_count = current_count + 1 if avg_score >= 0.6 else 1
+
+    mode = "mastery" if new_count >= 3 and avg_score >= 0.6 else "normal"
+    
     sys_msg = "/no_think\n" + NEW_MODERATOR_AGENT_PROMPT.format(
         concept=concept,
         user_answer=user_answer,
@@ -434,7 +459,8 @@ async def synthesis_node(state: AgentState):
         news_context=state.get("news_context", ""),
         output_language=output_language,
         turn_count=state.get("turn_count", 0),
-        source_turn_count=state.get("source_turn_count", 0)
+        source_turn_count=state.get("source_turn_count", 0),
+        mode=mode
     )
     
     res_content = await call_synthesis(sys_msg)
