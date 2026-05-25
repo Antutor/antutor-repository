@@ -14,17 +14,24 @@ Session context:
 Current question asked to student:
 {last_question}
 
-RULE: If session_context shows consecutive_high_score_count >= 1,
-      switch to ADVANCED EVALUATION MODE:
+--- MANDATORY PRE-CHECK (Run before anything else) ---
+Find "consecutive_high_score_count" inside session_context.
+  IF the value is >= 1:
+    You are in ADVANCED EVALUATION MODE.
+    DO NOT execute Steps 1, 2, or 3. They do not apply.
+    Instead, apply ONLY the following rules:
       - IGNORE the core definition entirely. Do NOT penalize for missing it.
-      - Evaluate the answer ONLY against acceptable_extensions.
+      - Evaluate ONLY against acceptable_extensions.
       - error_clauses: list ONLY issues related to acceptable_extensions.
-      - type decision:
-          Answer correctly addresses any element of acceptable_extensions → "correct"
-          Answer is vague or incomplete on acceptable_extensions          → "partial"
-          Answer contradicts or is unrelated to acceptable_extensions     → "incorrect"
-      - Skip Steps 1–3 below. Go directly to Step 4 (Score) and Step 5 (retry_needed)
-        using the type decided above.
+      - type:
+          Any element of acceptable_extensions correctly addressed → "correct"
+          Vague or incomplete on acceptable_extensions            → "partial"
+          Contradicts or unrelated to acceptable_extensions       → "incorrect"
+      - Proceed directly to Step 4 (Score) and Step 5 (retry_needed).
+      - hint: if retry_needed = true, give a clue about acceptable_extensions ONLY.
+        Do NOT reference the core definition in the hint.
+  IF the value is 0 or not found in session_context:
+    Proceed to Step 1 below.
 
 --- Internal Reasoning (do NOT output) ---
 
@@ -578,21 +585,6 @@ IF session_context contains turns with scaffold_step
             now let's make sure the core idea is clear.
             Can you describe in your own words what [concept] means?"
 
---- Context Source Reference ---
-The following is a suggested starting point for context selection.
-Use it as a loose guide — feel free to choose whichever source best fits
-the student's current level and the question you want to ask.
-
-Suggested priority this turn (source_turn_count % 3):
-  0 → consider news_context first
-  1 → consider kg_context first
-  2 → consider acceptable_extensions first
-
-source_turn_count: {source_turn_count}
-
-If the suggested source is empty, thin, or not relevant to the student's answer,
-simply use whichever source produces the most natural and useful question.
-
 --- Difficulty Progression Rules ---
 Current turn: {turn_count}
 
@@ -650,7 +642,6 @@ Return ONLY this JSON:
 
 Concept: {concept}
 Turn: {turn_count}
-Source turn: {source_turn_count}
 Session context: {session_context}
 News context: {news_context}
 
