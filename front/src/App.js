@@ -32,6 +32,7 @@ function App() {
     const [expandedSidebarExpert, setExpandedSidebarExpert] = useState(null);
 
     const [showQuiz, setShowQuiz] = useState(false);
+    const [showPostQuiz, setShowPostQuiz] = useState(false);
     const [quizQuestions, setQuizQuestions] = useState([]);
 
     const [missionConcepts, setMissionConcepts] = useState([]);
@@ -582,16 +583,9 @@ function App() {
                         <option value="en">English</option>
                     </select>
                     {selectedMission && (
-                        <button className="summary-btn" onClick={async () => {
-                            if (sessionId) {
-                                try {
-                                    const response = await studyAPI.endSession({ session_id: sessionId, language });
-                                    setReportData(response.data);
-                                } catch (error) {
-                                    console.error("End session failed", error);
-                                }
-                            }
-                            setIsSummaryModalOpen(true);
+                        <button className="summary-btn" onClick={() => {
+                            // 원래는 여기서 endSession하고 SummaryModal을 바로 띄웠으나, 사후 퀴즈로 연결
+                            setShowPostQuiz(true);
                         }}>
                             <CheckCircle size={16} />
                             <span className="hide-mobile">{t(language, 'endSession')}</span>
@@ -605,7 +599,7 @@ function App() {
             </header>
 
             <div className="main-content">
-                {!(selectedMission && showQuiz) && (
+                {!(selectedMission && (showQuiz || showPostQuiz)) && (
                     <aside className="sidebar glass-panel open">
                         {!selectedMission ? (
                             <div className="welcome-sidebar-content" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', padding: '20px', textAlign: 'center' }}>
@@ -674,6 +668,27 @@ function App() {
                         userId={userName}
                         language={language}
                         onComplete={() => setShowQuiz(false)}
+                    />
+                ) : showPostQuiz ? (
+                    <QuizScreen 
+                        questions={quizQuestions}
+                        sessionId={sessionId}
+                        concept={selectedMission}
+                        userId={userName}
+                        language={language}
+                        isPostTest={true}
+                        onComplete={async () => {
+                            if (sessionId) {
+                                try {
+                                    const response = await studyAPI.endSession({ session_id: sessionId, language });
+                                    setReportData(response.data);
+                                } catch (error) {
+                                    console.error("End session failed", error);
+                                }
+                            }
+                            setIsSummaryModalOpen(true);
+                            setShowPostQuiz(false);
+                        }}
                     />
                 ) : (
                     <section className="chat-container glass-panel">
@@ -791,7 +806,7 @@ function App() {
                     </section>
                 )}
 
-                {!(selectedMission && showQuiz) && (
+                {!(selectedMission && (showQuiz || showPostQuiz)) && (
                     <aside className="expert-panel glass-panel" style={!selectedMission ? { width: '280px', alignItems: 'flex-start', padding: '24px' } : {}}>
                         {!selectedMission ? (
                             <div className="expert-team-container">
