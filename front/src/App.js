@@ -139,6 +139,7 @@ function App() {
     const [academicGlow, setAcademicGlow] = useState(false);
     const [newFeedback, setNewFeedback] = useState({ academic: false, market: false, macro: false });
     const [currentScaffold, setCurrentScaffold] = useState(null);
+    const [isEndSuggested, setIsEndSuggested] = useState(false);
 
     // 2. 차트에 표시할 실제 점수 데이터 (여기에 저장하면 됩니다)
     const [userScores, setUserScores] = useState({
@@ -297,6 +298,12 @@ function App() {
                     let moderatorText = decision?.message || "";
                     const plan = decision?.scaffold_plan;
                     
+                    if (decision?.status === "mastery") {
+                        setIsEndSuggested(true);
+                    } else {
+                        setIsEndSuggested(false);
+                    }
+                    
                     if (plan && plan.message) {
                         moderatorText = plan.message;
                     }
@@ -406,12 +413,20 @@ function App() {
 
     const handleMissionSelect = async (mission) => {
         if (mission.id === 'coming_soon') return;
+        
+        // Support both Korean and English terms since mission.id is derived from the localized term
+        const isInflation = mission.id === '인플레이션' || mission.id.toLowerCase() === 'inflation';
+        if (!isInflation) {
+            alert(language === 'ko' ? '해당 주제는 퀴즈 출시 예정입니다.' : 'Quiz for this topic is coming soon.');
+            return;
+        }
         // Optimistic UI Update: Switch to quiz screen immediately
         setSelectedMission(mission.id);
         setActiveNodeId('strategic');
         setHoveredMission(null);
         setShowQuiz(true);
         setQuizQuestions([]);
+        setIsEndSuggested(false);
         
         // Hide initial question and show only loading state
         setMessages([]); 
@@ -474,6 +489,7 @@ function App() {
     const handleResumeDecision = async (decision) => {
         if (!selectedMission) return;
         
+        setIsEndSuggested(false);
         const thinkingStartTime = Date.now();
         setIsThinking(true);
         try {
@@ -767,6 +783,50 @@ function App() {
                                         onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.9)'; e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = '0 4px 15px rgba(0,0,0,0.05)'; }}
                                     >
                                         {t(language, 'startFreshBtn')}
+                                    </button>
+                                </div>
+                            ) : isEndSuggested ? (
+                                <div style={{ display: 'flex', gap: '20px', width: '100%', justifyContent: 'center', padding: '20px 0', animation: 'fadeInUp 0.5s ease-out' }}>
+                                    <button 
+                                        onClick={() => { setIsEndSuggested(false); setShowPostQuiz(true); }}
+                                        style={{ 
+                                            padding: '16px 32px', 
+                                            backgroundColor: '#22c55e', 
+                                            color: 'white', 
+                                            border: 'none', 
+                                            borderRadius: '16px', 
+                                            cursor: 'pointer', 
+                                            fontWeight: '800',
+                                            fontSize: '1.1rem',
+                                            boxShadow: '0 10px 25px rgba(34, 197, 94, 0.3)',
+                                            transition: 'all 0.2s',
+                                        }}
+                                        onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-3px)'; e.currentTarget.style.boxShadow = '0 15px 30px rgba(34, 197, 94, 0.4)'; e.currentTarget.style.backgroundColor = '#16a34a'; }}
+                                        onMouseLeave={(e) => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = '0 10px 25px rgba(34, 197, 94, 0.3)'; e.currentTarget.style.backgroundColor = '#22c55e'; }}
+                                    >
+                                        {language === 'ko' ? '예 (학습 종료)' : 'Yes (End Learning)'}
+                                    </button>
+                                    <button 
+                                        onClick={() => {
+                                            setIsEndSuggested(false);
+                                            handleSendMessage(language === 'ko' ? '아니오, 더 학습할래요.' : 'No, I want to learn more.');
+                                        }}
+                                        style={{ 
+                                            padding: '16px 32px', 
+                                            backgroundColor: 'rgba(255, 255, 255, 0.9)', 
+                                            border: '1px solid var(--color-border)', 
+                                            color: 'var(--color-text-secondary)', 
+                                            borderRadius: '16px', 
+                                            cursor: 'pointer', 
+                                            fontWeight: '700',
+                                            fontSize: '1.1rem',
+                                            boxShadow: '0 4px 15px rgba(0, 0, 0, 0.05)',
+                                            transition: 'all 0.2s'
+                                        }}
+                                        onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'white'; e.currentTarget.style.transform = 'translateY(-3px)'; e.currentTarget.style.boxShadow = '0 8px 20px rgba(0,0,0,0.1)'; }}
+                                        onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.9)'; e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = '0 4px 15px rgba(0,0,0,0.05)'; }}
+                                    >
+                                        {language === 'ko' ? '아니오 (계속하기)' : 'No (Continue)'}
                                     </button>
                                 </div>
                             ) : (
