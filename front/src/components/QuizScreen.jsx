@@ -58,6 +58,20 @@ const QuizScreen = ({ questions, sessionId, concept, userId, language, onComplet
         }
     };
 
+    if (!questions || questions.length === 0) {
+        return (
+            <section className="quiz-container glass-panel fade-in" style={{ justifyContent: 'center', alignItems: 'center', minHeight: '50vh' }}>
+                <div style={{ textAlign: 'center', color: 'var(--color-deep-navy)' }}>
+                    <div className="spinner" style={{ margin: '0 auto 30px auto', width: '50px', height: '50px' }} />
+                    <h2 style={{ fontSize: '1.8rem', marginBottom: '15px' }}>{language === 'ko' ? '퀴즈를 준비 중입니다' : 'Preparing the quiz'}</h2>
+                    <p style={{ color: 'var(--color-text-secondary)', fontSize: '1.1rem' }}>
+                        {language === 'ko' ? '학습을 시작하기 전에 먼저 퀴즈를 응시해야 합니다.' : 'You must take the quiz before starting the learning.'}
+                    </p>
+                </div>
+            </section>
+        );
+    }
+    
     if (result) {
         return (
             <section className="quiz-container glass-panel fade-in">
@@ -66,11 +80,7 @@ const QuizScreen = ({ questions, sessionId, concept, userId, language, onComplet
                         <Award size={48} color="#f59e0b" />
                     </div>
                     <h2>{language === 'ko' ? '사전 테스트 완료!' : 'Pre-test Complete!'}</h2>
-                    <div className="score-display">
-                        <span className="score-value">{result.score}</span>
-                        <span className="score-max">/ {result.max_score}</span>
-                    </div>
-                    <p className="result-message">
+                    <p className="result-message" style={{ marginTop: '20px' }}>
                         {language === 'ko' 
                             ? '이제 AI 튜터와 함께 본격적인 학습을 시작해볼까요?' 
                             : 'Shall we start learning with the AI tutor now?'}
@@ -115,59 +125,51 @@ const QuizScreen = ({ questions, sessionId, concept, userId, language, onComplet
                     ))}
                 </div>
 
-                {selectedChoice !== null && (
-                    <div className="confidence-section fade-in">
-                        <h3>{language === 'ko' ? '이 답에 얼마나 확신하시나요?' : 'How confident are you?'}</h3>
-                        <div className="confidence-options">
-                            <button 
-                                className={`conf-btn conf-low ${confidenceLevel === 1 ? 'active' : ''}`}
-                                onClick={() => {
-                                    setConfidenceLevel(1);
-                                    setTimeout(() => handleNextWithConf(1), 300);
-                                }}
-                            >
-                                <ShieldAlert size={18} />
-                                {language === 'ko' ? '확신 안 됨 (1)' : 'Not Sure (1)'}
-                            </button>
-                            <button 
-                                className={`conf-btn conf-mid ${confidenceLevel === 2 ? 'active' : ''}`}
-                                onClick={() => {
-                                    setConfidenceLevel(2);
-                                    setTimeout(() => handleNextWithConf(2), 300);
-                                }}
-                            >
-                                <Target size={18} />
-                                {language === 'ko' ? '보통 (2)' : 'Somewhat (2)'}
-                            </button>
-                            <button 
-                                className={`conf-btn conf-high ${confidenceLevel === 3 ? 'active' : ''}`}
-                                onClick={() => {
-                                    setConfidenceLevel(3);
-                                    setTimeout(() => handleNextWithConf(3), 300);
-                                }}
-                            >
-                                <CheckCircle2 size={18} />
-                                {language === 'ko' ? '확신함 (3)' : 'Confident (3)'}
-                            </button>
-                        </div>
+                <div className={`confidence-section ${selectedChoice === null ? 'disabled-section' : ''}`}>
+                    <h3>{language === 'ko' ? '이 답에 얼마나 확신하시나요?' : 'How confident are you?'}</h3>
+                    <div className="confidence-options">
+                        <button 
+                            className={`conf-btn conf-low ${confidenceLevel === 1 ? 'active' : ''}`}
+                            disabled={selectedChoice === null}
+                            onClick={() => {
+                                setConfidenceLevel(1);
+                                setTimeout(() => handleNextWithConf(1), 300);
+                            }}
+                        >
+                            <ShieldAlert size={18} />
+                            {language === 'ko' ? '확신 안 됨 (1)' : 'Not Sure (1)'}
+                        </button>
+                        <button 
+                            className={`conf-btn conf-mid ${confidenceLevel === 2 ? 'active' : ''}`}
+                            disabled={selectedChoice === null}
+                            onClick={() => {
+                                setConfidenceLevel(2);
+                                setTimeout(() => handleNextWithConf(2), 300);
+                            }}
+                        >
+                            <Target size={18} />
+                            {language === 'ko' ? '보통 (2)' : 'Somewhat (2)'}
+                        </button>
+                        <button 
+                            className={`conf-btn conf-high ${confidenceLevel === 3 ? 'active' : ''}`}
+                            disabled={selectedChoice === null}
+                            onClick={() => {
+                                setConfidenceLevel(3);
+                                setTimeout(() => handleNextWithConf(3), 300);
+                            }}
+                        >
+                            <CheckCircle2 size={18} />
+                            {language === 'ko' ? '확신함 (3)' : 'Confident (3)'}
+                        </button>
                     </div>
-                )}
+                </div>
             </div>
 
-            <div className="quiz-footer">
-                <button 
-                    className="quiz-next-btn"
-                    disabled={selectedChoice === null || confidenceLevel === null || isSubmitting}
-                    onClick={() => handleNextWithConf(confidenceLevel)}
-                    style={{ visibility: isSubmitting || currentIndex >= questions.length - 1 ? 'visible' : 'hidden' }}
-                >
-                    {isSubmitting ? (
-                        <div className="spinner" />
-                    ) : (
-                        <>{language === 'ko' ? '결과 확인' : 'Submit Quiz'} <CheckCircle2 size={18} /></>
-                    )}
-                </button>
-            </div>
+            {isSubmitting && (
+                <div style={{ textAlign: 'center', marginTop: '20px' }}>
+                    <div className="spinner" style={{ margin: '0 auto' }} />
+                </div>
+            )}
         </section>
     );
 };

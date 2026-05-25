@@ -405,10 +405,12 @@ function App() {
 
     const handleMissionSelect = async (mission) => {
         if (mission.id === 'coming_soon') return;
-        // Optimistic UI Update: Switch to chat screen immediately
+        // Optimistic UI Update: Switch to quiz screen immediately
         setSelectedMission(mission.id);
         setActiveNodeId('strategic');
         setHoveredMission(null);
+        setShowQuiz(true);
+        setQuizQuestions([]);
         
         // Hide initial question and show only loading state
         setMessages([]); 
@@ -429,9 +431,9 @@ function App() {
                 const quizRes = await quizAPI.getQuestions(mission.id);
                 if (quizRes.data && quizRes.data.length > 0) {
                     setQuizQuestions(quizRes.data);
-                    setShowQuiz(true);
                 } else {
                     alert(`[DB 알림] '${mission.id}'에 대한 퀴즈 데이터가 비어있습니다. (빈 배열 반환)`);
+                    setShowQuiz(false); // Fallback
                 }
             } catch (qError) {
                 console.error("Quiz API Error:", qError);
@@ -557,7 +559,7 @@ function App() {
                 <div className="header-left">
                     <div
                         className="logo-section"
-                        onClick={() => { setSelectedMission(null); setHoveredMission(null); }}
+                        onClick={() => { setSelectedMission(null); setHoveredMission(null); setShowQuiz(false); }}
                         style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', gap: '10px' }}
                     >
                         <img 
@@ -603,33 +605,35 @@ function App() {
             </header>
 
             <div className="main-content">
-                <aside className="sidebar glass-panel open">
-                    {!selectedMission ? (
-                        <div className="welcome-sidebar-content" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', padding: '20px', textAlign: 'center' }}>
-                            <div style={{ position: 'relative', marginBottom: '20px' }}>
-                                <div className="speech-bubble" style={{ position: 'relative', top: 0, left: 0, marginBottom: '20px', display: 'inline-block', fontSize: '1.1rem', padding: '10px 18px' }}>
-                                    {hoveredMission ? t(language, 'antReady') : t(language, 'antSleeping')}
+                {!(selectedMission && showQuiz) && (
+                    <aside className="sidebar glass-panel open">
+                        {!selectedMission ? (
+                            <div className="welcome-sidebar-content" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', padding: '20px', textAlign: 'center' }}>
+                                <div style={{ position: 'relative', marginbottom: '20px' }}>
+                                    <div className="speech-bubble" style={{ position: 'relative', top: 0, left: 0, marginBottom: '20px', display: 'inline-block', fontSize: '1.1rem', padding: '10px 18px' }}>
+                                        {hoveredMission ? t(language, 'antReady') : t(language, 'antSleeping')}
+                                    </div>
+                                    <img src="/images/antutor%20standup.png" alt="Ant" className="mission-card-character bobbing-character" style={{ width: '180px', height: '180px', margin: '0 auto', display: 'block' }} />
                                 </div>
-                                <img src="/images/antutor%20standup.png" alt="Ant" className="mission-card-character bobbing-character" style={{ width: '180px', height: '180px', margin: '0 auto', display: 'block' }} />
+                                
+                                {/* Motivation Section: Streak & Attendance */}
+                                <AttendanceTracker language={language} />
                             </div>
-                            
-                            {/* Motivation Section: Streak & Attendance */}
-                            <AttendanceTracker language={language} />
-                        </div>
-                    ) : (
-                        <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-                            <div className="sidebar-header"><h2>{t(language, 'learningPath')}</h2></div>
-                            {/* 학습 경로 노드 제거됨 */}
-                            <div style={{ flex: 'none', padding: '0 10px', marginTop: '30px' }}>
-                                <LineScoreChart history={scoreHistory} language={language} />
+                        ) : (
+                            <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+                                <div className="sidebar-header"><h2>{t(language, 'learningPath')}</h2></div>
+                                {/* 학습 경로 노드 제거됨 */}
+                                <div style={{ flex: 'none', padding: '0 10px', marginTop: '30px' }}>
+                                    <LineScoreChart history={scoreHistory} language={language} />
+                                </div>
+                                <div style={{ flex: 1 }}></div> {/* 스페이서로 공간 확보 */}
+                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '10px', borderTop: '1px solid var(--color-border)', backgroundColor: 'rgba(255,255,255,0.5)', marginBottom: '10px' }}>
+                                    <RadarScoreChart scores={userScores} isSidebar={true} language={language} />
+                                </div>
                             </div>
-                            <div style={{ flex: 1 }}></div> {/* 스페이서로 공간 확보 */}
-                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '10px', borderTop: '1px solid var(--color-border)', backgroundColor: 'rgba(255,255,255,0.5)', marginBottom: '10px' }}>
-                                <RadarScoreChart scores={userScores} isSidebar={true} language={language} />
-                            </div>
-                        </div>
-                    )}
-                </aside>
+                        )}
+                    </aside>
+                )}
 
                 {!selectedMission ? (
                     <section className="mission-selection-container glass-panel">
@@ -787,60 +791,62 @@ function App() {
                     </section>
                 )}
 
-                <aside className="expert-panel glass-panel" style={!selectedMission ? { width: '280px', alignItems: 'flex-start', padding: '24px' } : {}}>
-                    {!selectedMission ? (
-                        <div className="expert-team-container">
-                            <h3 className="expert-team-title">{t(language, 'myAiTeam')}</h3>
-                            <div className="expert-profiles-list">
-                                {experts.map(expert => (
-                                    <div 
-                                        key={expert.id} 
-                                        className={`expert-profile-card ${expandedSidebarExpert === expert.id ? 'expanded' : ''}`}
-                                        onClick={() => setExpandedSidebarExpert(prev => prev === expert.id ? null : expert.id)}
-                                        style={{ cursor: 'pointer' }}
-                                    >
-                                        <div className="expert-avatar-wrapper">
-                                            <img src={expert.avatar} alt={expert.name} className="expert-avatar-img" />
-                                            <div className="status-indicator online"></div>
-                                        </div>
-                                        <div className="expert-info">
-                                            <div className="expert-name-row">
-                                                <span className="expert-name" style={{ color: expert.color }}>{expert.name}</span>
-                                                <span className="online-text">Online</span>
+                {!(selectedMission && showQuiz) && (
+                    <aside className="expert-panel glass-panel" style={!selectedMission ? { width: '280px', alignItems: 'flex-start', padding: '24px' } : {}}>
+                        {!selectedMission ? (
+                            <div className="expert-team-container">
+                                <h3 className="expert-team-title">{t(language, 'myAiTeam')}</h3>
+                                <div className="expert-profiles-list">
+                                    {experts.map(expert => (
+                                        <div 
+                                            key={expert.id} 
+                                            className={`expert-profile-card ${expandedSidebarExpert === expert.id ? 'expanded' : ''}`}
+                                            onClick={() => setExpandedSidebarExpert(prev => prev === expert.id ? null : expert.id)}
+                                            style={{ cursor: 'pointer' }}
+                                        >
+                                            <div className="expert-avatar-wrapper">
+                                                <img src={expert.avatar} alt={expert.name} className="expert-avatar-img" />
+                                                <div className="status-indicator online"></div>
                                             </div>
-                                            <p className="expert-role-text">{expert.role}</p>
+                                            <div className="expert-info">
+                                                <div className="expert-name-row">
+                                                    <span className="expert-name" style={{ color: expert.color }}>{expert.name}</span>
+                                                    <span className="online-text">Online</span>
+                                                </div>
+                                                <p className="expert-role-text">{expert.role}</p>
+                                            </div>
                                         </div>
-                                    </div>
-                                ))}
-                            </div>
-                            
-                            {/* Dictionary Banner */}
-                            <div style={{ marginTop: language === 'en' ? '10px' : '40px', paddingBottom: '10px' }}>
-                                <h3 style={{ fontSize: '1.2rem', marginBottom: language === 'en' ? '12px' : '20px', color: 'var(--color-deep-navy)' }}>{t(language, 'conceptDictTitle')}</h3>
-                                <div 
-                                    className="dictionary-banner" 
-                                    onClick={() => setIsDictionaryOpen(true)}
-                                    style={{ padding: '16px', backgroundColor: 'rgba(34, 197, 94, 0.1)', color: '#15803d', borderRadius: '14px', display: 'flex', alignItems: 'center', gap: '15px', cursor: 'pointer', transition: 'transform 0.2s, background-color 0.2s' }}
-                                    onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.backgroundColor = 'rgba(34, 197, 94, 0.15)'; }}
-                                    onMouseLeave={(e) => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.backgroundColor = 'rgba(34, 197, 94, 0.1)'; }}
-                                >
-                                    <div style={{ backgroundColor: 'white', padding: '10px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 5px rgba(0,0,0,0.05)' }}>
-                                        <Library size={24} color="#15803d" />
-                                    </div>
-                                    <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                        <span style={{ fontWeight: '600', fontSize: '0.95rem' }}>{t(language, 'exploreAllConcepts')}</span>
+                                    ))}
+                                </div>
+                                
+                                {/* Dictionary Banner */}
+                                <div style={{ marginTop: language === 'en' ? '10px' : '40px', paddingBottom: '10px' }}>
+                                    <h3 style={{ fontSize: '1.2rem', marginBottom: language === 'en' ? '12px' : '20px', color: 'var(--color-deep-navy)' }}>{t(language, 'conceptDictTitle')}</h3>
+                                    <div 
+                                        className="dictionary-banner" 
+                                        onClick={() => setIsDictionaryOpen(true)}
+                                        style={{ padding: '16px', backgroundColor: 'rgba(34, 197, 94, 0.1)', color: '#15803d', borderRadius: '14px', display: 'flex', alignItems: 'center', gap: '15px', cursor: 'pointer', transition: 'transform 0.2s, background-color 0.2s' }}
+                                        onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.backgroundColor = 'rgba(34, 197, 94, 0.15)'; }}
+                                        onMouseLeave={(e) => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.backgroundColor = 'rgba(34, 197, 94, 0.1)'; }}
+                                    >
+                                        <div style={{ backgroundColor: 'white', padding: '10px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 5px rgba(0,0,0,0.05)' }}>
+                                            <Library size={24} color="#15803d" />
+                                        </div>
+                                        <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                            <span style={{ fontWeight: '600', fontSize: '0.95rem' }}>{t(language, 'exploreAllConcepts')}</span>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
-                        </div>
-                    ) : (
-                        experts.map(expert => (
-                            <button key={expert.id} className="expert-icon-btn" onClick={() => openExpertPanel(expert.id)} style={{ '--expert-color': expert.color }}>
-                                <expert.icon size={26} color={expert.color} />
-                            </button>
-                        ))
-                    )}
-                </aside>
+                        ) : (
+                            experts.map(expert => (
+                                <button key={expert.id} className="expert-icon-btn" onClick={() => openExpertPanel(expert.id)} style={{ '--expert-color': expert.color }}>
+                                    <expert.icon size={26} color={expert.color} />
+                                </button>
+                            ))
+                        )}
+                    </aside>
+                )}
 
                 <div className={`profile-drawer ${showLeftSidebarProfile ? 'open' : ''}`}>
                     <div className="drawer-content">
