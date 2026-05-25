@@ -495,7 +495,7 @@ async def chat(request: ChatRequest, background_tasks: BackgroundTasks, current_
         # 그 외의 경우 synthesis_node가 moderate_action을 설정합니다.
         synth_mode = final_state.get("moderator_action", "proceed")
 
-        if raw_avg_score >= 85:
+        if new_count >= 3 and avg_score >= 0.6:
             moderator_action = "suggest_termination"
             guidance_message = "You have achieved a high level of mastery. Would you like to terminate the session? (Yes/No)"
             scaffold_plan = {
