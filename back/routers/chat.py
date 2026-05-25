@@ -979,6 +979,29 @@ async def websocket_chat(websocket: WebSocket):
             expert_scores.get("The Macro-Connector", 0) * 100
         ) / 3.0 if expert_scores else 0.0
 
+        avg_score = raw_avg_score / 100
+
+        # 1. consecutive_high_score_count 로직
+        academic_score = expert_scores.get("The Academic Auditor", 0) if expert_scores else 0
+        current_count = session.get("consecutive_high_score_count", 0)
+
+        if current_count == 0:
+            new_count = 1 if academic_score >= 0.69 else 0
+        else:
+            new_count = current_count + 1 if avg_score >= 0.6 else 1
+
+        # 2. source_turn_count 로직
+        current_source_turn = session.get("source_turn_count", 0)
+        if avg_score >= 0.5:
+            new_source_turn = current_source_turn + 1
+        else:
+            new_source_turn = current_source_turn
+
+        supabase.table("sessions").update({
+            "consecutive_high_score_count": new_count,
+            "source_turn_count": new_source_turn
+        }).eq("session_id", session["session_id"]).execute()
+
         moderator_action = "proceed"
         scaffold_plan = None
         current_idk_count = session["idk_count"]
@@ -993,9 +1016,10 @@ async def websocket_chat(websocket: WebSocket):
             # retry_node가 final_synthesis와 moderator_action="retry"를 이미 설정합니다.
             synth_mode = final_state.get("moderator_action", "proceed")
 
-            if raw_avg_score >= 85:
+            if new_count >= 3 and avg_score >= 0.6:
                 moderator_action = "suggest_termination"
-                guidance_message = "You have achieved a high level of mastery. Would you like to terminate the session? (Yes/No)"
+                base_msg = final_state.get("final_synthesis", "Excellent job! You have fully understood this concept.")
+                guidance_message = f"{base_msg}\n\nWould you like to terminate the session? (Yes/No)"
                 scaffold_plan = {"step": "Termination Suggestion", "message": guidance_message}
             elif is_contradiction or synth_mode == "retry":
                 # retry_node 또는 is_contradiction → final_synthesis는 이미 올바른 retry 메시지
