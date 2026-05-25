@@ -30,19 +30,20 @@ def _make_neo4j_uri(uri: str) -> str:
 _NEO4J_URI   = _make_neo4j_uri(NEO4J_URI)
 _SSL_CONTEXT = ssl.create_default_context(cafile=certifi.where())
 
-# 관계 타입 → 한글 설명 매핑
-ACTION_KR_MAP = {
-    "CAUSES": "원인이 되거나 영향을 미친다",
-    "RELATED_TO": "밀접하게 관련되어 있다",
-    "PART_OF": "포함되는 상/하위 개념이다",
-    "CONTRASTS_WITH": "서로 대비되는 개념이다",
-    "REQUIRES": "이해하기 위해 선행되어야 할 개념이다",
+# Relationship type -> English description mapping
+ACTION_EN_MAP = {
+    "CAUSES": "causes or affects",
+    "RELATED_TO": "is closely related to",
+    "PART_OF": "is a part of or encompasses",
+    "CONTRASTS_WITH": "contrasts with",
+    "REQUIRES": "requires prior understanding of",
 }
 
 _CYPHER_QUERY = """
 MATCH (a:EconomicConcept {name: $keyword})-[r]-(b:EconomicConcept)
 RETURN startNode(r).name AS Subject,
        type(r)              AS Action,
+       r.reason             AS Reason,
        endNode(r).name  AS Object
 """
 
@@ -77,12 +78,17 @@ async def get_economic_facts(keyword: str) -> str:
     for record in records:
         subject = record["Subject"]
         action  = record["Action"]
+        reason  = record.get("Reason")
         obj     = record["Object"]
-        action_kr = ACTION_KR_MAP.get(action, "관계가 있다")
-        facts.append(f"- {subject}는(은) {obj}을(를) {action_kr}.")
+        action_en = ACTION_EN_MAP.get(action, "is related to")
+        
+        fact_str = f"- {subject} {action_en} {obj}."
+        if reason:
+            fact_str += f" (Reason: {reason})"
+        facts.append(fact_str)
 
     if not facts:
-        return f"지식그래프에서 '{keyword}'에 대한 관계 데이터를 찾을 수 없습니다."
+        return f"No relationship data found for '{keyword}' in the knowledge graph."
 
     return "\n".join(facts)
 
@@ -98,10 +104,10 @@ async def retrieve_knowledge_graph(concept: str) -> str:
     try:
         facts_text = await get_economic_facts(concept)
         return (
-            f"[지식그래프 컨텍스트 — '{concept}']\n"
+            f"[Knowledge Graph Context for '{concept}']\n"
             f"{facts_text}"
         )
     except Exception as e:
-        # Neo4j 연결 실패 시 빈 컨텍스트로 graceful fallback
-        print(f"[KnowledgeGraph] ⚠️  Neo4j 조회 실패 (keyword={concept}): {e}", flush=True)
-        return f"지식그래프 조회 중 오류가 발생했습니다: {str(e)}"
+        # Graceful fallback on Neo4j connection failure
+        print(f"[KnowledgeGraph] ⚠️ Neo4j Query Failed (keyword={concept}): {e}", flush=True)
+        return f"Error retrieving knowledge graph: {str(e)}"
