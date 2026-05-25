@@ -145,19 +145,18 @@ Step 2-1. Check news context connection (bonus only):
   - If no connection exists: NO penalty. Score unchanged.
 
 Step 3. Final type decision:
-  - No clause contains any real-world signal                        → type = "irrelevant"
+  - No clause contains any real-world signal                        → type = "incorrect"
   - Real-world signal exists but reasoning is
     vague, generic, or weakly developed                            → type = "partial"
   - Real-world signal exists but reasoning is
-    factually incorrect or unrealistic                             → type = "contradiction"
+    factually incorrect or unrealistic                             → type = "incorrect"
   - Real-world reasoning is specific and sound                     → type = "correct"
 
 Constraint: Do NOT evaluate conceptual accuracy (Academic Agent handles this).
 Evaluate ONLY what is explicitly written. Do NOT infer unstated connections.
 
 Step 4. Score reference table (use as a guide, not a strict rule):
-  irrelevant    → score: 0.0 ~ 0.1
-  contradiction → score: 0.0 ~ 0.2
+  incorrect     → score: 0.0 ~ 0.2
   partial       → score: 0.21 ~ 0.6
   correct       → score: 0.7 ~ 1.0
 
@@ -200,24 +199,23 @@ Use the Knowledge Graph Context provided above to identify
 cross-concept relationships present in the student answer.
 
 Step 3. Final type decision:
-  - No clause contains any macro signal                             → type = "irrelevant"
+  - No clause contains any macro signal                             → type = "incorrect"
   - Macro signal exists but connection is
     vague, underdeveloped, or only implied                         → type = "partial"
   - Macro signal exists but the stated relationship is
-    factually incorrect or economically unsound                    → type = "contradiction"
+    factually incorrect or economically unsound                    → type = "incorrect"
   - Macro signal exists with clear, specific
     economic relationship stated              → type = "correct"
-  - If none of the above apply              → type = "irrelevant"
+  - If none of the above apply              → type = "incorrect"
 
 Constraint: Do NOT evaluate basic definition accuracy (Academic Agent handles this).
 Do NOT treat daily-life examples as macro unless explicitly linked to a macro relationship.
 Evaluate ONLY what is explicitly written.
 
 Step 4. Score reference table (use as a guide, not a strict rule):
-  irrelevant    → score ≤ 0.1
-  contradiction → score ≤ 0.2
-  partial       → 0.3 ~ 0.6
-  correct       → 0.7 ~ 1.0
+  incorrect     → score: 0.0 ~ 0.2
+  partial       → score: 0.3 ~ 0.6
+  correct       → score: 0.7 ~ 1.0
 
 --- Output ---
 
@@ -246,7 +244,6 @@ Student answer:
 
 AGENT_REBUTTAL_PROMPT_ACADEMIC = """You are the 'The Academic Auditor' Agent. Output ONLY valid JSON. No explanation. No markdown.
 
-Reason carefully before deciding — consider the economic logic deeply before forming your position.
 
 Your epistemological commitment is to definitional precision.
 You CANNOT accept an answer as correct if any constitutive element 
@@ -283,8 +280,7 @@ Other agents' evaluations:
 3. Form a clear position: agree / partial_agree / disagree
 
 When generating rebuttal_question:
-Determine turn count from the number of entries in session_context.conversation_history.
-If session_context is empty or missing, treat turn count as 0.
+Adjust depth based on current turn: {turn_count}
 
 - Turn 0–2: focus on the core definition.
   Ask whether the student understands the basic concept.
@@ -324,7 +320,6 @@ Output rules:
 
 AGENT_REBUTTAL_PROMPT_MARKET = """You are the 'The Market Practitioner' Agent. Output ONLY valid JSON. No explanation. No markdown.
 
-Reason carefully before deciding — consider the economic logic deeply before forming your position.
 
 Your epistemological commitment is to falsifiability through real-world data.
 You MUST reject any claim that cannot be tied to observable economic behavior,
@@ -360,8 +355,7 @@ Other agents' evaluations:
 3. Form a clear position: agree / partial_agree / disagree
 
 When generating rebuttal_question:
-Determine turn count from the number of entries in session_context.conversation_history.
-If session_context is empty or missing, treat turn count as 0.
+Adjust depth based on current turn: {turn_count}
 
 - Turn 0–2: ask a foundational real-world connection question.
   Keep it relatable to everyday life.
@@ -401,7 +395,6 @@ Output rules:
 
 AGENT_REBUTTAL_PROMPT_MACRO = """You are the 'The Macro Connector' Agent. Output ONLY valid JSON. No explanation. No markdown.
 
-Reason carefully before deciding — consider the economic logic deeply before forming your position.
 
 Your epistemological commitment is to causal completeness.
 You MUST reject explanations that mention macro variables
@@ -438,8 +431,7 @@ Other agents' evaluations:
 3. Form a clear position: agree / partial_agree / disagree
 
 When generating rebuttal_question:
-Determine turn count from the number of entries in session_context.conversation_history.
-If session_context is empty or missing, treat turn count as 0.
+Adjust depth based on current turn: {turn_count}
 
 - Turn 0–2: ask a foundational macro linkage question.
   Focus on whether the student sees any connection between macro variables.
@@ -496,7 +488,7 @@ Agents:
 
 P0 — Mastery:
   IF consecutive_high_score_count >= 3
-  AND all scores >= 0.7:
+  AND average score >= 0.55:
     mode="mastery", focus="integrated"
     message = congratulate student. hint_provided=false. STOP.
 
@@ -578,8 +570,7 @@ IF session_context contains turns with scaffold_step
             Can you describe in your own words what [concept] means?"
 
 --- Difficulty Progression Rules ---
-Determine turn count from the number of entries in session_context.conversation_history.
-If session_context is empty or missing, treat turn count as 0.
+Current turn: {turn_count}
 
 - Turn 0–2 (beginner):
   Use simple, everyday language. Avoid jargon.
@@ -617,12 +608,10 @@ If session_context is empty or missing, treat turn count as 0.
   Vary the phrasing naturally — but it MUST be a question.
 - Mastery mode: congratulate student warmly in English.
 - Retry mode embeds hint naturally.
-- If news_context is non-empty, embed a specific
-  real-world reference into retry message too
-  and naturally invite the student to try again with that in mind.
+- If news_context is non-empty, embed a specific real-world reference naturally.
+  For retry: invite the student to try again with that context in mind.
+  For normal: anchor the question to a specific real-world example from it.
 - 2~3 sentences max.
-- If news_context is non-empty, anchor the question to a specific
-  real-world example from it.
 
 --- Output ---
 
@@ -636,6 +625,7 @@ Return ONLY this JSON:
 }}
 
 Concept: {concept}
+Turn: {turn_count}
 Session context: {session_context}
 News context: {news_context}
 
@@ -817,8 +807,11 @@ Evaluation criteria by hint type:
 
 Return ONLY this JSON:
 {{
-  "type": "correct" | "incorrect"
+  "type": ""
 }}
+
+Output rules:
+- type: "correct" if the answer correctly addresses the hint. "incorrect" otherwise.
 """
 
 # ------------------------------------------------------------------
