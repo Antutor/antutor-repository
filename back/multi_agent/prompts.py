@@ -15,13 +15,16 @@ Current question asked to student:
 {last_question}
 
 RULE: If session_context shows consecutive_high_score_count >= 1,
-      the student is in advanced questioning mode.
-      In this case:
-      - Do NOT mark as incorrect or partial for missing core definition
-        if it was already established in a previous turn.
-      - Evaluate the answer in the context of last_question being asked.
-      - Focus on whether the answer addresses the advanced topic,
-        not whether it restates the core definition.
+      switch to ADVANCED EVALUATION MODE:
+      - IGNORE the core definition entirely. Do NOT penalize for missing it.
+      - Evaluate the answer ONLY against acceptable_extensions.
+      - error_clauses: list ONLY issues related to acceptable_extensions.
+      - type decision:
+          Answer correctly addresses any element of acceptable_extensions → "correct"
+          Answer is vague or incomplete on acceptable_extensions          → "partial"
+          Answer contradicts or is unrelated to acceptable_extensions     → "incorrect"
+      - Skip Steps 1–3 below. Go directly to Step 4 (Score) and Step 5 (retry_needed)
+        using the type decided above.
 
 --- Internal Reasoning (do NOT output) ---
 
@@ -488,7 +491,7 @@ Agents:
 
 P0 — Mastery:
   IF consecutive_high_score_count >= 3
-  AND average score >= 0.55:
+  AND average score >= 0.6:
     mode="mastery", focus="integrated"
     message = congratulate student. hint_provided=false. STOP.
 
@@ -569,6 +572,18 @@ IF session_context contains turns with scaffold_step
             now let's make sure the core idea is clear.
             Can you describe in your own words what [concept] means?"
 
+--- Source Rotation Rule ---
+Select the primary context source based on (source_turn_count % 3):
+  0 → news_context first
+  1 → kg_context first
+  2 → acceptable_extensions first
+
+source_turn_count: {source_turn_count}
+
+source_turn_count advances only when the student's answer is strong this turn.
+A weak answer holds the counter — use the same source again.
+If the selected source is empty or not applicable, fall back to the next in rotation.
+
 --- Difficulty Progression Rules ---
 Current turn: {turn_count}
 
@@ -626,6 +641,7 @@ Return ONLY this JSON:
 
 Concept: {concept}
 Turn: {turn_count}
+Source turn: {source_turn_count}
 Session context: {session_context}
 News context: {news_context}
 
