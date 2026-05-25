@@ -572,6 +572,18 @@ IF session_context contains turns with scaffold_step
             now let's make sure the core idea is clear.
             Can you describe in your own words what [concept] means?"
 
+--- Source Rotation Rule ---
+Select the primary context source based on (source_turn_count % 3):
+  0 → news_context first
+  1 → kg_context first
+  2 → acceptable_extensions first
+
+source_turn_count: {source_turn_count}
+
+source_turn_count advances only when the student's answer is strong this turn.
+A weak answer holds the counter — use the same source again.
+If the selected source is empty or not applicable, fall back to the next in rotation.
+
 --- Difficulty Progression Rules ---
 Current turn: {turn_count}
 
@@ -629,6 +641,7 @@ Return ONLY this JSON:
 
 Concept: {concept}
 Turn: {turn_count}
+Source turn: {source_turn_count}
 Session context: {session_context}
 News context: {news_context}
 
