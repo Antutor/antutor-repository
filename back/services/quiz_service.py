@@ -8,7 +8,7 @@ class QuizService:
     def get_inflation_questions() -> List[QuizQuestionOut]:
         # '인플레이션' 관련 문제를 5개 가져옵니다.
         # 난이도나 카테고리 필터가 필요하다면 추후 .eq() 조건을 추가할 수 있습니다.
-        res = supabase.table("questions").select("*").limit(5).execute()
+        res = supabase.table("questions").select("*").order("question_id").limit(5).execute()
         questions_data = res.data
         
         result = []

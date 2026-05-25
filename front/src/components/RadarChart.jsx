@@ -1,5 +1,5 @@
 import React from 'react';
-import { Radar, RadarChart, PolarGrid, PolarAngleAxis, ResponsiveContainer } from 'recharts';
+import { Radar, RadarChart, PolarGrid, PolarAngleAxis, ResponsiveContainer, Tooltip } from 'recharts';
 import { t } from '../locales';
 
 function RadarScoreChart({ scores, isSidebar = false, language = 'ko' }) {
@@ -37,6 +37,7 @@ function RadarScoreChart({ scores, isSidebar = false, language = 'ko' }) {
                         dataKey="subject" 
                         tick={{ fill: 'var(--color-text-secondary)', fontSize: isSidebar ? 10 : 12, fontWeight: 600 }}
                     />
+                    <Tooltip />
                     <Radar
                         name="Score"
                         dataKey="A"

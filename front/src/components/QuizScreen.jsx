@@ -107,10 +107,20 @@ const QuizScreen = ({ questions, sessionId, concept, userId, language, isPostTes
                     <h2 style={{ fontSize: '2rem', fontWeight: '800', marginBottom: '15px' }}>
                         {language === 'ko' ? '수고하셨습니다!' : 'Great Job!'}
                     </h2>
-                    <p style={{ fontSize: '1.2rem', color: 'var(--color-text-secondary)', marginBottom: '30px' }}>
+                    <p style={{ fontSize: '1.2rem', color: 'var(--color-text-secondary)', marginBottom: '30px', lineHeight: '1.6' }}>
                         {language === 'ko' 
-                            ? '마지막으로 다시 한번 퀴즈를 풀며 학습 성장을 체크해봅시다.' 
-                            : 'Let us check your learning growth by taking the quiz one last time.'}
+                            ? (
+                                <>
+                                    참여해주셔서 정말 감사합니다. 저희의 테스트 데이터 수집을 위하여 <strong>사후 테스트</strong>까지 꼭 진행해주세요.<br/>
+                                    귀한 시간 내주셔서 진심으로 감사드립니다.
+                                </>
+                            )
+                            : (
+                                <>
+                                    Thank you so much for participating. For our test data collection, please proceed with the <strong>post-test</strong>.<br/>
+                                    We really appreciate your valuable time.
+                                </>
+                            )}
                     </p>
                     <button className="start-chat-btn" onClick={() => setStartedPostQuiz(true)}>
                         {language === 'ko' ? '사후 테스트 시작하기' : 'Start Post-test'} <ArrowRight size={18} />

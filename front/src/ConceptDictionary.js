@@ -106,37 +106,6 @@ const ConceptDictionary = ({ isOpen, onClose, initialSearchTerm, cameFromScaffol
   useEffect(() => {
     if (isOpen) {
       setShouldRender(true);
-      if (initialSearchTerm) {
-        setSearchTerm(initialSearchTerm);
-        const match = concepts.find(c => c.title.toLowerCase().includes(initialSearchTerm.toLowerCase()));
-        if (match) setExpandedCardId(match.id);
-      } else {
-        setSearchTerm('');
-        setExpandedCardId(null);
-      }
-
-      if (concepts.length === 0) {
-        const fetchConcepts = async () => {
-          setLoading(true);
-          try {
-            const listRes = await dictionaryAPI.getList(language);
-            const detailedConcepts = listRes.data.map((item) => ({
-              id: item.term,
-              title: item.term,
-              definition: item.simple_definition ? item.simple_definition.replace(/\\n/g, '\n') : "",
-              details: item.example ? item.example.replace(/\\n/g, '\n') : "",
-              rawCategory: item.category || 'Economics',
-              hint: item.simple_definition
-            }));
-            setConcepts(detailedConcepts);
-          } catch (error) {
-            console.error("Failed to load dictionary:", error);
-          } finally {
-            setLoading(false);
-          }
-        };
-        fetchConcepts();
-      }
     } else {
       const timer = setTimeout(() => setShouldRender(false), 300);
       return () => clearTimeout(timer);
@@ -184,125 +153,20 @@ const ConceptDictionary = ({ isOpen, onClose, initialSearchTerm, cameFromScaffol
                 <option value="en">🇺🇸 English</option>
               </select>
             )}
-            <div className="dict-search-wrapper">
-              <Search size={18} className="search-icon" />
-              <input
-                type="text"
-                placeholder={t(language, 'searchTermsPlaceholder')}
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-            </div>
           </div>
         </header>
 
         {/* Content Body */}
-        <div className="dict-body">
-          {loading ? (
-            <div className="loading-state" style={{ textAlign: 'center', padding: '40px', color: 'var(--color-text-secondary)' }}>
-              <div style={{ display: 'inline-block', width: '30px', height: '30px', border: '3px solid rgba(59, 130, 246, 0.3)', borderTopColor: 'var(--color-expert-academic)', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
-              <p style={{ marginTop: '15px' }}>{t(language, 'loadingDict')}</p>
-            </div>
-          ) : filteredConcepts.length === 0 ? (
-            <div className="no-results">
-              <p>"{searchTerm}"{t(language, 'noResult')}</p>
-            </div>
-          ) : (
-            <div className="concepts-grid">
-              {filteredConcepts.map(concept => {
-                const formatCategoryName = (cat, lang) => {
-                  if (!cat) return lang === 'ko' ? '기타' : 'Other';
-
-                  const lower = cat.toLowerCase().trim();
-
-                  const dict = {
-                    'finance': { ko: '금융', en: 'Finance' },
-                    'investment': { ko: '투자', en: 'Investment' },
-                    'economics': { ko: '경제학', en: 'Economics' },
-                    'market': { ko: '시장', en: 'Market' },
-                    'macro': { ko: '거시경제', en: 'Macro' },
-                    'micro': { ko: '미시경제', en: 'Micro' },
-                    'academic': { ko: '학술', en: 'Academic' }
-                  };
-
-                  for (const [key, val] of Object.entries(dict)) {
-                    if (lower.includes(key)) {
-                      return lang === 'ko' ? val.ko : val.en;
-                    }
-                  }
-
-                  return cat.charAt(0).toUpperCase() + cat.slice(1);
-                };
-
-                const getTagStyle = (cat) => {
-                  const lower = (cat || '').toLowerCase();
-                  if (lower.includes('finance')) return { icon: TrendingUp, color: '#059669', bg: 'rgba(5, 150, 105, 0.1)' };
-                  if (lower.includes('investment')) return { icon: Globe, color: '#8b5cf6', bg: 'rgba(139, 92, 246, 0.1)' };
-                  return { icon: BookOpen, color: '#10b981', bg: 'rgba(16, 185, 129, 0.1)' };
-                };
-
-                const catValue = concept.rawCategory || concept.expert || 'Economics';
-                const tagName = formatCategoryName(catValue, language);
-                const tagStyle = getTagStyle(catValue);
-                const TagIcon = tagStyle.icon;
-                const isExpanded = expandedCardId === concept.id || (initialSearchTerm && concept.title.toLowerCase().includes(initialSearchTerm.toLowerCase()));
-
-                const { first: defFirst, rest: defRest } = splitFirstParagraph(concept.definition);
-
-                return (
-                  <div
-                    key={concept.id}
-                    className={`concept-card ${isExpanded ? 'highlighted-card extended' : ''}`}
-                    onClick={() => setExpandedCardId(isExpanded ? null : concept.id)}
-                  >
-                    <div className="card-top">
-                      <div className="expert-tag" style={{ color: tagStyle.color, backgroundColor: tagStyle.bg, borderColor: tagStyle.color }}>
-                        <TagIcon size={14} />
-                        <span>{tagName}</span>
-                      </div>
-                      <h3>{concept.title}</h3>
-                    </div>
-
-                    <p className="card-definition">
-                      {formatTextWithLineBreaks(defFirst)}
-                      {!isExpanded && defRest && (
-                        <span style={{ color: 'var(--color-primary)', fontWeight: '600', marginLeft: '8px', opacity: 0.8 }}>... 더보기</span>
-                      )}
-                    </p>
-
-                    {isExpanded && (
-                      <div className="card-expanded-content" onClick={e => e.stopPropagation()}>
-                        
-                        {defRest && (
-                          <div className="card-definition-rest" style={{ marginBottom: '16px' }}>
-                            <p>{formatTextWithLineBreaks(defRest)}</p>
-                          </div>
-                        )}
-
-                        {concept.details && concept.details.trim() !== '' && (
-                          <div className="insights-block">
-                            <h4>{t(language, 'example')}</h4>
-                            <p>{formatTextWithLineBreaks(concept.details)}</p>
-                          </div>
-                        )}
-
-                        {/* Scaffolding Dynamic Integration */}
-                        {cameFromScaffolding && (
-                          <div className="scaffolding-hint-bridge">
-                            <button className="hint-btn" onClick={(e) => { e.stopPropagation(); onReturnWithHint(concept.hint); }}>
-                              <span>{t(language, 'returnWithHint')}</span>
-                              <ArrowRight size={16} />
-                            </button>
-                          </div>
-                        )}
-
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          )}
+        <div className="dict-body" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%', minHeight: '300px' }}>
+          <div style={{ textAlign: 'center', color: 'var(--color-text-secondary)' }}>
+            <BookOpen size={48} style={{ opacity: 0.2, marginBottom: '20px' }} />
+            <h3 style={{ fontSize: '1.2rem', fontWeight: '600', marginBottom: '10px' }}>
+              {language === 'ko' ? '테스트 기간이 끝난 후 다시 공개될 예정입니다' : 'It will be revealed again after the test period'}
+            </h3>
+            <p style={{ opacity: 0.7 }}>
+              {language === 'ko' ? '불편을 드려 죄송합니다.' : 'We apologize for the inconvenience.'}
+            </p>
+          </div>
         </div>
       </div>
       <style>{`
