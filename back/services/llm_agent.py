@@ -560,13 +560,21 @@ async def call_scaffold_eval(
     model: Optional[str] = None,
     temperature: Optional[float] = None
 ) -> dict:
+    eval_answer = user_answer
+    
+    # 빈칸 채우기 로직: 빈칸(____)이 포함된 힌트에 사용자의 답변을 대입하여 완전한 문장으로 만듦
+    if scaffold_step == "Fill-in-the-Blank":
+        if re.search(r'_{2,}', last_hint):
+            mixed_answer = re.sub(r'_{2,}', f"[{user_answer}]", last_hint)
+            eval_answer = f"User's filled sentence: {mixed_answer}"
+
     prompt = "/no_think\n" + SCAFFOLD_EVAL_PROMPT.format(
         concept=concept, 
         definition=definition, 
         acceptable_extensions=acceptable_extensions, 
         scaffold_step=scaffold_step,
         last_hint=last_hint,
-        user_answer=user_answer
+        user_answer=eval_answer
     )
     raw_response = await call_local_llm(prompt, is_json=True, model=model, temperature=temperature)
     try:
