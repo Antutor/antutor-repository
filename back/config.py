@@ -39,7 +39,7 @@ GIVE_UP_KEYWORDS = [
     "don't know", "give up", "not sure", "no idea", "hint", 
     "can't explain", "too hard", "stuck", "confused", "help", "idk",
     # Korean
-    "모르겠", "잘 몰라", "포기", "힌트", "모름", "알려줘", "도와줘",
-    "너무 어렵", "막혔", "설명 못하", "도움", "몰라", "모르", "어려워", "어렵"
+    "모르겠", "잘 몰라", "힌트", "모름", "알려줘",
+    "설명 못하", "몰라"
 ]
 
