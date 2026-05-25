@@ -71,10 +71,9 @@ RULE: When uncertain whether a clause is factually correct,
       the statement contradicts or is opposite to the concept.
 
 Step 2. Count ALL clauses (correct + errors):
-  correct_count           = clauses with no errors
-  incorrect_count         = clauses typed "incorrect"
-  partial_count           = clauses typed "partial"
-  correct_extension_count = clauses typed "correct_extension"
+  correct_count  = clauses with no errors
+  incorrect_count = clauses typed "incorrect"
+  partial_count   = clauses typed "partial"
 
 Step 3. Decide type (IN ORDER):
   IF incorrect_count > 0                              → "incorrect"
@@ -147,13 +146,6 @@ Real-world signals (any of these counts):
   spending, borrowing, interest rates, cost of living, exchange rates,
   inflation impact, market reaction, asset prices, unemployment
 
-Step 2-1. Check news context connection (bonus only):
-  - Read the news context provided above.
-  - If the student's answer connects to or aligns with
-    the real-world signals in the news context:
-    → apply a score bonus of up to +0.1
-  - If no connection exists: NO penalty. Score unchanged.
-
 Step 3. Final type decision:
   - No clause contains any real-world signal                        → type = "incorrect"
   - Real-world signal exists but reasoning is
@@ -216,8 +208,6 @@ Step 3. Final type decision:
     factually incorrect or economically unsound                    → type = "incorrect"
   - Macro signal exists with clear, specific
     economic relationship stated              → type = "correct"
-  - If none of the above apply              → type = "incorrect"
-
 Constraint: Do NOT evaluate basic definition accuracy (Academic Agent handles this).
 Do NOT treat daily-life examples as macro unless explicitly linked to a macro relationship.
 Evaluate ONLY what is explicitly written.
@@ -497,10 +487,9 @@ Agents:
 --- Decision Logic ---
 
 P0 — Mastery:
-  IF consecutive_high_score_count >= 3
-  AND average score >= 0.6:
-    mode="mastery", focus="integrated"
-    message = congratulate student. hint_provided=false. STOP.
+  IF mode == "mastery":
+    message = congratulate student warmly on completing the concept.
+    Do NOT ask any more questions. hint_provided = false. STOP.
 
 P1 — Retry:
   IF Academic retry_needed == true:
@@ -540,6 +529,7 @@ P1 — Retry:
               + Naturally embed hint as a directional clue
               + Close with a natural, encouraging invitation to try again
 
+    Length: 3~4 sentences max for P1 retry messages.
     → STOP.
 
 P2 — Academic weak:
@@ -622,7 +612,6 @@ Current turn: {turn_count}
   ("Can you explain~?", "How would you describe~?", "What do you think happens when~?").
 - CRITICAL: Retry message MUST end with a direct question (ending with "?").
   Vary the phrasing naturally — but it MUST be a question.
-- Mastery mode: congratulate student warmly in English.
 - Retry mode embeds hint naturally.
 - If news_context is non-empty, embed a specific real-world reference naturally.
   For retry: invite the student to try again with that context in mind.
@@ -642,6 +631,7 @@ Return ONLY this JSON:
 
 Concept: {concept}
 Turn: {turn_count}
+Mode: {mode}
 Session context: {session_context}
 News context: {news_context}
 
@@ -690,7 +680,7 @@ Do NOT give a generic concept hint. Do NOT fall back to the core definition.
 If last_question is about an advanced or applied topic, stay on that topic.
 
 Your task:
-Write 1-2 sentences in English that:
+Write 1-2 sentences in the same language as the student's answer that:
 - If 'student_answer' is provided, identify specifically what concept is misunderstood
   or missing from their answer — do NOT repeat their wrong answer verbatim
 - If 'session_context' shows prior correct elements, acknowledge them briefly
@@ -708,7 +698,7 @@ Good example:
 "If prices keep rising, what do you think happens to how much you can actually buy with the same amount of money?"
 
 Return ONLY this JSON:
-{{"message": "your English nudge text"}}"""
+{{"message": "your nudge text"}}"""
 
 # ------------------------------------------------------------------
 # Level 2 — Conceptual Hint (두 번째 모르겠어)
@@ -742,7 +732,7 @@ your hint MUST name the key concept required to answer THAT SPECIFIC QUESTION.
 Do NOT explain the general concept. Focus only on what last_question demands.
 
 Your task:
-Write 1-2 sentences in English that:
+Write 1-2 sentences in the same language as the student's answer that:
 - Review 'student_answer' and 'session_context' to pinpoint the concept
   the student consistently misses or confuses
 - Directly name the KEY concept the student is missing (drawn from core definition or acceptable extensions)
@@ -756,7 +746,7 @@ Example:
 "The key concept here is 'purchasing power' — it refers to how much you can actually buy with a given amount of money. How do you think rising prices would affect that?"
 
 Return ONLY this JSON:
-{{"message": "your English conceptual hint text"}}"""
+{{"message": "your conceptual hint text"}}"""
 
 # ------------------------------------------------------------------
 # Level 1 — Fill-in-the-blank (세 번째 모르겠어)
@@ -790,7 +780,7 @@ the blank MUST target the key term required to answer THAT SPECIFIC QUESTION.
 Do NOT fall back to a generic definition-based blank.
 
 Your task:
-Create 1 fill-in-the-blank sentence in English that:
+Create 1 fill-in-the-blank sentence in the same language as the student's answer that:
 - Review 'student_answer' and 'session_context' to find the term or concept
   the student has consistently failed to produce — target that as the blank
 - If 'last_question' is provided, construct the blank around the answer to that question
@@ -798,9 +788,6 @@ Create 1 fill-in-the-blank sentence in English that:
 - Replaces exactly 1-2 KEY terms with '____'
 - The blank = the most critical missing concept
 - The rest of the sentence makes the answer clearly inferrable
-- Starts with a warm, varied encouraging phrase.
-  Do NOT repeat the same opener every time.
-  Do NOT use "Great progress!" as a default.
 
 Rules:
 - Do NOT make multiple unrelated blanks
@@ -811,7 +798,7 @@ Example:
 "Almost there! Inflation is a phenomenon where the general price level of the economy rises continuously, causing the ____ of money to fall."
 
 Return ONLY this JSON:
-{{"message": "your English fill-in-the-blank text"}}"""
+{{"message": "your fill-in-the-blank text"}}"""
 
 # ------------------------------------------------------------------
 # Scaffold Eval — 힌트 답변 전용 평가 (scaffolding 전용 채점기)
@@ -884,7 +871,7 @@ reveal the complete answer TO THAT SPECIFIC QUESTION — not the general concept
 The scenario and follow-up question must also stay on the theme of last_question.
 
 Your task:
-Write a message in English that:
+Write a message in the same language as the student's answer that:
 1. Briefly acknowledge the student's attempts (reference session_context if non-empty)
 2. Reveal the answer explicitly:
    - First, state the fill-in-the-blank answer directly.
@@ -909,4 +896,4 @@ Rules:
 - Make the scenario extremely simple and intuitive for a beginner.
 - Do NOT make it sound like a dry test question. Keep it friendly like a conversation.
 - Return ONLY this JSON:
-{{"message": "your English solution reveal and scenario question text"}}"""
+{{"message": "your solution reveal and scenario question text"}}"""
