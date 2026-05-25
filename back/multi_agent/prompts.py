@@ -71,7 +71,7 @@ Step 2. Count ALL clauses (correct + errors):
 
 Step 3. Decide type (IN ORDER):
   IF incorrect_count > 0                              → "incorrect"
-  ELIF partial_count > 0                              → "partial"
+  ELIF partial_count > 0 AND correct_count == 0       → "partial"
   ELSE                                                → "correct"
 
   correct_extension does NOT affect type negatively.
@@ -561,6 +561,12 @@ IF session_context is non-empty:
   - Then steer toward the next missing element.
   Example: "Great improvement — you correctly identified that purchasing power
             decreases. Now can you explain what inflation itself means?"
+
+CRITICAL — No-Repeat Rule:
+  Check session_context for the last question that was sent to the student.
+  Do NOT generate a question that is semantically equivalent to it.
+  If the student already addressed the previous question (even partially),
+  advance to a new sub-topic or deepen the angle — do NOT rephrase the same question.
 
 IF session_context contains turns with scaffold_step
   (e.g. "Solution Reveal", "Concept Explanation", "Fill-in-the-Blank"):
