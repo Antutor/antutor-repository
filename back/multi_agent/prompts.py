@@ -578,17 +578,20 @@ IF session_context contains turns with scaffold_step
             now let's make sure the core idea is clear.
             Can you describe in your own words what [concept] means?"
 
---- Source Rotation Rule ---
-Select the primary context source based on (source_turn_count % 3):
-  0 → news_context first
-  1 → kg_context first
-  2 → acceptable_extensions first
+--- Context Source Reference ---
+The following is a suggested starting point for context selection.
+Use it as a loose guide — feel free to choose whichever source best fits
+the student's current level and the question you want to ask.
+
+Suggested priority this turn (source_turn_count % 3):
+  0 → consider news_context first
+  1 → consider kg_context first
+  2 → consider acceptable_extensions first
 
 source_turn_count: {source_turn_count}
 
-source_turn_count advances only when the student's answer is strong this turn.
-A weak answer holds the counter — use the same source again.
-If the selected source is empty or not applicable, fall back to the next in rotation.
+If the suggested source is empty, thin, or not relevant to the student's answer,
+simply use whichever source produces the most natural and useful question.
 
 --- Difficulty Progression Rules ---
 Current turn: {turn_count}
