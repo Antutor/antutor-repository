@@ -1,5 +1,5 @@
 import React from 'react';
-import { Radar, RadarChart, PolarGrid, PolarAngleAxis, ResponsiveContainer, Tooltip } from 'recharts';
+import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer, Tooltip } from 'recharts';
 import { t } from '../locales';
 
 function RadarScoreChart({ scores, isSidebar = false, language = 'ko' }) {
@@ -37,7 +37,35 @@ function RadarScoreChart({ scores, isSidebar = false, language = 'ko' }) {
                         dataKey="subject" 
                         tick={{ fill: 'var(--color-text-secondary)', fontSize: isSidebar ? 10 : 12, fontWeight: 600 }}
                     />
-                    <Tooltip />
+                    <PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} axisLine={false} />
+                    <Tooltip 
+                        content={({ active, payload, label }) => {
+                            if (active && payload && payload.length) {
+                                return (
+                                    <div style={{
+                                        background: 'rgba(255, 255, 255, 0.95)',
+                                        backdropFilter: 'blur(8px)',
+                                        border: '1px solid rgba(226, 232, 240, 0.8)',
+                                        borderRadius: '16px',
+                                        padding: '6px 12px',
+                                        boxShadow: '0 4px 15px rgba(0, 0, 0, 0.08)',
+                                        fontSize: '0.85rem',
+                                        fontWeight: '600',
+                                        color: '#1e293b',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '6px'
+                                    }}>
+                                        <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#3b82f6' }}></div>
+                                        <span>{label}: </span>
+                                        <span style={{ color: '#3b82f6', fontWeight: '800' }}>{payload[0].value}</span>
+                                    </div>
+                                );
+                            }
+                            return null;
+                        }} 
+                        cursor={false}
+                    />
                     <Radar
                         name="Score"
                         dataKey="A"

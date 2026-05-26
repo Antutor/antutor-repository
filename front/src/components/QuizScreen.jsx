@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowRight, CheckCircle2, ShieldAlert, Target, Award, Brain, ChevronLeft, ChevronRight, Lightbulb } from 'lucide-react';
+import { ArrowRight, CheckCircle2, ShieldAlert, Target, Award, Brain, ChevronLeft, ChevronRight, Lightbulb, Calculator } from 'lucide-react';
 import { quizAPI } from '../api/services';
 import { t } from '../locales';
 import './QuizScreen.css';
@@ -13,16 +13,31 @@ const QuizScreen = ({ questions, sessionId, concept, userId, language, isPostTes
     const [reviewPage, setReviewPage] = useState(0);
     const [showCommentary, setShowCommentary] = useState(false);
 
+    const displayQuestions = React.useMemo(() => {
+        if (!questions) return [];
+        if (isPostTest && questions.length >= 5) {
+            return [
+                questions[4],
+                questions[0],
+                questions[3],
+                questions[1],
+                questions[2],
+                ...questions.slice(5)
+            ];
+        }
+        return questions;
+    }, [questions, isPostTest]);
+
     // Initialize answers array when questions are loaded
     useEffect(() => {
-        if (questions && questions.length > 0 && answers.length === 0) {
-            setAnswers(questions.map(q => ({
+        if (displayQuestions && displayQuestions.length > 0 && answers.length === 0) {
+            setAnswers(displayQuestions.map(q => ({
                 question_id: q.id,
                 selected_choice: null,
                 confidence_level: null
             })));
         }
-    }, [questions]);
+    }, [displayQuestions]);
 
     const currentAnswer = answers[currentIndex] || { selected_choice: null, confidence_level: null };
     const selectedChoice = currentAnswer.selected_choice;
@@ -47,7 +62,7 @@ const QuizScreen = ({ questions, sessionId, concept, userId, language, isPostTes
     };
 
     const handleNextOrSubmit = () => {
-        if (currentIndex < questions.length - 1) {
+        if (currentIndex < displayQuestions.length - 1) {
             setCurrentIndex(currentIndex + 1);
         } else {
             const isAllFilled = answers.every(a => a.selected_choice !== null && a.confidence_level !== null);
@@ -80,7 +95,7 @@ const QuizScreen = ({ questions, sessionId, concept, userId, language, isPostTes
         }
     };
 
-    if (!questions || questions.length === 0) {
+    if (!displayQuestions || displayQuestions.length === 0) {
         return (
             <section className="quiz-container glass-panel fade-in" style={{ justifyContent: 'center', alignItems: 'center', minHeight: '50vh' }}>
                 <div style={{ textAlign: 'center', color: 'var(--color-deep-navy)' }}>
@@ -143,8 +158,8 @@ const QuizScreen = ({ questions, sessionId, concept, userId, language, isPostTes
                                 </h2>
                                 
                                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '40px', alignItems: 'flex-start' }}>
-                                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', background: 'rgba(241, 245, 249, 0.5)', padding: '40px 30px', borderRadius: '24px' }}>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '30px' }}>
+                                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', background: 'rgba(241, 245, 249, 0.5)', padding: '25px 30px', borderRadius: '24px' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '15px' }}>
                                             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                                                 <span style={{ fontSize: '1.2rem', color: 'var(--color-text-secondary)', fontWeight: '600', marginBottom: '8px' }}>
                                                     {language === 'ko' ? '내 점수' : 'My Score'}
@@ -164,16 +179,52 @@ const QuizScreen = ({ questions, sessionId, concept, userId, language, isPostTes
                                             </div>
                                         </div>
                                         
-                                        <div style={{ background: 'white', padding: '25px', borderRadius: '16px', boxShadow: '0 4px 15px rgba(0,0,0,0.03)', width: '100%' }}>
-                                            <h4 style={{ color: 'var(--color-deep-navy)', marginBottom: '12px', fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                                <Brain size={18} color="#8b5cf6" />
+                                        <div style={{ background: 'white', padding: '20px', borderRadius: '16px', boxShadow: '0 4px 15px rgba(0,0,0,0.03)', width: '100%' }}>
+                                            <h4 style={{ color: 'var(--color-deep-navy)', marginBottom: '10px', fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                <Calculator size={18} color="#8b5cf6" />
                                                 {language === 'ko' ? 'CBM 채점 방식 적용' : 'CBM Scoring Applied'}
                                             </h4>
-                                            <p style={{ fontSize: '0.95rem', color: 'var(--color-text-secondary)', lineHeight: '1.6', margin: 0, wordBreak: 'keep-all' }}>
-                                                {language === 'ko' 
-                                                    ? '단순한 정/오답을 넘어, 문제를 풀 때 표시한 확신도에 따라 점수가 차등 부여되었습니다. 높은 확신도로 오답을 선택할 경우 감점 폭이 커져 스스로의 메타인지(객관적 지식 수준)를 성찰할 수 있습니다.'
-                                                    : 'Scores are weighted by your reported certainty level. Incorrect answers with high certainty carry heavier penalties to encourage accurate self-assessment.'}
-                                            </p>
+                                            <div style={{ fontSize: '0.95rem', color: 'var(--color-text-secondary)', lineHeight: '1.6', margin: 0, wordBreak: 'keep-all' }}>
+                                                {language === 'ko' ? (
+                                                    <p style={{ margin: 0 }}>
+                                                        <strong>확신도 기반 채점(CBM: Certainty-Based Marking)</strong>은 정답에 대해 '얼마나 확신하는지'를 함께 평가하는 방식입니다. 단순한 정/오답 평가를 넘어, 무작위 찍기를 방지하고 학생의 실제 이해도와 메타인지(객관적 지식 수준)를 측정하기 위해 고안되었습니다.
+                                                    </p>
+                                                ) : (
+                                                    <p style={{ margin: 0 }}>
+                                                        <strong>Certainty-Based Marking (CBM)</strong> assesses how confident you are in your answer. It goes beyond simple correct/incorrect grading to prevent random guessing and measure actual understanding and metacognition.
+                                                    </p>
+                                                )}
+                                            </div>
+                                            
+                                            <div style={{ marginTop: '20px', overflowX: 'auto', display: 'flex', justifyContent: 'center' }}>
+                                                <table style={{ borderCollapse: 'collapse', fontSize: '0.9rem', textAlign: 'center', color: '#000', border: '1px solid #000', width: '100%' }}>
+                                                    <thead>
+                                                        <tr>
+                                                            <th style={{ border: '1px solid #000', padding: '8px 12px', fontWeight: '500', textAlign: 'left' }}>Confidence level :</th>
+                                                            <th style={{ border: '1px solid #000', padding: '8px 12px', fontWeight: '500' }}>C=1<br/>(low)</th>
+                                                            <th style={{ border: '1px solid #000', padding: '8px 12px', fontWeight: '500' }}>C=2<br/>(mid)</th>
+                                                            <th style={{ border: '1px solid #000', padding: '8px 12px', fontWeight: '500' }}>C=3<br/>(high)</th>
+                                                            <th style={{ border: '1px solid #000', padding: '8px 12px', fontWeight: '500' }}>No<br/>Reply</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        <tr>
+                                                            <td style={{ border: '1px solid #000', padding: '8px 12px', textAlign: 'left' }}>Mark if correct :</td>
+                                                            <td style={{ border: '1px solid #000', padding: '8px 12px' }}>1</td>
+                                                            <td style={{ border: '1px solid #000', padding: '8px 12px' }}>2</td>
+                                                            <td style={{ border: '1px solid #000', padding: '8px 12px' }}>3</td>
+                                                            <td style={{ border: '1px solid #000', padding: '8px 12px' }}>(0)</td>
+                                                        </tr>
+                                                        <tr>
+                                                            <td style={{ border: '1px solid #000', padding: '8px 12px', textAlign: 'left' }}>Penalty if wrong :</td>
+                                                            <td style={{ border: '1px solid #000', padding: '8px 12px' }}>0</td>
+                                                            <td style={{ border: '1px solid #000', padding: '8px 12px' }}>- 2</td>
+                                                            <td style={{ border: '1px solid #000', padding: '8px 12px' }}>- 6</td>
+                                                            <td style={{ border: '1px solid #000', padding: '8px 12px' }}>(0)</td>
+                                                        </tr>
+                                                    </tbody>
+                                                </table>
+                                            </div>
                                         </div>
                                     </div>
 
@@ -182,14 +233,14 @@ const QuizScreen = ({ questions, sessionId, concept, userId, language, isPostTes
                                             <Target size={24} color="#3b82f6" />
                                             {language === 'ko' ? '문항별 점수 상세 내역' : 'Score Details by Question'}
                                         </h3>
-                                        <div style={{ width: '100%', backgroundColor: 'white', borderRadius: '16px', padding: '15px 25px', boxShadow: '0 4px 15px rgba(0,0,0,0.03)' }}>
+                                        <div style={{ width: '100%', backgroundColor: 'white', borderRadius: '16px', padding: '15px 20px', boxShadow: '0 4px 15px rgba(0,0,0,0.03)' }}>
                                             {result.details.map((detail, idx) => {
                                                 const userAnswer = answers.find(a => a.question_id === detail.question_id);
                                                 const isCorrect = userAnswer?.selected_choice === detail.correct_option;
                                                 const earnedScore = detail.earned_score || 0;
                                                 
                                                 return (
-                                                    <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 0', borderBottom: '1px solid #e2e8f0' }}>
+                                                    <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: '1px solid #e2e8f0' }}>
                                                         <span style={{ fontWeight: '600', fontSize: '1.15rem', color: 'var(--color-text-primary)' }}>
                                                             Q{idx + 1}. <span style={{ color: isCorrect ? '#10b981' : '#ef4444', marginLeft: '6px' }}>{isCorrect ? (language === 'ko' ? '정답' : 'Correct') : (language === 'ko' ? '오답' : 'Incorrect')}</span>
                                                         </span>
@@ -199,10 +250,13 @@ const QuizScreen = ({ questions, sessionId, concept, userId, language, isPostTes
                                                     </div>
                                                 );
                                             })}
-                                            <div style={{ marginTop: '20px' }}>
-                                                <button className="start-chat-btn" onClick={() => setShowCommentary(true)} style={{ width: '100%', justifyContent: 'center', padding: '16px', fontSize: '1.1rem' }}>
+                                            <div style={{ marginTop: '15px' }}>
+                                                <button className="start-chat-btn" onClick={() => setShowCommentary(true)} style={{ width: '100%', justifyContent: 'center', padding: '14px', fontSize: '1.1rem' }}>
                                                     {language === 'ko' ? '상세 해설 보기' : 'View Detailed Commentary'} <ArrowRight size={22} />
                                                 </button>
+                                                <p style={{ textAlign: 'center', marginTop: '8px', fontSize: '0.85rem', color: 'var(--color-text-secondary)', fontWeight: '500' }}>
+                                                    {language === 'ko' ? '💡 최종 평가 지표는 상세 해설을 모두 확인한 후 나타납니다.' : '💡 The final evaluation metrics will appear after reviewing all detailed commentaries.'}
+                                                </p>
                                             </div>
                                         </div>
                                     </div>
@@ -219,7 +273,7 @@ const QuizScreen = ({ questions, sessionId, concept, userId, language, isPostTes
                                 <div className="review-list" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
                                     {result.details.slice(reviewPage * 2, reviewPage * 2 + 2).map((detail, idx) => {
                                         const actualIdx = reviewPage * 2 + idx;
-                                        const question = questions.find(q => q.id === detail.question_id);
+                                        const question = displayQuestions.find(q => q.id === detail.question_id);
                                         const userAnswer = answers.find(a => a.question_id === detail.question_id);
                                         const isCorrect = userAnswer?.selected_choice === detail.correct_option;
                                         
@@ -306,21 +360,21 @@ const QuizScreen = ({ questions, sessionId, concept, userId, language, isPostTes
                     <div className="result-icon-wrapper">
                         <Award size={48} color="#f59e0b" />
                     </div>
-                    <h2>{language === 'ko' ? '사전 테스트 완료!' : 'Pre-test Complete!'}</h2>
+                    <h2>{language === 'ko' ? (isPostTest ? '사후 테스트 완료!' : '사전 테스트 완료!') : (isPostTest ? 'Post-test Complete!' : 'Pre-test Complete!')}</h2>
                     <p className="result-message" style={{ marginTop: '20px' }}>
                         {language === 'ko' 
-                            ? '이제 AI 튜터와 함께 본격적인 학습을 시작해볼까요?' 
-                            : 'Shall we start learning with the AI tutor now?'}
+                            ? (isPostTest ? '최종 리포트를 확인해볼까요?' : '이제 AI 튜터와 함께 본격적인 학습을 시작해볼까요?') 
+                            : (isPostTest ? 'Shall we view the final report?' : 'Shall we start learning with the AI tutor now?')}
                     </p>
                     <button className="start-chat-btn" onClick={onComplete}>
-                        {language === 'ko' ? '학습 시작하기' : 'Start Learning'} <ArrowRight size={18} />
+                        {language === 'ko' ? (isPostTest ? '결과 보기' : '학습 시작하기') : (isPostTest ? 'View Results' : 'Start Learning')} <ArrowRight size={18} />
                     </button>
                 </div>
             </section>
         );
     }
 
-    const question = questions[currentIndex];
+    const question = displayQuestions[currentIndex];
 
     return (
         <section className="quiz-container glass-panel fade-in">
@@ -328,12 +382,12 @@ const QuizScreen = ({ questions, sessionId, concept, userId, language, isPostTes
                 <div className="quiz-progress-bar">
                     <div 
                         className="quiz-progress-fill" 
-                        style={{ width: `${((currentIndex) / questions.length) * 100}%` }}
+                        style={{ width: `${((currentIndex) / displayQuestions.length) * 100}%` }}
                     />
                 </div>
                 <div className="quiz-meta">
                     <span className="quiz-badge">{isPostTest ? 'Post-test' : 'Pre-test'}</span>
-                    <span className="quiz-counter">Q {currentIndex + 1} / {questions.length}</span>
+                    <span className="quiz-counter">Q {currentIndex + 1} / {displayQuestions.length}</span>
                 </div>
                 <h2 className="quiz-question-text">{question.question}</h2>
             </div>
@@ -397,7 +451,7 @@ const QuizScreen = ({ questions, sessionId, concept, userId, language, isPostTes
                     onClick={handleNextOrSubmit}
                     disabled={selectedChoice === null || confidenceLevel === null}
                 >
-                    {currentIndex < questions.length - 1 ? (
+                    {currentIndex < displayQuestions.length - 1 ? (
                         <>{language === 'ko' ? '다음' : 'Next'} <ChevronRight size={20} /></>
                     ) : (
                         <>{language === 'ko' ? '제출하기' : 'Submit'} <CheckCircle2 size={20} /></>

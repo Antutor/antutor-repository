@@ -467,7 +467,7 @@
   transform: translateY(-2px);
 }
 
-.input-wrapper input {
+.input-wrapper textarea {
   flex: 1;
   border: none;
   outline: none;
@@ -476,9 +476,14 @@
   color: var(--color-text-primary);
   font-family: inherit;
   background: transparent;
+  resize: vertical;
+  min-height: 24px;
+  max-height: 200px;
+  line-height: 1.5;
+  overflow-y: auto;
 }
 
-.input-wrapper input::placeholder {
+.input-wrapper textarea::placeholder {
   color: var(--color-text-secondary);
 }
 

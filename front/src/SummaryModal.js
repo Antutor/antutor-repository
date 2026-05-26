@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { 
-  Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer 
+  Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer, Tooltip
 } from 'recharts';
 import { X, Award, AlertCircle, ArrowRight } from 'lucide-react';
 import './SummaryModal.css';
@@ -44,6 +44,27 @@ const SummaryModal = ({ isOpen, onClose, helpCountLevel1, helpCountLevel2, helpC
     }
   }, [isOpen]);
 
+  const CustomTooltip = ({ active, payload, label }) => {
+    if (active && payload && payload.length) {
+      return (
+        <div style={{
+          background: 'rgba(255, 255, 255, 0.95)',
+          border: '1px solid #e2e8f0',
+          borderRadius: '16px',
+          padding: '8px 14px',
+          boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
+          textAlign: 'center'
+        }}>
+          <p style={{ margin: '0 0 4px 0', fontSize: '0.85rem', color: 'var(--color-text-secondary)', fontWeight: '600' }}>{label}</p>
+          <p style={{ margin: 0, fontSize: '1.1rem', color: 'var(--color-expert-academic)', fontWeight: '800' }}>
+            {payload[0].value} <span style={{ fontSize: '0.75rem', fontWeight: '500', color: '#94a3b8' }}>pts</span>
+          </p>
+        </div>
+      );
+    }
+    return null;
+  };
+
   if (!shouldRender) return null;
 
   return (
@@ -78,6 +99,7 @@ const SummaryModal = ({ isOpen, onClose, helpCountLevel1, helpCountLevel2, helpC
                   <PolarGrid stroke="#e2e8f0" />
                   <PolarAngleAxis dataKey="subject" tick={{ fill: 'var(--color-text-secondary)', fontSize: 12, fontWeight: 500 }} />
                   <PolarRadiusAxis angle={30} domain={[0, maxScore]} tick={false} axisLine={false} />
+                  <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(241, 245, 249, 0.4)' }} />
                   <Radar
                     name="Student"
                     dataKey="value"
@@ -92,6 +114,15 @@ const SummaryModal = ({ isOpen, onClose, helpCountLevel1, helpCountLevel2, helpC
                   />
                 </RadarChart>
               </ResponsiveContainer>
+            </div>
+            <div style={{ textAlign: 'center', marginTop: '15px' }}>
+              <p style={{ color: 'var(--color-text-secondary)', fontSize: '1rem', margin: '0 0 5px 0', fontWeight: '500' }}>
+                {language === 'ko' ? '기본 점수' : 'Base Score'}
+              </p>
+              <p style={{ color: 'var(--color-expert-academic)', fontSize: '2.5rem', fontWeight: '800', margin: 0 }}>
+                {reportData?.base_score !== undefined ? reportData.base_score.toFixed(1) : '0.0'}
+                <span style={{ fontSize: '1.2rem', color: '#cbd5e1', fontWeight: '400', marginLeft: '8px' }}>/ 100</span>
+              </p>
             </div>
           </div>
 

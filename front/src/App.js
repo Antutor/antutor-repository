@@ -404,7 +404,12 @@ function App() {
         };
     };
 
-    const handleKeyDown = (e) => { if (e.key === 'Enter') { e.preventDefault(); handleSendMessage(); } };
+    const handleKeyDown = (e) => { 
+        if (e.key === 'Enter' && !e.shiftKey) { 
+            e.preventDefault(); 
+            handleSendMessage(); 
+        } 
+    };
 
     const openExpertPanel = (id) => {
         if (activeExpert === id) { setActiveExpert(null); }
@@ -425,6 +430,7 @@ function App() {
         setActiveNodeId('strategic');
         setHoveredMission(null);
         setShowQuiz(true);
+        setShowPostQuiz(false);
         setQuizQuestions([]);
         setIsEndSuggested(false);
         
@@ -473,6 +479,7 @@ function App() {
             setReportData(null);
             setExpertFeedbackData([]);
             setScoreHistory([]);
+            setIsSummaryModalOpen(false);
             
             const elapsed = Date.now() - thinkingStartTime;
             setTimeout(() => setIsThinking(false), Math.max(0, 600 - elapsed));
@@ -576,7 +583,7 @@ function App() {
                 <div className="header-left">
                     <div
                         className="logo-section"
-                        onClick={() => { setSelectedMission(null); setHoveredMission(null); setShowQuiz(false); }}
+                        onClick={() => { setSelectedMission(null); setHoveredMission(null); setShowQuiz(false); setShowPostQuiz(false); setIsSummaryModalOpen(false); }}
                         style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', gap: '10px' }}
                     >
                         <img 
@@ -608,7 +615,10 @@ function App() {
                         </button>
                     )}
 
-                    <button className="summary-btn" style={{ padding: '8px 16px', backgroundColor: 'var(--color-bg-light)', border: '1px solid var(--color-border)', color: 'var(--color-deep-navy)' }} onClick={() => setIsLoggedIn(false)}>
+                    <button className="summary-btn" style={{ padding: '8px 16px', backgroundColor: 'var(--color-bg-light)', border: '1px solid var(--color-border)', color: 'var(--color-deep-navy)' }} onClick={() => {
+                        localStorage.removeItem('access_token');
+                        window.location.reload();
+                    }}>
                         {t(language, 'logout')}
                     </button>
                 </div>
@@ -713,10 +723,15 @@ function App() {
                                 <div key={msg.id} className={`message ${msg.sender}`}>
                                     <div className="message-bubble">
                                         {msg.text}
-                                        {msg.scaffold?.step === "Sub-concept Nudge" && (
+                                        {msg.scaffold?.step && ["Sub-concept Nudge", "Concept Explanation", "Fill-in-the-Blank", "Solution Reveal"].includes(msg.scaffold.step) && (
                                             <div className="scaffold-hint-badge">
-                                                <Lightbulb size={14} />
-                                                <span>{t(language, 'hintIncluded')}</span>
+                                                {msg.scaffold.step === "Solution Reveal" ? <CheckCircle size={14} /> : msg.scaffold.step === "Fill-in-the-Blank" ? <Info size={14} /> : <Lightbulb size={14} />}
+                                                <span>
+                                                    {msg.scaffold.step === "Sub-concept Nudge" ? t(language, 'hintIncludedL1') : 
+                                                     msg.scaffold.step === "Concept Explanation" ? t(language, 'hintIncludedL2') : 
+                                                     msg.scaffold.step === "Fill-in-the-Blank" ? t(language, 'hintIncludedL3') :
+                                                     t(language, 'hintIncludedL4')}
+                                                </span>
                                             </div>
                                         )}
                                     </div>
@@ -831,7 +846,7 @@ function App() {
                                 </div>
                             ) : (
                                 <div style={{ width: '100%' }}>
-                                    <div className="help-action-chips" style={{ display: 'flex', gap: '10px', marginBottom: '12px', animation: 'fadeInUp 0.4s ease-out' }}>
+                                    <div className="help-action-chips" style={{ display: 'flex', gap: '10px', marginBottom: '12px', animation: 'fadeInUp 0.4s ease-out', alignItems: 'center' }}>
                                         <button 
                                             className="help-action-chip" 
                                             onClick={() => handleSendMessage(t(language, 'requestHint'))}
@@ -840,6 +855,9 @@ function App() {
                                             <Lightbulb size={14} />
                                             <span>{t(language, 'requestHint')}</span>
                                         </button>
+                                        <span style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)', fontWeight: '500' }}>
+                                            {language === 'ko' ? '💡 답변하기 어려운 경우엔 왼쪽 힌트요청 버튼을 눌러주세요.' : '💡 If you find it difficult to answer, please click the hint button on the left.'}
+                                        </span>
                                     </div>
                                     {currentScaffold && (
                                         <div className={`scaffold-info-banner ${currentScaffold.type === 'Fill-in-the-Blank' ? 'fill-mode' : 'nudge-mode'}`}>
@@ -850,13 +868,13 @@ function App() {
                                         </div>
                                     )}
                                     <div className={`input-wrapper ${currentScaffold?.type === 'Fill-in-the-Blank' ? 'highlight-input' : ''}`}>
-                                        <input 
-                                            type="text" 
+                                        <textarea 
                                             value={inputValue} 
                                             onChange={(e) => setInputValue(e.target.value)} 
                                             onKeyDown={handleKeyDown} 
                                             placeholder={currentScaffold?.type === 'Fill-in-the-Blank' ? t(language, 'fillBlankPlaceholder') : t(language, 'answerPlaceholder')} 
                                             disabled={isResumePending} 
+                                            rows={1}
                                         />
                                         <button className="send-btn" onClick={handleSendMessage} disabled={isResumePending}><Send size={18} /></button>
                                     </div>
