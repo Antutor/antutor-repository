@@ -664,8 +664,21 @@ async def call_scaffold_eval(
 ) -> dict:
     eval_answer = user_answer
     
+    # scaffold_step 정규화 (프롬프트 내의 힌트 타입명과 백엔드 전달값의 일관성 보장)
+    normalized_step = scaffold_step
+    if scaffold_step:
+        step_lower = scaffold_step.lower().strip()
+        if "nudge" in step_lower or "sub-concept" in step_lower or "subconcept" in step_lower:
+            normalized_step = "Sub-concept Nudge"
+        elif "explanation" in step_lower or "concept" in step_lower:
+            normalized_step = "Concept Explanation"
+        elif "blank" in step_lower or "fill" in step_lower:
+            normalized_step = "Fill-in-the-Blank"
+        elif "reveal" in step_lower or "solution" in step_lower:
+            normalized_step = "Solution Reveal"
+
     # 빈칸 채우기 로직: 빈칸(____)이 포함된 힌트에 사용자의 답변을 대입하여 완전한 문장으로 만듦
-    if scaffold_step == "Fill-in-the-Blank":
+    if normalized_step == "Fill-in-the-Blank":
         if re.search(r'_{2,}', last_hint):
             mixed_answer = re.sub(r'_{2,}', f"[{user_answer}]", last_hint)
             eval_answer = f"User's filled sentence: {mixed_answer}"
@@ -674,7 +687,7 @@ async def call_scaffold_eval(
         concept=concept, 
         definition=definition, 
         acceptable_extensions=acceptable_extensions, 
-        scaffold_step=scaffold_step,
+        scaffold_step=normalized_step,
         last_hint=last_hint,
         user_answer=eval_answer
     )
