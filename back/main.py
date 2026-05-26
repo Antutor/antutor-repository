@@ -6,13 +6,44 @@ if sys.platform != "win32":
     except ImportError:
         pass
 
-from fastapi import FastAPI
+from contextlib import asynccontextmanager
+import asyncio
+from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 
 # Import standard routers
 from routers import users, dictionary, chat, sandbox, benchmark, attendance, quiz
 
-app = FastAPI(title="Antutor Metric AI Backend", description="Sejong University Capstone Backend")
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # 서버 시작 시 임베딩 모델 미리 로드 (첫 요청 지연 방지)
+    async def _warmup():
+        try:
+            from services.semantic_cache import get_embedding
+            await get_embedding("warmup")
+            print("🚀 [Startup] Embedding model warm-up complete.", flush=True)
+        except Exception as e:
+            print(f"⚠️ [Startup] Embedding warm-up failed (non-critical): {e}", flush=True)
+    asyncio.create_task(_warmup())
+    yield
+
+app = FastAPI(
+    title="Antutor Metric AI Backend",
+    description="Sejong University Capstone Backend",
+    lifespan=lifespan
+)
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    print(f"🚨 422 Validation Error on {request.url}: {exc.errors()}", flush=True)
+    print(f"🚨 Body: {exc.body}", flush=True)
+    return JSONResponse(
+        status_code=422,
+        content={"detail": exc.errors(), "body": exc.body},
+    )
+
 
 app.add_middleware(
     CORSMiddleware,

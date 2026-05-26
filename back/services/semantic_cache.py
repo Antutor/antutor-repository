@@ -33,7 +33,9 @@ from typing import Optional
 # ---------------------------------------------------------------------------
 # 임베딩 모델 — Lazy 초기화 (서버 시작 속도 보호)
 # ---------------------------------------------------------------------------
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
+
+KST = timezone(timedelta(hours=9))
 from database import supabase
 
 # ---------------------------------------------------------------------------
@@ -177,7 +179,7 @@ async def save_to_cache(concept: str, user_answer: str, response: str) -> None:
                 "user_answer": user_answer,
                 "cached_response": response,
                 "embedding": embedding,
-                "created_at": datetime.utcnow().isoformat()
+                "created_at": datetime.now(KST).isoformat()
             }).execute()
             print(
                 f"💾 [SemanticCache] 캐시 DB 저장 완료 "
