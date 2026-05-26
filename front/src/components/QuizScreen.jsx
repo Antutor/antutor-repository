@@ -12,6 +12,15 @@ const QuizScreen = ({ questions, sessionId, concept, userId, language, isPostTes
     const [startedPostQuiz, setStartedPostQuiz] = useState(false);
     const [reviewPage, setReviewPage] = useState(0);
     const [showCommentary, setShowCommentary] = useState(false);
+    const [showInstructions, setShowInstructions] = useState(true);
+    const [isMinLoadingDone, setIsMinLoadingDone] = useState(false);
+
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            setIsMinLoadingDone(true);
+        }, 5000);
+        return () => clearTimeout(timer);
+    }, []);
 
     const displayQuestions = React.useMemo(() => {
         if (!questions) return [];
@@ -46,7 +55,14 @@ const QuizScreen = ({ questions, sessionId, concept, userId, language, isPostTes
     const handleChoiceSelect = (choiceIdx) => {
         if (answers.length === 0) return;
         const newAnswers = [...answers];
-        newAnswers[currentIndex] = { ...newAnswers[currentIndex], selected_choice: choiceIdx };
+        
+        const isIdk = choiceIdx === displayQuestions[currentIndex].choices.length + 1;
+        
+        newAnswers[currentIndex] = { 
+            ...newAnswers[currentIndex], 
+            selected_choice: choiceIdx,
+            confidence_level: isIdk ? 0 : (newAnswers[currentIndex].confidence_level === 0 ? null : newAnswers[currentIndex].confidence_level)
+        };
         setAnswers(newAnswers);
     };
 
@@ -81,7 +97,7 @@ const QuizScreen = ({ questions, sessionId, concept, userId, language, isPostTes
                 session_id: sessionId,
                 user_id: userId,
                 concept: concept,
-                is_pre_test: !isPostTest,
+                is_pre_test: isPostTest === true ? false : true,
                 answers: finalAnswers
             };
             const response = await quizAPI.submitQuiz(payload);
@@ -95,7 +111,7 @@ const QuizScreen = ({ questions, sessionId, concept, userId, language, isPostTes
         }
     };
 
-    if (!displayQuestions || displayQuestions.length === 0) {
+    if (!displayQuestions || displayQuestions.length === 0 || !isMinLoadingDone) {
         return (
             <section className="quiz-container glass-panel fade-in" style={{ justifyContent: 'center', alignItems: 'center', minHeight: '50vh' }}>
                 <div style={{ textAlign: 'center', color: 'var(--color-deep-navy)' }}>
@@ -109,6 +125,80 @@ const QuizScreen = ({ questions, sessionId, concept, userId, language, isPostTes
                         <div style={{ width: '12px', height: '12px', backgroundColor: 'var(--color-expert-academic)', borderRadius: '50%', animation: 'bounce 1.4s infinite ease-in-out both' }}></div>
                         <div style={{ width: '12px', height: '12px', backgroundColor: 'var(--color-expert-academic)', borderRadius: '50%', animation: 'bounce 1.4s infinite ease-in-out both', animationDelay: '0.2s' }}></div>
                         <div style={{ width: '12px', height: '12px', backgroundColor: 'var(--color-expert-academic)', borderRadius: '50%', animation: 'bounce 1.4s infinite ease-in-out both', animationDelay: '0.4s' }}></div>
+                    </div>
+                </div>
+            </section>
+        );
+    }
+    
+    if (showInstructions) {
+        return (
+            <section className="quiz-container glass-panel fade-in" style={{ maxWidth: '800px', width: '95%', margin: '10px auto', padding: '15px' }}>
+                <div style={{ padding: '25px 30px', borderRadius: '16px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px', marginBottom: '20px' }}>
+                        <Calculator size={34} color="#8b5cf6" />
+                        <h2 style={{ fontSize: '1.8rem', color: 'var(--color-deep-navy)', margin: 0 }}>
+                            {language === 'ko' ? '테스트 방식 안내' : 'Test Method Guide'}
+                        </h2>
+                    </div>
+
+                    <div style={{ fontSize: '1rem', color: 'var(--color-text-secondary)', lineHeight: '1.6', marginBottom: '20px', wordBreak: 'keep-all' }}>
+                        {language === 'ko' ? (
+                            <p style={{ margin: 0 }}>
+                                <strong>확신도 기반 채점(CBM: Certainty-Based Marking)</strong>은 정답에 대해 '얼마나 확신하는지'를 함께 평가하는 방식입니다. 단순한 정/오답 평가를 넘어, 무작위 찍기를 방지하고 학생의 실제 이해도와 메타인지(객관적 지식 수준)를 측정하기 위해 고안되었습니다.
+                            </p>
+                        ) : (
+                            <p style={{ margin: 0 }}>
+                                <strong>Certainty-Based Marking (CBM)</strong> assesses how confident you are in your answer. It goes beyond simple correct/incorrect grading to prevent random guessing and measure actual understanding and metacognition.
+                            </p>
+                        )}
+                        <ul style={{ marginTop: '12px', paddingLeft: '25px', display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: 0 }}>
+                            <li><strong>{language === 'ko' ? 'C=3 (확신함)' : 'C=3 (Confident)'}</strong>: {language === 'ko' ? '정답이면 +3점이지만, 틀리면 -6점입니다.' : '+3 if correct, -6 if incorrect.'}</li>
+                            <li><strong>{language === 'ko' ? 'C=2 (보통)' : 'C=2 (Somewhat)'}</strong>: {language === 'ko' ? '정답이면 +2점, 틀리면 -2점입니다.' : '+2 if correct, -2 if incorrect.'}</li>
+                            <li><strong>{language === 'ko' ? 'C=1 (확신 안 됨)' : 'C=1 (Not Sure)'}</strong>: {language === 'ko' ? '정답이면 +1점, 틀려도 감점이 없습니다 (0점).' : '+1 if correct, 0 if incorrect.'}</li>
+                        </ul>
+                    </div>
+                    
+                    <div style={{ overflowX: 'auto', display: 'flex', justifyContent: 'center', marginBottom: '20px' }}>
+                        <table style={{ borderCollapse: 'collapse', fontSize: '0.9rem', textAlign: 'center', color: '#000', border: '1px solid #000', width: '100%', maxWidth: '600px' }}>
+                            <thead>
+                                <tr style={{ backgroundColor: '#f8fafc' }}>
+                                    <th style={{ border: '1px solid #000', padding: '10px', fontWeight: '600', textAlign: 'left' }}>Confidence level :</th>
+                                    <th style={{ border: '1px solid #000', padding: '10px', fontWeight: '600' }}>C=1<br/>(low)</th>
+                                    <th style={{ border: '1px solid #000', padding: '10px', fontWeight: '600' }}>C=2<br/>(mid)</th>
+                                    <th style={{ border: '1px solid #000', padding: '10px', fontWeight: '600' }}>C=3<br/>(high)</th>
+                                    <th style={{ border: '1px solid #000', padding: '10px', fontWeight: '600' }}>No<br/>Reply</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td style={{ border: '1px solid #000', padding: '10px', textAlign: 'left', fontWeight: '500' }}>Mark if correct :</td>
+                                    <td style={{ border: '1px solid #000', padding: '10px' }}>1</td>
+                                    <td style={{ border: '1px solid #000', padding: '10px' }}>2</td>
+                                    <td style={{ border: '1px solid #000', padding: '10px' }}>3</td>
+                                    <td style={{ border: '1px solid #000', padding: '10px' }}>(0)</td>
+                                </tr>
+                                <tr>
+                                    <td style={{ border: '1px solid #000', padding: '10px', textAlign: 'left', fontWeight: '500' }}>Penalty if wrong :</td>
+                                    <td style={{ border: '1px solid #000', padding: '10px' }}>0</td>
+                                    <td style={{ border: '1px solid #000', padding: '10px' }}>- 2</td>
+                                    <td style={{ border: '1px solid #000', padding: '10px' }}>- 6</td>
+                                    <td style={{ border: '1px solid #000', padding: '10px' }}>(0)</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div style={{ backgroundColor: 'rgba(239, 68, 68, 0.08)', borderLeft: '4px solid #ef4444', padding: '12px 18px', borderRadius: '8px', marginBottom: '25px' }}>
+                        <p style={{ margin: 0, color: '#b91c1c', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '1rem' }}>
+                            {language === 'ko' ? '🚨 참고사항: 문제에서 \'모르겠어요\' 선지를 체크하시면 확신도는 클릭하지 않고 넘어갑니다.' : '🚨 Note: If you select \'I don\'t know\', the confidence level check is bypassed.'}
+                        </p>
+                    </div>
+
+                    <div style={{ display: 'flex', justifyContent: 'center' }}>
+                        <button className="start-chat-btn" onClick={() => setShowInstructions(false)}>
+                            {language === 'ko' ? '퀴즈 시작하기' : 'Start Quiz'} <ArrowRight size={18} />
+                        </button>
                     </div>
                 </div>
             </section>
@@ -375,6 +465,9 @@ const QuizScreen = ({ questions, sessionId, concept, userId, language, isPostTes
     }
 
     const question = displayQuestions[currentIndex];
+    const displayChoices = question ? [...question.choices, language === 'ko' ? '모르겠어요' : "I don't know"] : [];
+    const isIdkSelected = selectedChoice === displayChoices.length;
+    const isConfidenceDisabled = selectedChoice === null || isIdkSelected;
 
     return (
         <section className="quiz-container glass-panel fade-in">
@@ -394,7 +487,7 @@ const QuizScreen = ({ questions, sessionId, concept, userId, language, isPostTes
 
             <div className="quiz-body">
                 <div className="quiz-choices">
-                    {question.choices.map((choice, idx) => (
+                    {displayChoices.map((choice, idx) => (
                         <div 
                             key={idx}
                             className={`quiz-choice-item ${selectedChoice === idx + 1 ? 'selected' : ''}`}
@@ -406,57 +499,61 @@ const QuizScreen = ({ questions, sessionId, concept, userId, language, isPostTes
                     ))}
                 </div>
 
-                <div className={`confidence-section ${selectedChoice === null ? 'disabled-section' : ''}`}>
-                    <h3>{language === 'ko' ? '이 답에 얼마나 확신하시나요?' : 'How confident are you?'}</h3>
-                    <div className="confidence-options">
+                <div className="quiz-right-panel" style={{ flex: '0 0 280px', paddingLeft: '30px', borderLeft: '1px dashed rgba(0,0,0,0.1)', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                    <div className={`confidence-section ${isConfidenceDisabled ? 'disabled-section' : ''}`} style={{ flex: 'none', paddingLeft: 0, borderLeft: 'none' }}>
+                        <h3>{language === 'ko' ? '이 답에 얼마나 확신하시나요?' : 'How confident are you?'}</h3>
+                        <div className="confidence-options">
+                            <button 
+                                className={`conf-btn conf-low ${confidenceLevel === 1 ? 'active' : ''}`}
+                                disabled={isConfidenceDisabled}
+                                onClick={() => handleConfidenceSelect(1)}
+                            >
+                                <ShieldAlert size={18} />
+                                {language === 'ko' ? '확신 안 됨 (1)' : 'Not Sure (1)'}
+                            </button>
+                            <button 
+                                className={`conf-btn conf-mid ${confidenceLevel === 2 ? 'active' : ''}`}
+                                disabled={isConfidenceDisabled}
+                                onClick={() => handleConfidenceSelect(2)}
+                            >
+                                <Target size={18} />
+                                {language === 'ko' ? '보통 (2)' : 'Somewhat (2)'}
+                            </button>
+                            <button 
+                                className={`conf-btn conf-high ${confidenceLevel === 3 ? 'active' : ''}`}
+                                disabled={isConfidenceDisabled}
+                                onClick={() => handleConfidenceSelect(3)}
+                            >
+                                <CheckCircle2 size={18} />
+                                {language === 'ko' ? '확신함 (3)' : 'Confident (3)'}
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div className="quiz-nav-footer" style={{ justifyContent: 'center', marginTop: '40px', borderTop: 'none', paddingTop: 0, gap: '10px' }}>
                         <button 
-                            className={`conf-btn conf-low ${confidenceLevel === 1 ? 'active' : ''}`}
-                            disabled={selectedChoice === null}
-                            onClick={() => handleConfidenceSelect(1)}
+                            className="nav-btn prev-btn" 
+                            onClick={handlePrev} 
+                            disabled={currentIndex === 0}
+                            style={{ padding: '10px 18px', fontSize: '1rem' }}
                         >
-                            <ShieldAlert size={18} />
-                            {language === 'ko' ? '확신 안 됨 (1)' : 'Not Sure (1)'}
+                            <ChevronLeft size={18} />
+                            {language === 'ko' ? '이전' : 'Prev'}
                         </button>
                         <button 
-                            className={`conf-btn conf-mid ${confidenceLevel === 2 ? 'active' : ''}`}
-                            disabled={selectedChoice === null}
-                            onClick={() => handleConfidenceSelect(2)}
+                            className="nav-btn next-btn" 
+                            onClick={handleNextOrSubmit}
+                            disabled={selectedChoice === null || confidenceLevel === null}
+                            style={{ padding: '10px 18px', fontSize: '1rem' }}
                         >
-                            <Target size={18} />
-                            {language === 'ko' ? '보통 (2)' : 'Somewhat (2)'}
-                        </button>
-                        <button 
-                            className={`conf-btn conf-high ${confidenceLevel === 3 ? 'active' : ''}`}
-                            disabled={selectedChoice === null}
-                            onClick={() => handleConfidenceSelect(3)}
-                        >
-                            <CheckCircle2 size={18} />
-                            {language === 'ko' ? '확신함 (3)' : 'Confident (3)'}
+                            {currentIndex < displayQuestions.length - 1 ? (
+                                <>{language === 'ko' ? '다음' : 'Next'} <ChevronRight size={18} /></>
+                            ) : (
+                                <>{language === 'ko' ? '제출하기' : 'Submit'} <CheckCircle2 size={18} /></>
+                            )}
                         </button>
                     </div>
                 </div>
-            </div>
-
-            <div className="quiz-nav-footer">
-                <button 
-                    className="nav-btn prev-btn" 
-                    onClick={handlePrev} 
-                    disabled={currentIndex === 0}
-                >
-                    <ChevronLeft size={20} />
-                    {language === 'ko' ? '이전' : 'Prev'}
-                </button>
-                <button 
-                    className="nav-btn next-btn" 
-                    onClick={handleNextOrSubmit}
-                    disabled={selectedChoice === null || confidenceLevel === null}
-                >
-                    {currentIndex < displayQuestions.length - 1 ? (
-                        <>{language === 'ko' ? '다음' : 'Next'} <ChevronRight size={20} /></>
-                    ) : (
-                        <>{language === 'ko' ? '제출하기' : 'Submit'} <CheckCircle2 size={20} /></>
-                    )}
-                </button>
             </div>
 
             {isSubmitting && (
