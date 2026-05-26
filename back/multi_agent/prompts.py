@@ -14,27 +14,6 @@ Session context:
 Current question asked to student:
 {last_question}
 
---- MANDATORY PRE-CHECK (Run before anything else) ---
-Find "consecutive_high_score_count" inside session_context.
-  IF the value is >= 1:
-    You are in ADVANCED EVALUATION MODE.
-    DO NOT execute Steps 1, 2, or 3. They do not apply.
-    Instead, apply ONLY the following rules:
-      - IGNORE the core definition entirely. Do NOT penalize for missing it.
-      - Evaluate ONLY against acceptable_extensions.
-      - error_clauses: list ONLY issues related to acceptable_extensions.
-      - type:
-          Any element of acceptable_extensions correctly addressed → "correct"
-          Vague or incomplete on acceptable_extensions            → "partial"
-          Contradicts or unrelated to acceptable_extensions       → "incorrect"
-      - Proceed directly to Step 4 (Score) and Step 5 (retry_needed).
-      - weakest_point: name the SPECIFIC element from acceptable_extensions
-        that the student addressed least clearly or not at all.
-      - hint: give ONE direct clue toward that specific acceptable_extension.
-        Do NOT leave hint empty. Do NOT reference the core definition.
-  IF the value is 0 or not found in session_context:
-    Proceed to Step 1 below.
-
 --- Internal Reasoning (do NOT output) ---
 
 Step 1. Identify ERROR clauses only.
@@ -130,6 +109,85 @@ Output rules:
     If retry_needed = true: one concrete clue to fix weakest_point.
     If type is "correct": one forward-looking clue toward the weakest acceptable_extension.
     Empty string ONLY if acceptable_extensions is empty and retry_needed = false.
+
+Student answer:
+{user_answer}
+"""
+
+NEW_ACADEMIC_ADVANCED_PROMPT = """You are the Academic Agent in Advanced Evaluation Mode. Output ONLY valid JSON. No explanation. No markdown.
+
+The student has already demonstrated core definitional understanding of "{concept}".
+Do NOT evaluate the core definition. It is already satisfied.
+Evaluate the student's answer ONLY against the acceptable extensions listed below.
+
+Acceptable extensions:
+{acceptable_extensions}
+
+Current question asked to student:
+{last_question}
+
+Session context:
+{session_context}
+
+--- Internal Reasoning (do NOT output) ---
+
+Step 1. Read the acceptable extensions listed above one by one.
+For each extension item, check whether the student's answer:
+  - Correctly addresses it with clear understanding  → correct
+  - Mentions it but vaguely or incompletely          → partial
+  - Contradicts or misrepresents it                 → incorrect
+  - Does not mention it at all                       → not_covered (treat as partial for scoring)
+
+Step 2. Count:
+  correct_count   = extension items correctly addressed
+  partial_count   = extension items partially addressed or not covered
+  incorrect_count = extension items contradicted
+
+Step 3. Decide type (IN ORDER):
+  IF incorrect_count > 0                              → "incorrect"
+  ELIF correct_count == 0                             → "partial"
+  ELSE                                                → "correct"
+
+Step 4. Score:
+  incorrect → 0.0–0.2
+  partial   → 0.41–0.69
+  correct   → 0.7–1.0
+  Score MUST match type range.
+
+Step 5. retry_needed:
+  - type = "incorrect" AND correct_count == 0 → true
+  - otherwise                                 → false
+
+--- Output ---
+
+Return ONLY this JSON:
+{{
+  "persona": "academic",
+  "score": 0.0,
+  "type": "",
+  "weakest_point": "",
+  "error_clauses": [
+    {{
+      "clause": "",
+      "type": "",
+      "reason": ""
+    }}
+  ],
+  "clause_counts": {{
+    "correct_count": 0,
+    "incorrect_count": 0,
+    "partial_count": 0
+  }},
+  "retry_needed": false,
+  "hint": ""
+}}
+
+Output rules:
+- error_clauses: list ONLY incorrect or partial extension items. Empty [] if none.
+- weakest_point: name the SPECIFIC extension item the student addressed least well or not at all.
+- hint: ONE direct clue pointing toward the weakest extension item. Never leave empty.
+- score: must match type range.
+- clause_counts: count against extension items only, not core definition.
 
 Student answer:
 {user_answer}
@@ -554,26 +612,30 @@ P2 — Academic weak:
     Base on academic rebuttal_question.
     Add academic unique_insight + rebuttal_point for context. STOP.
 
-P3 — One agent clearly weakest (gap > 0.2):
-  mode="normal", focus="integrated"
-  Emphasize weakest agent's rebuttal_question.
-  Weave in that agent's unique_insight + rebuttal_point.
-  Still require all three dimensions in the answer.
-
-P4 — Balanced scores:
-  mode="normal", focus="integrated"
-  Start from strongest rebuttal_question.
-  Layer in the other two agents' unique_insights.
-  Final question must require Academic + Market + Macro.
+P3/P4 — Focus Mode:
+  mode = "normal", focus = {focus_agent}
+  Use {focus_agent}'s rebuttal_question as the PRIMARY skeleton.
+  Enrich only with that agent's unique_insight and rebuttal_point.
+  Do NOT combine questions from all three agents into one.
+  Ask ONE focused question targeting only the {focus_agent} dimension:
+    "academic" → logical structure, acceptable_extensions depth
+    "market"   → real-world observable market behavior
+    "macro"    → macroeconomic causal chains, kg_context relationships
 
 
 --- Session Context Rules ---
 IF session_context is non-empty:
-  - Acknowledge the student's improvement or change from the previous turn.
-  - Reference what was corrected or added.
+  - Compare the student's current answer to the previous turn in session_context.
+  - If the student has addressed something they missed before (any dimension):
+      Begin the message with ONE brief praise sentence naming that specific improvement.
+      Name the dimension (academic / market / macro) or the specific concept improved.
+      Keep it to one short sentence — do NOT over-praise.
+      Examples:
+        "Your explanation of purchasing power is much clearer now —"
+        "Good — you've connected the market signal correctly."
+        "You've added a solid macro linkage this time."
   - Then steer toward the next missing element.
-  Example: "Great improvement — you correctly identified that purchasing power
-            decreases. Now can you explain what inflation itself means?"
+  - Do NOT praise if there is no visible improvement from the previous turn.
 
 CRITICAL — No-Repeat Rule:
   Check session_context for the last question that was sent to the student.
@@ -655,6 +717,7 @@ Return ONLY this JSON:
 Concept: {concept}
 Turn: {turn_count}
 Mode: {mode}
+Focus agent: {focus_agent}
 Session context: {session_context}
 News context: {news_context}
 
