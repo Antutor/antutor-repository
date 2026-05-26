@@ -218,7 +218,9 @@ function App() {
         setThinkingText(t(language, 'connecting'));
 
         const token = localStorage.getItem('access_token');
-        const wsUrl = `ws://localhost:8080/ws/chat`;
+        const apiBase = process.env.REACT_APP_API_URL || 'http://localhost:8080';
+        const wsProtocol = apiBase.startsWith('https') ? 'wss' : 'ws';
+        const wsUrl = `${wsProtocol}://${apiBase.replace(/^https?:\/\//, '')}/ws/chat`;
         const ws = new WebSocket(wsUrl);
 
         let accumulatedString = "";
