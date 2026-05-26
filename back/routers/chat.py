@@ -384,9 +384,23 @@ async def chat(request: ChatRequest, background_tasks: BackgroundTasks, current_
 
     # 이전 턴에서 사용한 뉴스 URL 수집 (중복 제외)
     used_news_urls: set = set()
+    import json
+    import ast
     for log in history_res.data:
-        urls = log.get("news_urls") or []
-        used_news_urls.update(urls)
+        urls = log.get("news_urls")
+        if not urls:
+            continue
+        if isinstance(urls, str):
+            try:
+                # Some DBs return string representations of lists like "['url1', 'url2']"
+                urls = json.loads(urls.replace("'", '"'))
+            except Exception:
+                try:
+                    urls = ast.literal_eval(urls)
+                except Exception:
+                    urls = [urls]
+        if isinstance(urls, list):
+            used_news_urls.update(urls)
 
     if is_give_up:
         antutor_score = 0.0
@@ -921,8 +935,21 @@ async def websocket_chat(websocket: WebSocket):
 
         used_news_urls: set = set()
         for log in history_res.data:
-            urls = log.get("news_urls") or []
-            used_news_urls.update(urls)
+            urls = log.get("news_urls")
+            if not urls:
+                continue
+            if isinstance(urls, str):
+                try:
+                    import json
+                    urls = json.loads(urls.replace("'", '"'))
+                except Exception:
+                    try:
+                        import ast
+                        urls = ast.literal_eval(urls)
+                    except Exception:
+                        urls = [urls]
+            if isinstance(urls, list):
+                used_news_urls.update(urls)
 
         # 뉴스 + KG 병렬 gather (다음 turn 다른 기사 + last_question 키워드 적용)
         from services.llm_agent import retrieve_tavily_news_v2
