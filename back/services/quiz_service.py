@@ -89,16 +89,21 @@ class QuizService:
         user_id = submission.user_id
         quiz_type = "PRE" if submission.is_pre_test else "POST"
         
-        # 1. quiz_attempts 테이블에 기록 저장
-        attempt_res = supabase.table("quiz_attempts").insert({
-            "session_id": session_id,
-            "user_id": user_id,
-            "quiz_type": quiz_type,
-            "total_score": total_score
-        }).execute()
-        
-        # 새로 생성된 시도(attempt)의 ID 가져오기
-        attempt_id = attempt_res.data[0]["attempt_id"]
+        attempt_id = None
+        try:
+            # 1. quiz_attempts 테이블에 기록 저장
+            attempt_res = supabase.table("quiz_attempts").insert({
+                "session_id": session_id,
+                "user_id": user_id,
+                "quiz_type": quiz_type,
+                "total_score": total_score
+            }).execute()
+            
+            # 새로 생성된 시도(attempt)의 ID 가져오기
+            if attempt_res.data:
+                attempt_id = attempt_res.data[0]["attempt_id"]
+        except Exception as e:
+            print(f"DB Insert Error (quiz_attempts): {e}")
         
         # 2. quiz_answers 테이블에 각 문항별 상세 응답 내역 저장
         answers_insert_data = []
@@ -112,8 +117,11 @@ class QuizService:
                 "earned_score": ea["earned_score"]
             })
             
-        if answers_insert_data:
-            supabase.table("quiz_answers").insert(answers_insert_data).execute()
+        if answers_insert_data and attempt_id is not None:
+            try:
+                supabase.table("quiz_answers").insert(answers_insert_data).execute()
+            except Exception as e:
+                print(f"DB Insert Error (quiz_answers): {e}")
             
         skill_improvement = None
         details = None
@@ -133,15 +141,19 @@ class QuizService:
             ]
             
             # 동일 세션의 가장 최근 PRE 퀴즈 결과 조회
-            pre_test_res = supabase.table("quiz_attempts") \
-                .select("total_score") \
-                .eq("session_id", session_id) \
-                .eq("quiz_type", "PRE") \
-                .order("created_at", desc=True) \
-                .limit(1) \
-                .execute()
+            pre_test_res = None
+            try:
+                pre_test_res = supabase.table("quiz_attempts") \
+                    .select("total_score") \
+                    .eq("session_id", session_id) \
+                    .eq("quiz_type", "PRE") \
+                    .order("created_at", desc=True) \
+                    .limit(1) \
+                    .execute()
+            except Exception as e:
+                print(f"DB Query Error (quiz_attempts for PRE score): {e}")
             
-            if pre_test_res.data:
+            if pre_test_res and pre_test_res.data:
                 pre_test_score = pre_test_res.data[0].get("total_score")
                 pre_score_val = float(pre_test_score) if pre_test_score is not None else 0.0
                 skill_improvement = QuizService._calculate_hakes_gain(
@@ -151,9 +163,12 @@ class QuizService:
                 )
                 
                 # sessions 테이블에 hakes_gain 수치 업데이트
-                supabase.table("sessions").update({
-                    "hakes_gain": skill_improvement
-                }).eq("session_id", session_id).execute()
+                try:
+                    supabase.table("sessions").update({
+                        "hakes_gain": skill_improvement
+                    }).eq("session_id", session_id).execute()
+                except Exception as e:
+                    print(f"DB Update Error (sessions hakes_gain): {e}")
                 
         return QuizResultOut(
             session_id=session_id,

@@ -427,11 +427,10 @@ function App() {
             alert(language === 'ko' ? '해당 주제는 퀴즈 출시 예정입니다.' : 'Quiz for this topic is coming soon.');
             return;
         }
-        // Optimistic UI Update: Switch to quiz screen immediately
+        // Switch to chat view to show loading state (quiz will be shown conditionally)
         setSelectedMission(mission.id);
         setActiveNodeId('strategic');
         setHoveredMission(null);
-        setShowQuiz(true);
         setShowPostQuiz(false);
         setQuizQuestions([]);
         setIsEndSuggested(false);
@@ -449,6 +448,13 @@ function App() {
             
             setSessionId(data.session_id);
             setIsResumePending(data.resume_available || false);
+            
+            // Populate messages only after the session is ready
+            if (data.resume_available) {
+                setShowQuiz(false);
+            } else {
+                setShowQuiz(true);
+            }
             
             // Fetch Quiz Questions
             try {
@@ -506,6 +512,10 @@ function App() {
             setSessionId(response.data.session_id);
             setIsResumePending(false);
             setMessages(prev => [...prev, { id: Date.now(), sender: 'user', text: decision === 'resume' ? t(language, 'resumeSession') : t(language, 'startFresh') }]);
+            
+            if (decision === 'fresh') {
+                setShowQuiz(true);
+            }
             
             // Add the real initial question/resumed question
             setTimeout(() => {
