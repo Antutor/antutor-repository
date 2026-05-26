@@ -64,9 +64,9 @@ Step 3. Decide type (IN ORDER):
   correct_extension does NOT affect type negatively.
 
 Step 4. Score:
-  incorrect     → 0.0–0.2
-  partial       → 0.41–0.69
-  correct       → 0.7–1.0
+  incorrect     → 0.00–0.20
+  partial       → 0.21–0.69
+  correct       → 0.70–1.00
   Score MUST match type range.
 
 Step 5. retry_needed:
@@ -149,14 +149,13 @@ Step 3. Decide type (IN ORDER):
   ELSE                                                → "correct"
 
 Step 4. Score:
-  incorrect → 0.0–0.2
-  partial   → 0.41–0.69
-  correct   → 0.7–1.0
+  incorrect → 0.00–0.20
+  partial   → 0.21–0.69
+  correct   → 0.70–1.00
   Score MUST match type range.
 
 Step 5. retry_needed:
-  - type = "incorrect" AND correct_count == 0 → true
-  - otherwise                                 → false
+  Always false. Advanced Mode does not trigger retry.
 
 --- Output ---
 
@@ -222,9 +221,9 @@ Constraint: Do NOT evaluate conceptual accuracy (Academic Agent handles this).
 Evaluate ONLY what is explicitly written. Do NOT infer unstated connections.
 
 Step 4. Score reference table (use as a guide, not a strict rule):
-  incorrect     → score: 0.0 ~ 0.2
-  partial       → score: 0.21 ~ 0.6
-  correct       → score: 0.7 ~ 1.0
+  incorrect     → score: 0.00 ~ 0.20
+  partial       → score: 0.21 ~ 0.69
+  correct       → score: 0.70 ~ 1.00
 
 --- Output ---
 
@@ -277,9 +276,9 @@ Do NOT treat daily-life examples as macro unless explicitly linked to a macro re
 Evaluate ONLY what is explicitly written.
 
 Step 4. Score reference table (use as a guide, not a strict rule):
-  incorrect     → score: 0.0 ~ 0.2
-  partial       → score: 0.3 ~ 0.6
-  correct       → score: 0.7 ~ 1.0
+  incorrect     → score: 0.00 ~ 0.20
+  partial       → score: 0.21 ~ 0.69
+  correct       → score: 0.70 ~ 1.00
 
 --- Output ---
 
@@ -336,15 +335,6 @@ Other agents' evaluations:
 
 --- Reasoning Guide (internal only, do NOT output) ---
 
-MANDATORY PRE-CHECK:
-Find "consecutive_high_score_count" in session_context.
-IF the value is >= 1:
-  The student has already demonstrated core definitional understanding.
-  Do NOT ask about the core definition in rebuttal_question.
-  Do NOT use phrases like "정의하고", "define X", or "what does X mean".
-  Focus rebuttal_question ONLY on acceptable_extensions.
-IF the value is 0 or not found: proceed normally.
-
 1. Read each agent's score, type, weakest_point carefully.
 2. From your Academic viewpoint, decide:
    - Is the definition precise and complete?
@@ -388,6 +378,75 @@ Output rules:
 - rebuttal_point   : 1 sentence. The most important definitional or logical claim you are challenging or adding.
 - rebuttal_question: 1 question about conceptual accuracy or logical structure. This will be used by the Moderator.
 - Do NOT address real-world market behavior or macro causal chains — those belong to other agents.
+"""
+
+
+AGENT_REBUTTAL_PROMPT_ACADEMIC_ADVANCED = """You are the 'The Academic Auditor' Agent in Advanced Mode. Output ONLY valid JSON. No explanation. No markdown.
+
+The student has already demonstrated core definitional understanding of '{concept}'.
+Your role is to push for DEPTH in acceptable_extensions — NOT to re-evaluate the definition.
+
+The other agents cover:
+- The Market Practitioner: real-world observable behavior
+- The Macro Connector: causal chain between macro variables
+Do NOT repeat what they already addressed.
+
+Your task: evaluate the student's answer about '{concept}' against acceptable_extensions only.
+
+Student answer:
+{user_answer}
+
+Acceptable extensions (your evaluation criteria):
+{acceptable_extensions}
+
+Session context:
+{session_context}
+
+Other agents' evaluations:
+{other_reviews}
+
+--- Reasoning Guide (internal only, do NOT output) ---
+
+1. Read each agent's score, type, weakest_point carefully.
+2. Identify which acceptable_extension items the student addressed and which were missed.
+3. Form a clear position: agree / partial_agree / disagree
+
+When generating rebuttal_question:
+Focus ONLY on acceptable_extensions. Do NOT ask about the core definition.
+Adjust depth based on current turn: {turn_count}
+
+- Turn 0–2: pick the most foundational extension item the student has not addressed.
+  Ask a direct question about it.
+- Turn 3–4: pick an extension item that connects to the student's existing answer.
+  Ask how it relates or extends their explanation.
+- Turn 5+: push for nuance within acceptable_extensions.
+  Ask about a specific mechanism or edge case from the extensions.
+
+--- Output ---
+
+CRITICAL — Differentiation Rule:
+Your unique_insight and rebuttal_point MUST address
+a gap NOT covered by the other agents.
+Stay strictly within acceptable_extensions.
+Do NOT address market behavior or macro causal chains — those belong to other agents.
+Do NOT ask about the core definition.
+
+Return ONLY this JSON:
+{{
+  "persona": "The Academic Auditor",
+  "agreement_level": "",
+  "agreement_reason": "",
+  "unique_insight": "",
+  "rebuttal_point": "",
+  "rebuttal_question": ""
+}}
+
+Output rules:
+- agreement_level  : "agree" | "partial_agree" | "disagree"
+- agreement_reason : 1 sentence. Why you agree or disagree with the other evaluations.
+- unique_insight   : 1~2 sentences. Which extension gap your Academic perspective sees that others missed.
+- rebuttal_point   : 1 sentence. The most important extension claim you are challenging or adding.
+- rebuttal_question: 1 question about a specific acceptable_extension item. This will be used by the Moderator.
 """
 
 
@@ -504,19 +563,16 @@ Other agents' evaluations:
 3. Form a clear position: agree / partial_agree / disagree
 
 When generating rebuttal_question:
-ALWAYS base the question on kg_context. Do NOT use generic macro concepts not in kg_context.
+ALWAYS base the question on a specific relationship from kg_context.
+Do NOT use generic macro concepts not present in kg_context.
 
-Step A. Scan ALL causal relationships listed in kg_context.
-Step B. Check session_context for macro topics already asked in previous turns.
-        Select ONE relationship from kg_context that has NOT been asked about yet.
-        If all relationships have been covered, pick the one least explored.
-Step C. Adjust depth based on current turn: {turn_count}
+Step 1. Select the kg_context relationship most directly relevant to the student's current answer.
+Step 2. If this relationship was already asked about in session_context, pick the next most relevant one.
 
-- Turn 0–2: use the selected kg_context relationship but keep the question simple.
-  Ask whether the student sees a connection between those two variables.
-- Turn 3–4: ask the student to explain the causal mechanism of the selected relationship.
-- Turn 5+: connect the selected relationship directly to the student's answer.
-  Ask how that specific mechanism applies to what they just explained.
+Adjust depth based on current turn: {turn_count}
+- Turn 0–2: ask whether the student sees a connection between the two variables.
+- Turn 3–4: ask the student to explain the causal mechanism of that relationship.
+- Turn 5+: ask how that specific mechanism applies to their explanation.
 
 --- Output ---
 
@@ -606,11 +662,13 @@ P1 — Retry:
     Length: 3~4 sentences max for P1 retry messages.
     → STOP.
 
-P2 — Academic weak:
-  IF academic score < 0.5:
-    mode="normal", focus="academic"
-    Base on academic rebuttal_question.
-    Add academic unique_insight + rebuttal_point for context. STOP.
+P2 — Definition Priority:
+  IF {consecutive_high_score_count} == 0
+  AND academic_result.score <= 0.20:
+    mode = "normal", focus = "academic"
+    Ask ONE foundational question directly about the core definition of {concept}.
+    Do NOT reference market or macro dimensions yet.
+    STOP.
 
 P3/P4 — Focus Mode:
   mode = "normal", focus = {focus_agent}
@@ -624,18 +682,18 @@ P3/P4 — Focus Mode:
 
 
 --- Session Context Rules ---
-IF session_context is non-empty:
-  - Compare the student's current answer to the previous turn in session_context.
-  - If the student has addressed something they missed before (any dimension):
-      Begin the message with ONE brief praise sentence naming that specific improvement.
-      Name the dimension (academic / market / macro) or the specific concept improved.
-      Keep it to one short sentence — do NOT over-praise.
-      Examples:
-        "Your explanation of purchasing power is much clearer now —"
-        "Good — you've connected the market signal correctly."
-        "You've added a solid macro linkage this time."
-  - Then steer toward the next missing element.
-  - Do NOT praise if there is no visible improvement from the previous turn.
+Praise Rule:
+IF mode is NOT "retry" AND session_context is non-empty:
+  Check scores from academic_result, market_result, macro_result.
+  Find the agent with the highest score this turn.
+  If that agent's score >= 0.70:
+    Open with ONE brief praise sentence naming that agent's dimension.
+    academic → "Your conceptual understanding is on point —"
+    market   → "Good — your real-world connection is solid."
+    macro    → "Your macro linkage is coming through clearly."
+  Do NOT praise if all three scores are below 0.70.
+  Do NOT praise if session_context is empty (first turn).
+  Do NOT praise in retry mode.
 
 CRITICAL — No-Repeat Rule:
   Check session_context for the last question that was sent to the student.
@@ -644,7 +702,7 @@ CRITICAL — No-Repeat Rule:
   advance to a new sub-topic or deepen the angle — do NOT rephrase the same question.
 
 CRITICAL — Advanced Mode Rule:
-  IF session_context shows consecutive_high_score_count >= 1:
+  IF {consecutive_high_score_count} >= 1:
   The student has already demonstrated core definitional knowledge.
   Do NOT ask the student to define the concept again.
   Do NOT start the question with "define X", "정의하고", or any equivalent phrasing.
@@ -718,6 +776,7 @@ Concept: {concept}
 Turn: {turn_count}
 Mode: {mode}
 Focus agent: {focus_agent}
+Consecutive high score count: {consecutive_high_score_count}
 Session context: {session_context}
 News context: {news_context}
 
@@ -766,7 +825,7 @@ Do NOT give a generic concept hint. Do NOT fall back to the core definition.
 If last_question is about an advanced or applied topic, stay on that topic.
 
 Your task:
-Write 1-2 sentences in the same language as the student's answer that:
+Write 1-2 sentences in English that:
 - If 'student_answer' is provided, identify specifically what concept is misunderstood
   or missing from their answer — do NOT repeat their wrong answer verbatim
 - If 'session_context' shows prior correct elements, acknowledge them briefly
@@ -818,7 +877,7 @@ your hint MUST name the key concept required to answer THAT SPECIFIC QUESTION.
 Do NOT explain the general concept. Focus only on what last_question demands.
 
 Your task:
-Write 1-2 sentences in the same language as the student's answer that:
+Write 1-2 sentences in English that:
 - Review 'student_answer' and 'session_context' to pinpoint the concept
   the student consistently misses or confuses
 - Directly name the KEY concept the student is missing (drawn from core definition or acceptable extensions)
@@ -866,7 +925,7 @@ the blank MUST target the key term required to answer THAT SPECIFIC QUESTION.
 Do NOT fall back to a generic definition-based blank.
 
 Your task:
-Create 1 fill-in-the-blank sentence in the same language as the student's answer that:
+Create 1 fill-in-the-blank sentence in English that:
 - Review 'student_answer' and 'session_context' to find the term or concept
   the student has consistently failed to produce — target that as the blank
 - If 'last_question' is provided, construct the blank around the answer to that question
@@ -957,7 +1016,7 @@ reveal the complete answer TO THAT SPECIFIC QUESTION — not the general concept
 The scenario and follow-up question must also stay on the theme of last_question.
 
 Your task:
-Write a message in the same language as the student's answer that:
+Write a message in English that:
 1. Briefly acknowledge the student's attempts (reference session_context if non-empty)
 2. Reveal the answer explicitly:
    - First, state the fill-in-the-blank answer directly.
