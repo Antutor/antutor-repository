@@ -12,6 +12,7 @@ from multi_agent.prompts import (
     NEW_MACRO_DRAFT_PROMPT,
     NEW_MODERATOR_AGENT_PROMPT,
     AGENT_REBUTTAL_PROMPT_ACADEMIC,
+    AGENT_REBUTTAL_PROMPT_ACADEMIC_ADVANCED,
     AGENT_REBUTTAL_PROMPT_MARKET,
     AGENT_REBUTTAL_PROMPT_MACRO,
     SCAFFOLD_EVAL_PROMPT
@@ -235,7 +236,9 @@ async def retry_node(state: AgentState):
         output_language=output_language,
         turn_count=state.get("turn_count", 0),
         source_turn_count=state.get("source_turn_count", 0),
-        mode="retry"
+        mode="retry",
+        focus_agent="The Academic Auditor",
+        consecutive_high_score_count=state.get("consecutive_high_score_count", 0)
     )
 
     llm_result = await call_synthesis(sys_msg)
@@ -310,7 +313,11 @@ async def call_rebuttal(persona, state):
         other_reviews = "\n".join([f"[{p}] \n{rev}\n" for p, rev in drafts.items() if p != persona])
         
         if persona == "The Academic Auditor":
-            prompt_template = AGENT_REBUTTAL_PROMPT_ACADEMIC
+            consecutive_count = state.get("consecutive_high_score_count", 0)
+            if consecutive_count >= 1:
+                prompt_template = AGENT_REBUTTAL_PROMPT_ACADEMIC_ADVANCED
+            else:
+                prompt_template = AGENT_REBUTTAL_PROMPT_ACADEMIC
             acceptable_extensions = state.get("acceptable_extensions", "")
             sys_msg = "/no_think\n" + prompt_template.format(
                 concept=concept, 
@@ -318,8 +325,7 @@ async def call_rebuttal(persona, state):
                 acceptable_extensions=acceptable_extensions,
                 session_context=session_context,
                 other_reviews=other_reviews,
-                turn_count=state.get("turn_count", 0),
-                source_turn_count=state.get("source_turn_count", 0)
+                turn_count=state.get("turn_count", 0)
             )
         elif persona == "The Market Practitioner":
             prompt_template = AGENT_REBUTTAL_PROMPT_MARKET
@@ -485,7 +491,8 @@ async def synthesis_node(state: AgentState):
         turn_count=state.get("turn_count", 0),
         source_turn_count=state.get("source_turn_count", 0),
         mode=mode,
-        focus_agent=focus_agent
+        focus_agent=focus_agent,
+        consecutive_high_score_count=state.get("consecutive_high_score_count", 0)
     )
     
     res_content = await call_synthesis(sys_msg)
