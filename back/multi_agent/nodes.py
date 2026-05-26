@@ -478,6 +478,14 @@ async def synthesis_node(state: AgentState):
         else:
             focus_agent = current_lowest
 
+    # Map agent name to dimension guide format
+    agent_to_dimension = {
+        "The Academic Auditor": "academic",
+        "The Market Practitioner": "market",
+        "The Macro-Connector": "macro"
+    }
+    focus_dimension = agent_to_dimension.get(focus_agent, "academic")
+
     sys_msg = "/no_think\n" + NEW_MODERATOR_AGENT_PROMPT.format(
         concept=concept,
         user_answer=user_answer,
@@ -491,7 +499,7 @@ async def synthesis_node(state: AgentState):
         turn_count=state.get("turn_count", 0),
         source_turn_count=state.get("source_turn_count", 0),
         mode=mode,
-        focus_agent=focus_agent,
+        focus_agent=focus_dimension,
         consecutive_high_score_count=state.get("consecutive_high_score_count", 0)
     )
     
