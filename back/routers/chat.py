@@ -224,8 +224,8 @@ async def chat(request: ChatRequest, background_tasks: BackgroundTasks, current_
     acceptable_extensions = concept_data.get("acceptable_extensions", "")
     
     eval_user_answer = await translate_ko_to_en(request.user_answer, language)
-    # Check both original (Korean) and translated (English) for keywords
-    is_give_up = any(kw in request.user_answer.lower() or kw in eval_user_answer.lower() for kw in GIVE_UP_KEYWORDS)
+    # Check only original (Korean or English) input for keywords to prevent translation false positives
+    is_give_up = any(kw in request.user_answer.lower() for kw in GIVE_UP_KEYWORDS)
     is_contradiction = False
 
     # ── 1. 보안 가드레일 ──────────────────────────────────────────────
@@ -718,7 +718,8 @@ async def websocket_chat(websocket: WebSocket):
         acceptable_extensions = concept_data.get("acceptable_extensions", "")
         
         eval_user_answer = await translate_ko_to_en(user_answer, language)
-        is_give_up = any(kw in user_answer.lower() or kw in eval_user_answer.lower() for kw in GIVE_UP_KEYWORDS)
+        # Check only original input for keywords to prevent translation false positives
+        is_give_up = any(kw in user_answer.lower() for kw in GIVE_UP_KEYWORDS)
 
         # ── 1. 보안 가드레일 ──────────────────────────────────────────
         blocked_msg = await run_guardrail_ws(eval_user_answer, user_id=str(user_id))

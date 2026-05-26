@@ -37,7 +37,7 @@ NEO4J_DATABASE = os.getenv("NEO4J_DATABASE", "neo4j")
 GIVE_UP_KEYWORDS = [
     # English
     "don't know", "give up", "not sure", "no idea", "hint", 
-    "can't explain", "too hard", "stuck", "confused", "help", "idk",
+    "can't explain", "too hard", "stuck", "confused", "help me", "idk",
     # Korean
     "모르겠", "잘 몰라", "힌트", "모름", "알려줘",
     "설명 못하", "몰라"

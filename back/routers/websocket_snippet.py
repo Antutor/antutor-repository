@@ -62,7 +62,7 @@ async def websocket_chat(websocket: WebSocket):
         acceptable_extensions = concept_data.get("acceptable_extensions", "")
         
         eval_user_answer = await translate_ko_to_en(user_answer, language)
-        is_give_up = any(kw in user_answer.lower() or kw in eval_user_answer.lower() for kw in GIVE_UP_KEYWORDS)
+        is_give_up = any(kw in user_answer.lower() for kw in GIVE_UP_KEYWORDS)
         
         await websocket.send_json({"type": "status", "message": await translate_en_to_ko("🌐 Searching Knowledge Graph & News...", language)})
         
