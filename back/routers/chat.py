@@ -598,11 +598,18 @@ async def end_session(request: EndSessionRequest, current_user: dict = Depends(g
         academic_scores.append(float(log["score_academic"] or 0) * 100)
         market_scores.append(float(log["score_market"] or 0) * 100)
         macro_scores.append(float(log["score_macro"] or 0) * 100)
-        
-    last_academic = academic_scores[-1] if academic_scores else 0
-    last_market = market_scores[-1] if market_scores else 0
-    last_macro = macro_scores[-1] if macro_scores else 0
+    last_academic = 0.0
+    last_market = 0.0
+    last_macro = 0.0
     
+    # Iterate backwards to find the last non-zero score (ignore 0.0 from scaffolding/contradiction)
+    for acad, mkt, mac in reversed(list(zip(academic_scores, market_scores, macro_scores))):
+        if acad > 0 or mkt > 0 or mac > 0:
+            last_academic = acad
+            last_market = mkt
+            last_macro = mac
+            break
+            
     latest_avg = (last_academic + last_market + last_macro) / 3.0
     
     if nudge_count == 0:
@@ -616,7 +623,13 @@ async def end_session(request: EndSessionRequest, current_user: dict = Depends(g
     past_sessions_res = supabase.table("sessions").select("session_id").eq("user_id", user_id).eq("concept_id", session["concept_id"]).eq("status", "ENDED").execute()
     is_first_time = len(past_sessions_res.data) <= 1  # 현재 방금 ENDED 시킨 세션이 포함되어 있으므로 <= 1
 
-    radar_payload = {"Academic": academic_scores, "Market": market_scores, "Macro": macro_scores}
+    # Exclude scaffolding turns (score=0) from the radar chart to avoid dragging down the cumulative total
+    valid_logs = [log for log in logs_res.data if (float(log["score_academic"] or 0) + float(log["score_market"] or 0) + float(log["score_macro"] or 0)) > 0]
+    radar_academic = [float(log["score_academic"] or 0) * 100 for log in valid_logs]
+    radar_market = [float(log["score_market"] or 0) * 100 for log in valid_logs]
+    radar_macro = [float(log["score_macro"] or 0) * 100 for log in valid_logs]
+    radar_payload = {"Academic": radar_academic, "Market": radar_market, "Macro": radar_macro}
+
 
     translated_insights = await translate_en_to_ko(educational_insights, language)
     translated_message = await translate_en_to_ko("Session terminated successfully.", language)
@@ -1048,7 +1061,8 @@ async def websocket_chat(websocket: WebSocket):
             "scaffold_step": scaffold_plan.get("step") if is_give_up and scaffold_plan else None
         }
         
-        asyncio.create_task(asyncio.to_thread(save_chat_log_db, chat_log_payload))
+        save_chat_log_db(chat_log_payload)
+
         
         translated_propositions = [await translate_en_to_ko(p, language) for p in propositions]
         for expert in expert_results:
