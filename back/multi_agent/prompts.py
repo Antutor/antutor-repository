@@ -28,8 +28,10 @@ Find "consecutive_high_score_count" inside session_context.
           Vague or incomplete on acceptable_extensions            → "partial"
           Contradicts or unrelated to acceptable_extensions       → "incorrect"
       - Proceed directly to Step 4 (Score) and Step 5 (retry_needed).
-      - hint: if retry_needed = true, give a clue about acceptable_extensions ONLY.
-        Do NOT reference the core definition in the hint.
+      - weakest_point: name the SPECIFIC element from acceptable_extensions
+        that the student addressed least clearly or not at all.
+      - hint: give ONE direct clue toward that specific acceptable_extension.
+        Do NOT leave hint empty. Do NOT reference the core definition.
   IF the value is 0 or not found in session_context:
     Proceed to Step 1 below.
 
@@ -121,9 +123,13 @@ Return ONLY this JSON:
 Output rules:
 - error_clauses: ONLY error clauses. Empty array [] if no errors.
 - clause_counts: count ALL clauses including correct ones.
-- weakest_point: single most critical missing or wrong concept.
-- hint: one concrete clue to fix weakest_point.
-         Empty string if retry_needed = false.
+- weakest_point:
+    If type is "incorrect" or "partial": the most critical missing or wrong core concept.
+    If type is "correct": the most relevant acceptable_extension the student has not yet addressed.
+- hint:
+    If retry_needed = true: one concrete clue to fix weakest_point.
+    If type is "correct": one forward-looking clue toward the weakest acceptable_extension.
+    Empty string ONLY if acceptable_extensions is empty and retry_needed = false.
 
 Student answer:
 {user_answer}
@@ -193,12 +199,12 @@ Knowledge Graph Context:
 Step 1. Read the student answer as a whole and identify key claims.
 
 Step 2. For each clause, check for macroeconomic meaning.
-Macro signals (any of these counts):
+First, read the Knowledge Graph Context above and list the causal relationships it contains.
+Then check whether the student's answer references any of those specific relationships.
+
+Macro signals (any of these counts as a fallback if kg_context is empty):
   inflation, base interest rate, exchange rate,
   opportunity cost, compound interest
-
-Use the Knowledge Graph Context provided above to identify
-cross-concept relationships present in the student answer.
 
 Step 3. Final type decision:
   - No clause contains any macro signal                             → type = "incorrect"
@@ -440,18 +446,19 @@ Other agents' evaluations:
 3. Form a clear position: agree / partial_agree / disagree
 
 When generating rebuttal_question:
-Adjust depth based on current turn: {turn_count}
+ALWAYS base the question on kg_context. Do NOT use generic macro concepts not in kg_context.
 
-- Turn 0–2: ask a foundational macro linkage question.
-  Focus on whether the student sees any connection between macro variables.
-- Turn 3–4: pick one causal relationship from kg_context
-  and ask the student to explain the mechanism.
-- Turn 5+: pick the most relevant causal relationship from kg_context
-  that connects to the student's answer and ask about the mechanism.
-  Example: if student mentioned purchasing power,
-           use a kg_context relationship like
-           "nominal interest rate → inflation" to ask about
-           how monetary policy connects.
+Step A. Scan ALL causal relationships listed in kg_context.
+Step B. Check session_context for macro topics already asked in previous turns.
+        Select ONE relationship from kg_context that has NOT been asked about yet.
+        If all relationships have been covered, pick the one least explored.
+Step C. Adjust depth based on current turn: {turn_count}
+
+- Turn 0–2: use the selected kg_context relationship but keep the question simple.
+  Ask whether the student sees a connection between those two variables.
+- Turn 3–4: ask the student to explain the causal mechanism of the selected relationship.
+- Turn 5+: connect the selected relationship directly to the student's answer.
+  Ask how that specific mechanism applies to what they just explained.
 
 --- Output ---
 
