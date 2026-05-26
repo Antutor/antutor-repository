@@ -480,10 +480,13 @@ Other agents' evaluations:
 --- Reasoning Guide (internal only, do NOT output) ---
 
 1. Read each agent's score, type, weakest_point carefully.
-2. From your Market viewpoint, decide:
-   - Does the answer connect to real-world market signals?
-   - Did they miss something about consumer, business, or market behavior?
-   - Is there a real-world effect that was overlooked?
+2. From your Market viewpoint, identify ONE specific real-world gap:
+   - Does the answer connect to a specific real-world market signal?
+   - Is there a concrete real-world effect directly tied to {concept} that was overlooked?
+   - Does news_context contain a specific event you can anchor the question to?
+   IMPORTANT: Do NOT frame the question as generic "consumer or business behavior."
+   Your rebuttal_question MUST reference a concept-specific market mechanism
+   or a concrete example from news_context.
 3. Form a clear position: agree / partial_agree / disagree
 
 When generating rebuttal_question:
@@ -556,18 +559,25 @@ Other agents' evaluations:
 --- Reasoning Guide (internal only, do NOT output) ---
 
 1. Read each agent's score, type, weakest_point carefully.
-2. From your Macro viewpoint, decide:
-   - Does the answer specify causal mechanisms between macro variables?
-   - Did they miss a macro linkage (interest rate, exchange rate, GDP, etc.)?
-   - Is a macro relationship stated but without explaining the causal chain?
+2. From your Macro viewpoint, identify ONE specific gap using kg_context:
+   - Read kg_context carefully. List the causal relationships it contains.
+   - Which specific relationship from kg_context did the student NOT mention?
+   - Is a relationship stated but without explaining its causal mechanism?
+   IMPORTANT: Do NOT use generic macro terms (interest rate, exchange rate, GDP, etc.)
+   unless they explicitly appear in kg_context.
+   If kg_context is empty, ask about the causal mechanism between two macro variables
+   the student already mentioned.
 3. Form a clear position: agree / partial_agree / disagree
 
 When generating rebuttal_question:
 ALWAYS base the question on a specific relationship from kg_context.
-Do NOT use generic macro concepts not present in kg_context.
+Do NOT invent macro concepts not present in kg_context.
 
-Step 1. Select the kg_context relationship most directly relevant to the student's current answer.
-Step 2. If this relationship was already asked about in session_context, pick the next most relevant one.
+Step 1. Read kg_context and list each causal relationship it contains.
+Step 2. Select the relationship most directly relevant to the student's current answer.
+Step 3. If this relationship was already asked about in session_context, pick the next most relevant one.
+Fallback (only if kg_context is completely empty): ask about the causal chain between
+two macro variables the student explicitly mentioned in their answer.
 
 Adjust depth based on current turn: {turn_count}
 - Turn 0–2: ask whether the student sees a connection between the two variables.
@@ -671,11 +681,27 @@ P2 — Definition Priority:
     STOP.
 
 P3/P4 — Focus Mode:
-  mode = "normal", focus = {focus_agent}
-  Use {focus_agent}'s rebuttal_question as the PRIMARY skeleton.
-  Enrich only with that agent's unique_insight and rebuttal_point.
-  Do NOT combine questions from all three agents into one.
-  Ask ONE focused question targeting only the {focus_agent} dimension:
+  mode = "normal"
+
+  Read the three agent scores:
+    academic_score = academic_result.score
+    market_score   = market_result.score
+    macro_score    = macro_result.score
+
+  Compute spread = max(three scores) − min(three scores).
+
+  Case 1 — Spread ≤ 0.15 (all three scores are close):
+    Ask ONE integrated question that combines insights from ALL three agents.
+    Synthesize rebuttal_questions from academic, market, and macro into a single natural question.
+
+  Case 2 — Spread > 0.15 (one agent is clearly ahead):
+    The bottom two agents are the weak pair.
+    Ask ONE integrated question from those two lower-scoring agents only.
+    Synthesize their rebuttal_questions into a single natural question.
+
+  In all cases: do NOT simply concatenate questions — merge them into ONE cohesive question.
+
+  Dimension guide:
     "academic" → logical structure, acceptable_extensions depth
     "market"   → real-world observable market behavior
     "macro"    → macroeconomic causal chains, kg_context relationships
@@ -698,8 +724,10 @@ IF mode is NOT "retry" AND session_context is non-empty:
 CRITICAL — No-Repeat Rule:
   Check session_context for the last question that was sent to the student.
   Do NOT generate a question that is semantically equivalent to it.
-  If the student already addressed the previous question (even partially),
-  advance to a new sub-topic or deepen the angle — do NOT rephrase the same question.
+  "Semantically equivalent" means: same core concept + same target variable + same direction of inquiry.
+  If the student attempted to answer the previous question (even incorrectly),
+  do NOT ask the same question again in any rephrasing.
+  Instead: advance to a new sub-topic, deepen the angle, or reframe from a different dimension.
 
 CRITICAL — Advanced Mode Rule:
   IF {consecutive_high_score_count} >= 1:
