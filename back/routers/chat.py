@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisco
 from starlette.websockets import WebSocketState
 import jwt
 import asyncio
+import re
 
 from schemas import ChatRequest, EndSessionRequest, ResumeDecisionRequest
 from database import supabase
@@ -53,6 +54,43 @@ def save_chat_log_db(chat_log_payload):
         except:
             pass
 
+async def db(fn):
+    """
+    Supabase 동기 클라이언트 호출을 스레드 풀에서 실행합니다.
+    - 이벤트 루프 비블로킹 → 동시접속 안전
+    - await으로 완료 보장 → end_session race condition 방지
+    Usage: result = await db(lambda: supabase.table("X").select("*").execute())
+    """
+    return await asyncio.to_thread(fn)
+
+
+_SHORT_ANSWER_STOPWORDS = {
+    "this", "that", "there", "their", "what", "which", "when", "where",
+    "because", "would", "should", "could", "about", "with", "from",
+}
+
+def is_short_answer(text: str) -> bool:
+    """
+    사용자 입력이 '네', 'yes', 'ok' 등 서술형이 아닌 단답형인지 판별합니다.
+    공백 기준 단어 수 ≤ 2이면 단답형으로 간주합니다.
+    is_give_up=True인 경우에는 호출하지 않습니다.
+    """
+    stripped = text.strip()
+    if not stripped:
+        return False
+    # 구두점 제거 후 단어 수 계산
+    clean = re.sub(r'[!?.。、,，~ㅋㅎ]+', '', stripped).strip()
+    words = clean.split()
+    return len(words) <= 2
+
+
+_SHORT_ANSWER_REPROMPT_EN = (
+    "A brief response isn't enough for a proper evaluation. "
+    "Please explain the concept in your own words — include WHY it happens, "
+    "HOW it works, and WHAT effects it has. Give it another try!"
+)
+
+
 def save_debate_log(session_id, concept, user_answer, draft_reviews, critiques, final_synthesis):
     try:
         log_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "logs")
@@ -77,7 +115,7 @@ def save_debate_log(session_id, concept, user_answer, draft_reviews, critiques, 
 router = APIRouter()
 
 async def get_concept_by_term(term: str):
-    response = supabase.table("concepts").select("*").execute()
+    response = await db(lambda: supabase.table("concepts").select("*").execute())
     concepts = response.data
     
     target_concept = None
@@ -112,10 +150,10 @@ async def start_session(concept: str, language: str = "ko", current_user: dict =
     resume_available = False
     last_ai_response = ""
     
-    prev_sessions = supabase.table("sessions").select("session_id").eq("user_id", user_id).eq("concept_id", db_concept_id).execute()
+    prev_sessions = await db(lambda: supabase.table("sessions").select("session_id").eq("user_id", user_id).eq("concept_id", db_concept_id).execute())
     if prev_sessions.data:
         session_ids = [s["session_id"] for s in prev_sessions.data]
-        logs_res = supabase.table("chat_logs").select("ai_response").in_("session_id", session_ids).order("created_at", desc=True).limit(1).execute()
+        logs_res = await db(lambda: supabase.table("chat_logs").select("ai_response").in_("session_id", session_ids).order("created_at", desc=True).limit(1).execute())
         if logs_res.data and logs_res.data[0].get("ai_response"):
             resume_available = True
             last_ai_response = await translate_en_to_ko(logs_res.data[0]["ai_response"], language)
@@ -182,11 +220,11 @@ async def resolve_resume(request: ResumeDecisionRequest, current_user: dict = De
     
     # 3. 결정에 따른 첫 질문 결정
     if decision == "resume":
-        prev_sessions = supabase.table("sessions").select("session_id").eq("user_id", user_id).eq("concept_id", db_concept_id).execute()
+        prev_sessions = await db(lambda: supabase.table("sessions").select("session_id").eq("user_id", user_id).eq("concept_id", db_concept_id).execute())
         # 현재 생성한 세션 제외
         other_session_ids = [s["session_id"] for s in prev_sessions.data if str(s["session_id"]) != session_id]
         
-        logs_res = supabase.table("chat_logs").select("ai_response").in_("session_id", other_session_ids).order("created_at", desc=True).limit(1).execute()
+        logs_res = await db(lambda: supabase.table("chat_logs").select("ai_response").in_("session_id", other_session_ids).order("created_at", desc=True).limit(1).execute())
         
         if logs_res.data and logs_res.data[0].get("ai_response"):
             question = await translate_en_to_ko(logs_res.data[0]["ai_response"], language)
@@ -206,7 +244,7 @@ async def chat(request: ChatRequest, background_tasks: BackgroundTasks, current_
     user_id = current_user.get("user_id", current_user.get("id"))
     language = request.language or "ko"
     
-    sess_res = supabase.table("sessions").select("*").eq("session_id", int(request.session_id)).execute()
+    sess_res = await db(lambda: supabase.table("sessions").select("*").eq("session_id", int(request.session_id)).execute())
     if not sess_res.data:
         raise HTTPException(status_code=404, detail="Invalid Session ID.")
     session = sess_res.data[0]
@@ -215,7 +253,7 @@ async def chat(request: ChatRequest, background_tasks: BackgroundTasks, current_
         raise HTTPException(status_code=403, detail="Not authorized to access this session.")
         
     db_concept_id = session["concept_id"]
-    concept_res = supabase.table("concepts").select("*").eq("concept_id", db_concept_id).execute()
+    concept_res = await db(lambda: supabase.table("concepts").select("*").eq("concept_id", db_concept_id).execute())
     if not concept_res.data:
         raise HTTPException(status_code=404, detail="Target Concept is not supported.")
     concept_data = concept_res.data[0]
@@ -231,8 +269,28 @@ async def chat(request: ChatRequest, background_tasks: BackgroundTasks, current_
     # ── 1. 보안 가드레일 ──────────────────────────────────────────────
     await run_guardrail(eval_user_answer, user_id=str(user_id))
 
+    # ── 1-1. 단답형 감지 — 서술형 재유도 ──────────────────────────────
+    if not is_give_up and is_short_answer(request.user_answer):
+        reprompt_msg = await translate_en_to_ko(_SHORT_ANSWER_REPROMPT_EN, language)
+        return {
+            "atomic_propositions": [],
+            "expert_average_score": 0.0,
+            "is_contradiction_override": False,
+            "expert_feedback": [],
+            "is_fallback": False,
+            "is_short_answer": True,
+            "moderator_decision": {
+                "status": "short_answer",
+                "lowest_performing_area": "N/A",
+                "scaffold_plan": {
+                    "step": "Short Answer Reprompt",
+                    "message": reprompt_msg
+                }
+            }
+        }
+
     # 현재 턴 수 계산 (캐싱 로직 및 DB 저장에 활용)
-    logs_count_res = supabase.table("chat_logs").select("log_id", count="exact").eq("session_id", session["session_id"]).execute()
+    logs_count_res = await db(lambda: supabase.table("chat_logs").select("log_id", count="exact").eq("session_id", session["session_id"]).execute())
     turn_number = logs_count_res.count + 1 if logs_count_res.count is not None else 1
 
     # ── 2. 시맨틱 캐시 조회 ──────────────────────────────────────────
@@ -272,12 +330,12 @@ async def chat(request: ChatRequest, background_tasks: BackgroundTasks, current_
         print(f"\n[ChatRouter] 📋 Scaffolding 답변 평가 중... (idk_count={session['idk_count']})", flush=True)
         
         # 직전 턴의 힌트 텍스트 가져오기 (가장 마지막 ai_response)
-        hint_log = supabase.table("chat_logs") \
+        hint_log = await db(lambda: supabase.table("chat_logs") \
             .select("ai_response, scaffold_step") \
             .eq("session_id", session["session_id"]) \
             .not_.is_("scaffold_step", "null") \
             .order("turn_number", desc=True) \
-            .limit(1).execute()
+            .limit(1).execute())
         last_hint = hint_log.data[0]["ai_response"] if hint_log.data else ""
         scaffold_step = hint_log.data[0]["scaffold_step"] if hint_log.data else ""
 
@@ -287,7 +345,7 @@ async def chat(request: ChatRequest, background_tasks: BackgroundTasks, current_
         if scaffold_eval.get("type") == "correct":
             # 정답 → idk_count 초기화 후 정상 debate 흐름으로
             print(f"  ✅ Scaffolding 답변 정답 인정 — idk_count 초기화, 정상 흐름으로 복귀", flush=True)
-            supabase.table("sessions").update({"idk_count": 0}).eq("session_id", session["session_id"]).execute()
+            await db(lambda: supabase.table("sessions").update({"idk_count": 0}).eq("session_id", session["session_id"]).execute())
         else:
             # 오답 → is_give_up=True로 전환해 다음 scaffolding 레벨 힌트 생성
             print(f"  ⚠️ Scaffolding 답변 오답 — 다음 scaffolding 레벨로 진입", flush=True)
@@ -295,11 +353,11 @@ async def chat(request: ChatRequest, background_tasks: BackgroundTasks, current_
 
     # ── session_context 히스토리 빌드 ────────────────────────────────
     # give_up 경로(scaffolding)와 정상 경로 모두에서 사용하므로 분기 전에 빌드합니다.
-    history_res = supabase.table("chat_logs") \
-        .select("turn_number, user_message, ai_response, scaffold_step") \
+    history_res = await db(lambda: supabase.table("chat_logs") \
+        .select("turn_number, user_message, ai_response, scaffold_step, news_urls, selected_agent") \
         .eq("session_id", session["session_id"]) \
         .order("turn_number", desc=False) \
-        .execute()
+        .execute())
     session_history = {
         f"turn_{log['turn_number']}": {
             "user_answer": log.get("user_message") or "",
@@ -319,6 +377,16 @@ async def chat(request: ChatRequest, background_tasks: BackgroundTasks, current_
         if log.get("scaffold_step") is None:
             last_question_from_history = log.get("ai_response") or ""
             break
+            
+    last_selected_agent = None
+    if history_res.data:
+        last_selected_agent = history_res.data[-1].get("selected_agent")
+
+    # 이전 턴에서 사용한 뉴스 URL 수집 (중복 제외)
+    used_news_urls: set = set()
+    for log in history_res.data:
+        urls = log.get("news_urls") or []
+        used_news_urls.update(urls)
 
     if is_give_up:
         antutor_score = 0.0
@@ -326,11 +394,17 @@ async def chat(request: ChatRequest, background_tasks: BackgroundTasks, current_
         propositions = []
         expert_results = [{"persona": "System", "score": 0.0, "feedback": "User requested help."}]
         lowest_persona = "System"
+        news_urls: set = set()
     else:
         propositions = ["(Evaluated by Multi-Agent Debate Graph)"]
 
-        # news_context: Market Agent 및 debate graph에만 필요 (give_up 시 불필요)
-        news_context = await retrieve_news_rag(concept_name, eval_user_answer)
+        # news_context: last_question 키워드 + 이전 턴 URL dedup 적용
+        from services.llm_agent import retrieve_tavily_news_v2
+        news_context, news_urls = await retrieve_tavily_news_v2(
+            concept_name, eval_user_answer,
+            last_question=last_question_from_history,
+            used_urls=used_news_urls
+        )
 
         turn_count = len(session_history)
 
@@ -353,7 +427,8 @@ async def chat(request: ChatRequest, background_tasks: BackgroundTasks, current_
             "hint_provided": False,
             "session_context": session_context_str,
             "last_question": last_question_from_history,
-            "turn_count": turn_count
+            "turn_count": turn_count,
+            "previous_lowest_agent": last_selected_agent
         }
         
         print(f"👉 [ChatRouter] 랭그래프 호출 진입 전... (RAG 완료, State 준비 완료)", flush=True)
@@ -368,7 +443,7 @@ async def chat(request: ChatRequest, background_tasks: BackgroundTasks, current_
         
         if hint_provided:
             current_scaffold_count = session.get("scaffolding_counter", 0)
-            supabase.table("sessions").update({"scaffolding_counter": current_scaffold_count + 1}).eq("session_id", session["session_id"]).execute()
+            await db(lambda: supabase.table("sessions").update({"scaffolding_counter": current_scaffold_count + 1}).eq("session_id", session["session_id"]).execute())
         
         for persona, review in final_state["draft_reviews"].items():
             fallback_flag = review.get("is_fallback", False) if isinstance(review, dict) else False
@@ -426,10 +501,10 @@ async def chat(request: ChatRequest, background_tasks: BackgroundTasks, current_
     else:
         new_source_turn = current_source_turn
 
-    supabase.table("sessions").update({
+    await db(lambda: supabase.table("sessions").update({
         "consecutive_high_score_count": new_count,
         "source_turn_count": new_source_turn
-    }).eq("session_id", session["session_id"]).execute()
+    }).eq("session_id", session["session_id"]).execute())
 
     moderator_action = "proceed"
     scaffold_plan = None
@@ -442,29 +517,29 @@ async def chat(request: ChatRequest, background_tasks: BackgroundTasks, current_
         current_idk_count += 1
         moderator_action = "scaffold"
         if current_idk_count == 1:
-            supabase.table("sessions").update({"idk_count": current_idk_count}).eq("session_id", session["session_id"]).execute()
+            await db(lambda: supabase.table("sessions").update({"idk_count": current_idk_count}).eq("session_id", session["session_id"]).execute())
             scaffold_step = "Sub-concept Nudge"
             scaffolding_level = 3
         elif current_idk_count == 2:
-            supabase.table("sessions").update({"idk_count": current_idk_count}).eq("session_id", session["session_id"]).execute()
+            await db(lambda: supabase.table("sessions").update({"idk_count": current_idk_count}).eq("session_id", session["session_id"]).execute())
             scaffold_step = "Concept Explanation"
             scaffolding_level = 2
         elif current_idk_count == 3:
-            supabase.table("sessions").update({"idk_count": current_idk_count}).eq("session_id", session["session_id"]).execute()
+            await db(lambda: supabase.table("sessions").update({"idk_count": current_idk_count}).eq("session_id", session["session_id"]).execute())
             scaffold_step = "Fill-in-the-Blank"
             scaffolding_level = 1
         else:
-            supabase.table("sessions").update({"idk_count": 0}).eq("session_id", session["session_id"]).execute()
+            await db(lambda: supabase.table("sessions").update({"idk_count": 0}).eq("session_id", session["session_id"]).execute())
             scaffold_step = "Solution Reveal"
             scaffolding_level = 0
             
         # 마지막 AI 질문 조회 (이전 턴에 Moderator가 던진 질문 — 힌트 맥락 기준)
-        last_log = supabase.table("chat_logs") \
+        last_log = await db(lambda: supabase.table("chat_logs") \
             .select("ai_response") \
             .eq("session_id", session["session_id"]) \
             .is_("scaffold_step", "null") \
             .order("turn_number", desc=True) \
-            .limit(1).execute()
+            .limit(1).execute())
         last_question = last_log.data[0]["ai_response"] if last_log.data else ""
 
         sys_prompt = get_recovery_prompt(concept_name, definition, acceptable_extensions, last_question, kg_context, current_idk_count,
@@ -481,6 +556,16 @@ async def chat(request: ChatRequest, background_tasks: BackgroundTasks, current_
         except Exception:
             guidance_message = clean_content
             
+        scaffold_prefixes = {
+            "Sub-concept Nudge": "💡 1단계 힌트: ",
+            "Concept Explanation": "💡 2단계 힌트: ",
+            "Fill-in-the-Blank": "💡 3단계 힌트: ",
+            "Solution Reveal": "💡 정답 공개: "
+        }
+        prefix = scaffold_prefixes.get(scaffold_step, "")
+        if prefix:
+            guidance_message = f"{prefix}{guidance_message}"
+            
         scaffold_plan = {
             "step": scaffold_step,
             "scaffolding_level": scaffolding_level,
@@ -488,7 +573,7 @@ async def chat(request: ChatRequest, background_tasks: BackgroundTasks, current_
         }
     else:
         if session["idk_count"] > 0:
-            supabase.table("sessions").update({"idk_count": 0}).eq("session_id", session["session_id"]).execute()
+            await db(lambda: supabase.table("sessions").update({"idk_count": 0}).eq("session_id", session["session_id"]).execute())
 
         # graph 내 retry_router가 retry_needed=true를 감지했으면
         # retry_node가 final_synthesis와 moderator_action="retry"를 이미 설정합니다.
@@ -532,11 +617,13 @@ async def chat(request: ChatRequest, background_tasks: BackgroundTasks, current_
         "score_macro": expert_scores.get("The Macro-Connector", 0),
         "selected_agent": lowest_persona,
         "ai_response": guidance_message,
-        "scaffold_step": scaffold_plan.get("step") if is_give_up and scaffold_plan else None
+        "scaffold_step": scaffold_plan.get("step") if is_give_up and scaffold_plan else None,
+        "news_urls": list(news_urls) if news_urls else []
     }
     
     # DB 제약조건 회피 처리를 위해 ai_response 번역이 일어나기 전 원문 저장 (ai_response is the english generation generated by llms)
-    background_tasks.add_task(save_chat_log_db, chat_log_payload)
+    # await asyncio.to_thread: 스레드 풀에서 실행(이벤트 루프 비블로킹) + await으로 완료 보장(end_session race condition 방지)
+    await asyncio.to_thread(save_chat_log_db, chat_log_payload)
     
     translated_propositions = [await translate_en_to_ko(p, language) for p in propositions]
     
@@ -577,7 +664,7 @@ async def end_session(request: EndSessionRequest, current_user: dict = Depends(g
     user_id = current_user.get("user_id", current_user.get("id"))
     language = request.language or "ko"
     
-    sess_res = supabase.table("sessions").select("*").eq("session_id", int(request.session_id)).execute()
+    sess_res = await db(lambda: supabase.table("sessions").select("*").eq("session_id", int(request.session_id)).execute())
     if not sess_res.data:
         raise HTTPException(status_code=404, detail="Invalid Session ID.")
     session = sess_res.data[0]
@@ -585,10 +672,10 @@ async def end_session(request: EndSessionRequest, current_user: dict = Depends(g
     if session["user_id"] != user_id:
         raise HTTPException(status_code=403, detail="Not authorized to access this session.")
         
-    supabase.table("sessions").update({"status": "ENDED"}).eq("session_id", session["session_id"]).execute()
+    await db(lambda: supabase.table("sessions").update({"status": "ENDED"}).eq("session_id", session["session_id"]).execute())
         
     nudge_count = session["idk_count"]
-    logs_res = supabase.table("chat_logs").select("*").eq("session_id", session["session_id"]).order("turn_number").execute()
+    logs_res = await db(lambda: supabase.table("chat_logs").select("*").eq("session_id", session["session_id"]).order("turn_number").execute())
     
     academic_scores = []
     market_scores = []
@@ -620,7 +707,7 @@ async def end_session(request: EndSessionRequest, current_user: dict = Depends(g
         educational_insights = f"Your score is {latest_avg:.1f}. You received help from the agent {nudge_count} times. Try harder next time for a bonus score!"
         
     # 과거 ENDED 된 동종 concept 이력이 있는지 검사
-    past_sessions_res = supabase.table("sessions").select("session_id").eq("user_id", user_id).eq("concept_id", session["concept_id"]).eq("status", "ENDED").execute()
+    past_sessions_res = await db(lambda: supabase.table("sessions").select("session_id").eq("user_id", user_id).eq("concept_id", session["concept_id"]).eq("status", "ENDED").execute())
     is_first_time = len(past_sessions_res.data) <= 1  # 현재 방금 ENDED 시킨 세션이 포함되어 있으므로 <= 1
 
     # Exclude scaffolding turns (score=0) from the radar chart to avoid dragging down the cumulative total
@@ -643,11 +730,11 @@ async def end_session(request: EndSessionRequest, current_user: dict = Depends(g
     }
     scaffolding_summary = {"nudge": 0, "concept": 0, "fill_blank": 0, "reveal": 0, "total": 0}
     try:
-        scaffold_logs = supabase.table("chat_logs") \
+        scaffold_logs = await db(lambda: supabase.table("chat_logs") \
             .select("scaffold_step") \
             .eq("session_id", session["session_id"]) \
             .not_.is_("scaffold_step", "null") \
-            .execute()
+            .execute())
         for log in scaffold_logs.data:
             step = log.get("scaffold_step")
             key = scaffold_step_labels.get(step)
@@ -694,7 +781,7 @@ async def websocket_chat(websocket: WebSocket):
             await websocket.close(code=1008)
             return
             
-        user_res = supabase.table("users").select("*").eq("username", username).execute()
+        user_res = await db(lambda: supabase.table("users").select("*").eq("username", username).execute())
         if not user_res.data:
             await websocket.send_json({"type": "error", "message": "User not found."})
             await websocket.close(code=1008)
@@ -706,7 +793,7 @@ async def websocket_chat(websocket: WebSocket):
         # 2. 세션 및 개념 데이터 조회
         await websocket.send_json({"type": "status", "message": await translate_en_to_ko("🔍 Checking session data...", language)})
         
-        sess_res = supabase.table("sessions").select("*").eq("session_id", int(session_id)).execute()
+        sess_res = await db(lambda: supabase.table("sessions").select("*").eq("session_id", int(session_id)).execute())
         if not sess_res.data:
             await websocket.send_json({"type": "error", "message": "Invalid Session ID."})
             await websocket.close()
@@ -719,7 +806,7 @@ async def websocket_chat(websocket: WebSocket):
             return
             
         db_concept_id = session["concept_id"]
-        concept_res = supabase.table("concepts").select("*").eq("concept_id", db_concept_id).execute()
+        concept_res = await db(lambda: supabase.table("concepts").select("*").eq("concept_id", db_concept_id).execute())
         if not concept_res.data:
             await websocket.send_json({"type": "error", "message": "Target Concept is not supported."})
             await websocket.close()
@@ -741,8 +828,34 @@ async def websocket_chat(websocket: WebSocket):
             await websocket.close(code=1008)
             return
 
+        # ── 1-1. 단답형 감지 — 서술형 재유도 ─────────────────────────
+        if not is_give_up and is_short_answer(user_answer):
+            reprompt_msg = await translate_en_to_ko(_SHORT_ANSWER_REPROMPT_EN, language)
+            await websocket.send_json({
+                "type": "final_result",
+                "data": {
+                    "atomic_propositions": [],
+                    "expert_average_score": 0.0,
+                    "is_contradiction_override": False,
+                    "expert_feedback": [],
+                    "is_fallback": False,
+                    "is_short_answer": True,
+                    "moderator_decision": {
+                        "status": "short_answer",
+                        "lowest_performing_area": "N/A",
+                        "scaffold_plan": {
+                            "step": "Short Answer Reprompt",
+                            "message": reprompt_msg
+                        }
+                    }
+                }
+            })
+            await asyncio.sleep(1)
+            await websocket.close()
+            return
+
         # 턴 수 계산
-        logs_count_res = supabase.table("chat_logs").select("log_id", count="exact").eq("session_id", session["session_id"]).execute()
+        logs_count_res = await db(lambda: supabase.table("chat_logs").select("log_id", count="exact").eq("session_id", session["session_id"]).execute())
         turn_number = logs_count_res.count + 1 if logs_count_res.count is not None else 1
 
         # ── 2. 시맨틱 캐시 조회 ──────────────────────────────────────────
@@ -776,8 +889,47 @@ async def websocket_chat(websocket: WebSocket):
 
         await websocket.send_json({"type": "status", "message": await translate_en_to_ko("🌐 Searching Knowledge Graph & News...", language)})
         
-        news_context, kg_context = await asyncio.gather(
-            retrieve_news_rag(concept_name, eval_user_answer),
+        # ── 히스토리를 gather 전에 먼저 조회 — last_question + used_urls를 gather에 전달 ─────────────
+        history_res = await db(lambda: supabase.table("chat_logs") \
+            .select("turn_number, user_message, ai_response, scaffold_step, news_urls, selected_agent") \
+            .eq("session_id", session["session_id"]) \
+            .order("turn_number", desc=False) \
+            .execute())
+        session_history = {
+            f"turn_{log['turn_number']}": {
+                "user_answer": log.get("user_message") or "",
+                "final_synthesis": log.get("ai_response") or "",
+                "scaffold_step": log.get("scaffold_step") or None
+            }
+            for log in history_res.data
+        }
+        session_context_payload = {
+            "consecutive_high_score_count": session.get("consecutive_high_score_count", 0),
+            "conversation_history": session_history
+        }
+        session_context_str = json.dumps(session_context_payload, ensure_ascii=False)
+
+        last_question_from_history = ""
+        for log in reversed(history_res.data):
+            if log.get("scaffold_step") is None:
+                last_question_from_history = log.get("ai_response") or ""
+                break
+                
+        last_selected_agent = None
+        if history_res.data:
+            last_selected_agent = history_res.data[-1].get("selected_agent")
+
+        used_news_urls: set = set()
+        for log in history_res.data:
+            urls = log.get("news_urls") or []
+            used_news_urls.update(urls)
+
+        # 뉴스 + KG 병렬 gather (다음 turn 다른 기사 + last_question 키워드 적용)
+        from services.llm_agent import retrieve_tavily_news_v2
+        (news_context, news_urls), kg_context = await asyncio.gather(
+            retrieve_tavily_news_v2(concept_name, eval_user_answer,
+                                    last_question=last_question_from_history,
+                                    used_urls=used_news_urls),
             retrieve_knowledge_graph(concept_name.lower())
         )
 
@@ -808,31 +960,6 @@ async def websocket_chat(websocket: WebSocket):
                 print(f"  ⚠️ Scaffolding 답변 오답 — 다음 scaffolding 레벨로 진입", flush=True)
                 is_give_up = True
 
-        # ── session_context 히스토리 빌드 ────────────────────────────────
-        history_res = supabase.table("chat_logs") \
-            .select("turn_number, user_message, ai_response, scaffold_step") \
-            .eq("session_id", session["session_id"]) \
-            .order("turn_number", desc=False) \
-            .execute()
-        session_history = {
-            f"turn_{log['turn_number']}": {
-                "user_answer": log.get("user_message") or "",
-                "final_synthesis": log.get("ai_response") or "",
-                "scaffold_step": log.get("scaffold_step") or None
-            }
-            for log in history_res.data
-        }
-        session_context_payload = {
-            "consecutive_high_score_count": session.get("consecutive_high_score_count", 0),
-            "conversation_history": session_history
-        }
-        session_context_str = json.dumps(session_context_payload, ensure_ascii=False)
-        
-        last_question_from_history = ""
-        for log in reversed(history_res.data):
-            if log.get("scaffold_step") is None:
-                last_question_from_history = log.get("ai_response") or ""
-                break
 
         initial_state = {
             "concept": concept_name,
@@ -852,7 +979,8 @@ async def websocket_chat(websocket: WebSocket):
             "hint_provided": False,
             "language": language,
             "session_context": session_context_str,
-            "last_question": last_question_from_history
+            "last_question": last_question_from_history,
+            "previous_lowest_agent": last_selected_agent
         }
         
         await websocket.send_json({"type": "status", "message": await translate_en_to_ko("🤖 AI Agents are drafting & debating...", language)})
@@ -862,17 +990,17 @@ async def websocket_chat(websocket: WebSocket):
         if is_give_up:
             current_idk_count = session["idk_count"] + 1
             if current_idk_count >= 4:
-                supabase.table("sessions").update({"idk_count": 0}).eq("session_id", session["session_id"]).execute()
+                await db(lambda: supabase.table("sessions").update({"idk_count": 0}).eq("session_id", session["session_id"]).execute())
             else:
-                supabase.table("sessions").update({"idk_count": current_idk_count}).eq("session_id", session["session_id"]).execute()
+                await db(lambda: supabase.table("sessions").update({"idk_count": current_idk_count}).eq("session_id", session["session_id"]).execute())
             
             # 마지막 AI 질문 조회
-            last_log = supabase.table("chat_logs") \
+            last_log = await db(lambda: supabase.table("chat_logs") \
                 .select("ai_response") \
                 .eq("session_id", session["session_id"]) \
                 .is_("scaffold_step", "null") \
                 .order("turn_number", desc=True) \
-                .limit(1).execute()
+                .limit(1).execute())
             last_question = last_log.data[0]["ai_response"] if last_log.data else ""
 
             sys_prompt = get_recovery_prompt(concept_name, definition, acceptable_extensions, last_question, kg_context, current_idk_count,
@@ -894,10 +1022,6 @@ async def websocket_chat(websocket: WebSocket):
             except Exception:
                 guidance_message = recovery_text
                 
-            final_state["raw_scores"] = {"The Market Practitioner": 0.0, "The Macro-Connector": 0.0, "The Academic Auditor": 0.0}
-            final_state["is_contradiction"] = False
-            final_state["final_synthesis"] = guidance_message
-            
             if current_idk_count == 1:
                 scaffold_step = "Sub-concept Nudge"
                 scaffolding_level = 3
@@ -911,6 +1035,20 @@ async def websocket_chat(websocket: WebSocket):
                 scaffold_step = "Solution Reveal"
                 scaffolding_level = 0
                 
+            scaffold_prefixes = {
+                "Sub-concept Nudge": "💡 1단계 힌트: ",
+                "Concept Explanation": "💡 2단계 힌트: ",
+                "Fill-in-the-Blank": "💡 3단계 힌트: ",
+                "Solution Reveal": "💡 정답 공개: "
+            }
+            prefix = scaffold_prefixes.get(scaffold_step, "")
+            if prefix:
+                guidance_message = f"{prefix}{guidance_message}"
+                
+            final_state["raw_scores"] = {"The Market Practitioner": 0.0, "The Macro-Connector": 0.0, "The Academic Auditor": 0.0}
+            final_state["is_contradiction"] = False
+            final_state["final_synthesis"] = guidance_message
+            
             final_state["scaffold_plan"] = {
                 "step": scaffold_step,
                 "scaffolding_level": scaffolding_level,
@@ -919,7 +1057,7 @@ async def websocket_chat(websocket: WebSocket):
 
         else:
             if session["idk_count"] > 0:
-                supabase.table("sessions").update({"idk_count": 0}).eq("session_id", session["session_id"]).execute()
+                await db(lambda: supabase.table("sessions").update({"idk_count": 0}).eq("session_id", session["session_id"]).execute())
             think_filter = ThinkTagStreamFilter()
             async for event in debate_graph.astream_events(initial_state, version="v1"):
                 kind = event["event"]
@@ -950,7 +1088,7 @@ async def websocket_chat(websocket: WebSocket):
         
         if hint_provided:
             current_scaffold_count = session.get("scaffolding_counter", 0)
-            supabase.table("sessions").update({"scaffolding_counter": current_scaffold_count + 1}).eq("session_id", session["session_id"]).execute()
+            await db(lambda: supabase.table("sessions").update({"scaffolding_counter": current_scaffold_count + 1}).eq("session_id", session["session_id"]).execute())
             
         expert_results = []
         any_fallback = False
@@ -967,6 +1105,7 @@ async def websocket_chat(websocket: WebSocket):
             
         expert_scores = expert_scores_raw
         
+        # save_debate_log: 로컬 파일 I/O라 치명적이진 않으나 통일성을 위해 to_thread 사용
         asyncio.create_task(asyncio.to_thread(save_debate_log,
             session_id=session["session_id"],
             concept=concept_name,
@@ -1011,10 +1150,10 @@ async def websocket_chat(websocket: WebSocket):
         else:
             new_source_turn = current_source_turn
 
-        supabase.table("sessions").update({
+        await db(lambda: supabase.table("sessions").update({
             "consecutive_high_score_count": new_count,
             "source_turn_count": new_source_turn
-        }).eq("session_id", session["session_id"]).execute()
+        }).eq("session_id", session["session_id"]).execute())
 
         moderator_action = "proceed"
         scaffold_plan = None
@@ -1058,10 +1197,12 @@ async def websocket_chat(websocket: WebSocket):
             "score_macro": expert_scores.get("The Macro-Connector", 0),
             "selected_agent": lowest_persona,
             "ai_response": guidance_message,
-            "scaffold_step": scaffold_plan.get("step") if is_give_up and scaffold_plan else None
+            "scaffold_step": scaffold_plan.get("step") if is_give_up and scaffold_plan else None,
+            "news_urls": list(news_urls) if news_urls else []
         }
         
-        save_chat_log_db(chat_log_payload)
+        # await asyncio.to_thread: 이벤트 루프 비블로킹 + 완료 보장 (end_session race condition 방지)
+        await asyncio.to_thread(save_chat_log_db, chat_log_payload)
 
         
         translated_propositions = [await translate_en_to_ko(p, language) for p in propositions]

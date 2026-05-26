@@ -27,6 +27,7 @@ back/services/semantic_cache.py
 from __future__ import annotations
 
 import asyncio
+import concurrent.futures
 from typing import Optional
 
 # ---------------------------------------------------------------------------
@@ -34,6 +35,13 @@ from typing import Optional
 # ---------------------------------------------------------------------------
 from datetime import datetime
 from database import supabase
+
+# ---------------------------------------------------------------------------
+# 임베딩 전용 스레드 풀 — CPU-bound 연산이 기본 asyncio 스레드 풀을 점유하지 않도록 분리
+# ---------------------------------------------------------------------------
+_embedding_executor = concurrent.futures.ThreadPoolExecutor(
+    max_workers=4, thread_name_prefix="embedding"
+)
 
 # ---------------------------------------------------------------------------
 # 임베딩 모델 — Lazy 초기화 (서버 시작 속도 보호)
@@ -81,7 +89,7 @@ async def get_embedding(text: str) -> Optional[list[float]]:
 
     loop = asyncio.get_event_loop()
     vector = await loop.run_in_executor(
-        None, lambda: _encoder.encode(text, normalize_embeddings=True).tolist()
+        _embedding_executor, lambda: _encoder.encode(text, normalize_embeddings=True).tolist()
     )
     return vector
 

@@ -2,6 +2,7 @@ import asyncio
 import json
 import httpx
 import re
+import concurrent.futures
 from typing import Optional, Dict, Any, List
 from fastapi import HTTPException
 
@@ -257,6 +258,12 @@ except Exception as _e:
     print(f"⚠️ [Tavily] 초기화 오류: {_e}")
     _tavily_tool = None
 
+# Tavily 전용 스레드 풀 — 기본 asyncio 스레드 풀 오염 방지
+# 동시 10명 요청 시에도 to_thread 작업(저장, 임베딩 등)와 경엁하지 않음
+_tavily_executor = concurrent.futures.ThreadPoolExecutor(
+    max_workers=10, thread_name_prefix="tavily"
+)
+
 async def retrieve_tavily_news(concept: str, user_answer: str = "") -> str:
     """
     TavilySearch(langchain-tavily) 를 사용하여 개념 관련 최신 뉴스를 검색합니다.
@@ -291,7 +298,7 @@ async def retrieve_tavily_news(concept: str, user_answer: str = "") -> str:
         query = f"{concept}{keyword_str} news recent impact market 2024 2025"
         loop = asyncio.get_event_loop()
         results = await loop.run_in_executor(
-            None, lambda: _tavily_tool.invoke(query)
+            _tavily_executor, lambda: _tavily_tool.invoke(query)
         )
         print(f"🔍 [Tavily] type={type(results).__name__}, preview={str(results)[:300]}", flush=True)
 
@@ -367,6 +374,101 @@ async def retrieve_tavily_news(concept: str, user_answer: str = "") -> str:
     except Exception as e:
         print(f"⚠️ [Tavily] 검색 오류: {e}", flush=True)
         return f"Error fetching news for {concept}: {str(e)}"
+
+async def retrieve_tavily_news_v2(concept: str, user_answer: str = "", last_question: str = "", used_urls: set = None) -> tuple[str, set]:
+    """
+    v2 version of retrieve_tavily_news that takes last_question for better query formulation
+    and deduplicates based on used_urls to prevent repetitive articles across turns.
+    Returns: (news_context_str, newly_used_urls_set)
+    """
+    if not TAVILY_API_KEY or TAVILY_API_KEY == "your-tavily-api-key-here":
+        return f"No recent news found for {concept}. (Tavily API key not configured)", set()
+
+    if _tavily_tool is None:
+        return f"No recent news found for {concept}. (Tavily tool initialization failed)", set()
+
+    if used_urls is None:
+        used_urls = set()
+
+    try:
+        # Extract keywords from last_question and user_answer
+        keyword_str = ""
+        import re
+        stopwords = {"this", "that", "there", "their", "what", "which", "when", "where", "because", "would", "should", "could", "about", "with", "from"}
+        
+        combined_text = f"{last_question} {user_answer}"
+        words = re.findall(r'\b[a-zA-Z]{4,}\b', combined_text.lower())
+        filtered_words = [w for w in words if w not in stopwords]
+        
+        # Use top 3 unique keywords
+        unique_words = []
+        for w in filtered_words:
+            if w not in unique_words:
+                unique_words.append(w)
+            if len(unique_words) >= 3:
+                break
+                
+        if unique_words:
+            keyword_str = " " + " ".join(unique_words)
+
+        query = f"{concept}{keyword_str} news recent impact 2024 2025"
+        loop = asyncio.get_event_loop()
+        results = await loop.run_in_executor(
+            _tavily_executor, lambda: _tavily_tool.invoke(query)
+        )
+
+        if not results:
+            return f"No recent news found for {concept}.", set()
+
+        items = []
+        if isinstance(results, dict):
+            items = results.get("results", [])
+        elif isinstance(results, list):
+            items = results
+
+        items = sorted(items, key=lambda r: r.get("score", 0) if isinstance(r, dict) else 0, reverse=True)
+
+        snippets = []
+        seen_titles = set()
+        newly_used_urls = set()
+
+        for r in items:
+            if not isinstance(r, dict):
+                continue
+
+            url = r.get("url", "")
+            if not url or url in used_urls:
+                continue
+
+            if _is_encyclopedia_source(url) or "youtube.com" in url.lower() or "youtu.be" in url.lower():
+                continue
+
+            title = (r.get("title") or "").strip().lower()[:60]
+            if title and title in seen_titles:
+                continue
+            if title:
+                seen_titles.add(title)
+
+            raw_content = r.get("content") or r.get("snippet") or ""
+            content = _trim_to_sentences(_clean_content(raw_content), max_chars=500)
+
+            if not content:
+                continue
+
+            snippets.append(f"- {content}")
+            newly_used_urls.add(url)
+
+            if len(snippets) >= 3:
+                break
+
+        if snippets:
+            news_text = "\n".join(snippets)
+            return f"Recent news context for {concept}:\n{news_text}", newly_used_urls
+        else:
+            return f"No relevant news found for {concept}.", set()
+    except Exception as e:
+        print(f"⚠️ [Tavily] v2 검색 오류: {e}", flush=True)
+        return f"Error fetching news for {concept}: {str(e)}", set()
 
 # 기존 직접 호출자(채팅.py, sandbox.py, benchmark.py)와의 호환성을 위한 별칭
 # 실제 구현체는 Tavily로 전환되었습니다.

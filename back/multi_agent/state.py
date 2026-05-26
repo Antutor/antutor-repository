@@ -40,3 +40,4 @@ class AgentState(TypedDict):
     last_question: Optional[str]        # 이전 턴에 Moderator가 던진 질문
     turn_count: int                     # 현재 세션의 턴 수
     source_turn_count: int              # 소스 순환용 턴 수
+    previous_lowest_agent: Optional[str] # 연속 최약 에이전트 체크용

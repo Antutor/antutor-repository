@@ -7,6 +7,7 @@ from langchain_core.messages import SystemMessage, HumanMessage
 from multi_agent.state import AgentState
 from multi_agent.prompts import (
     NEW_ACADEMIC_DRAFT_PROMPT,
+    NEW_ACADEMIC_ADVANCED_PROMPT,
     NEW_MARKET_DRAFT_PROMPT,
     NEW_MACRO_DRAFT_PROMPT,
     NEW_MODERATOR_AGENT_PROMPT,
@@ -73,15 +74,24 @@ def with_retry_and_fallback(max_retries=3, fallback_value=None):
 @with_retry_and_fallback(max_retries=3, fallback_value=("The Academic Auditor", {"score": 0.5, "feedback": "System fallback due to timeout or error.", "is_contradiction": False, "is_fallback": True}))
 async def call_academic(concept, definition, acceptable_extensions, user_answer, session_context="", last_question="", consecutive_high_score_count=0):
     async with gpu_semaphore:
-        sys_msg = "/no_think\n" + NEW_ACADEMIC_DRAFT_PROMPT.format(
-            concept=concept, 
-            definition=definition, 
-            acceptable_extensions=acceptable_extensions, 
-            user_answer=user_answer,
-            session_context=session_context,
-            last_question=last_question,
-            consecutive_high_score_count=consecutive_high_score_count
-        )
+        if consecutive_high_score_count >= 1:
+            sys_msg = "/no_think\n" + NEW_ACADEMIC_ADVANCED_PROMPT.format(
+                concept=concept,
+                acceptable_extensions=acceptable_extensions,
+                last_question=last_question,
+                session_context=session_context,
+                user_answer=user_answer
+            )
+        else:
+            sys_msg = "/no_think\n" + NEW_ACADEMIC_DRAFT_PROMPT.format(
+                concept=concept, 
+                definition=definition, 
+                acceptable_extensions=acceptable_extensions, 
+                user_answer=user_answer,
+                session_context=session_context,
+                last_question=last_question,
+                consecutive_high_score_count=consecutive_high_score_count
+            )
         res = await draft_llm.ainvoke([SystemMessage(content=sys_msg)])
         data = extract_json(strip_think_tags(res.content))
         return "The Academic Auditor", data
@@ -446,8 +456,22 @@ async def synthesis_node(state: AgentState):
     else:
         new_count = current_count + 1 if avg_score >= 0.6 else 1
 
-    mode = "mastery" if new_count >= 3 and avg_score >= 0.6 else "normal"
+    mode = "mastery" if new_count >= 3 and avg_score >= 0.6 else ""
     
+    # focus_agent calculation
+    focus_agent = "The Academic Auditor"
+    if raw_scores:
+        # Find all agents sorted by score (ascending)
+        sorted_agents = sorted(raw_scores.keys(), key=lambda k: raw_scores[k])
+        current_lowest = sorted_agents[0]
+        previous_lowest = state.get("previous_lowest_agent")
+        
+        # If the same agent is lowest again, rotate to the second lowest
+        if current_lowest == previous_lowest and len(sorted_agents) > 1:
+            focus_agent = sorted_agents[1]
+        else:
+            focus_agent = current_lowest
+
     sys_msg = "/no_think\n" + NEW_MODERATOR_AGENT_PROMPT.format(
         concept=concept,
         user_answer=user_answer,
@@ -460,7 +484,8 @@ async def synthesis_node(state: AgentState):
         output_language=output_language,
         turn_count=state.get("turn_count", 0),
         source_turn_count=state.get("source_turn_count", 0),
-        mode=mode
+        mode=mode,
+        focus_agent=focus_agent
     )
     
     res_content = await call_synthesis(sys_msg)
@@ -494,7 +519,7 @@ async def synthesis_node(state: AgentState):
     else:
         hint_provided = bool(raw_hint_provided)
         
-    mode = moderator_data.get("mode", "normal")
+    mode = moderator_data.get("mode", "")
     
     # Priority 1: retry_needed 연동 강제화
     academic_data = drafts.get("The Academic Auditor", {})
