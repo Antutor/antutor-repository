@@ -145,19 +145,21 @@ const AttendanceTracker = ({ language = 'ko' }) => {
                 ))}
             </div>
             
-            <div style={{ 
-                marginTop: '15px', 
-                fontSize: '0.75rem', 
-                color: 'var(--color-expert-market)', 
-                fontWeight: '700',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '5px'
-            }}>
-                <CheckCircle2 size={14} />
-                {t(language, 'todayAttendance').replace('{date}', new Date().getDate())}
-            </div>
+            {calendarDays.find(d => d.isToday)?.isAttended && (
+                <div style={{ 
+                    marginTop: '15px', 
+                    fontSize: '0.75rem', 
+                    color: 'var(--color-expert-market)', 
+                    fontWeight: '700',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '5px'
+                }}>
+                    <CheckCircle2 size={14} />
+                    {t(language, 'todayAttendance').replace('{date}', new Date().getDate())}
+                </div>
+            )}
         </div>
     );
 };

@@ -766,7 +766,9 @@ async def end_session(request: EndSessionRequest, current_user: dict = Depends(g
         "educational_insights": translated_insights,
         "is_first_time": is_first_time,
         "growth_visualization": radar_payload,
-        "scaffolding_summary": scaffolding_summary
+        "scaffolding_summary": scaffolding_summary,
+        "base_score": latest_avg,
+        "final_score": final_score
     }
 
 @router.websocket("/ws/chat")
