@@ -20,11 +20,11 @@ from multi_agent.nodes import call_academic
 from services.translator import translate_en_to_ko, translate_ko_to_en
 from datetime import datetime, timezone, timedelta
 import json
+import ast
 import os
 from multi_agent.llm_config import draft_llm
 from multi_agent.prompts import RECOVERY_NUDGE_PROMPT, RECOVERY_CONCEPT_PROMPT, RECOVERY_FILL_BLANK_PROMPT, RECOVERY_REVEAL_PROMPT
 from langchain_core.messages import SystemMessage
-import json
 # --- 보안 가드레일 & 시맨틱 캐시 ---
 from services.guardrail import run_guardrail, run_guardrail_ws
 from services.semantic_cache import get_cached_response, save_to_cache
@@ -386,8 +386,6 @@ async def chat(request: ChatRequest, background_tasks: BackgroundTasks, current_
 
     # 이전 턴에서 사용한 뉴스 URL 수집 (중복 제외)
     used_news_urls: set = set()
-    import json
-    import ast
     for log in history_res.data:
         urls = log.get("news_urls")
         if not urls:
@@ -943,11 +941,9 @@ async def websocket_chat(websocket: WebSocket):
                 continue
             if isinstance(urls, str):
                 try:
-                    import json
                     urls = json.loads(urls.replace("'", '"'))
                 except Exception:
                     try:
-                        import ast
                         urls = ast.literal_eval(urls)
                     except Exception:
                         urls = [urls]
