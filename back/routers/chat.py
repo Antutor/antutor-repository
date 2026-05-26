@@ -1006,22 +1006,6 @@ async def websocket_chat(websocket: WebSocket):
             sys_prompt = get_recovery_prompt(concept_name, definition, acceptable_extensions, last_question, kg_context, current_idk_count,
                                               student_answer=eval_user_answer, session_context=session_context_str)
 
-            recovery_text = ""
-            think_filter = ThinkTagStreamFilter()
-            async for chunk in draft_llm.astream([SystemMessage(content=sys_prompt)]):
-                if chunk.content:
-                    recovery_text += chunk.content
-                    filtered = think_filter.feed(chunk.content)
-                    if filtered:
-                        await websocket.send_json({"type": "stream", "chunk": filtered})
-            
-            recovery_text = strip_think_tags(recovery_text)
-            try:
-                parsed = json.loads(recovery_text)
-                guidance_message = parsed.get("message", recovery_text)
-            except Exception:
-                guidance_message = recovery_text
-                
             if current_idk_count == 1:
                 scaffold_step = "Sub-concept Nudge"
                 scaffolding_level = 3
@@ -1042,6 +1026,26 @@ async def websocket_chat(websocket: WebSocket):
                 "Solution Reveal": "💡 정답 공개: "
             }
             prefix = scaffold_prefixes.get(scaffold_step, "")
+
+            recovery_text = ""
+            think_filter = ThinkTagStreamFilter()
+            async for chunk in draft_llm.astream([SystemMessage(content=sys_prompt)]):
+                if chunk.content:
+                    recovery_text += chunk.content
+                    filtered = think_filter.feed(chunk.content)
+                    if filtered:
+                        # 프론트엔드에서 레이블을 렌더링할 수 있도록 prefix 정보를 함께 전달
+                        await websocket.send_json({"type": "stream", "chunk": filtered, "prefix": prefix})
+            
+            recovery_text = strip_think_tags(recovery_text)
+            try:
+                parsed = json.loads(recovery_text)
+                guidance_message = parsed.get("message", recovery_text)
+            except Exception:
+                guidance_message = recovery_text
+                
+            # Prefix calculation was moved above to pass to websocket stream
+            # prefix = scaffold_prefixes.get(scaffold_step, "")
             if prefix:
                 guidance_message = f"{prefix}{guidance_message}"
                 
