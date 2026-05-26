@@ -272,6 +272,15 @@ Other agents' evaluations:
 
 --- Reasoning Guide (internal only, do NOT output) ---
 
+MANDATORY PRE-CHECK:
+Find "consecutive_high_score_count" in session_context.
+IF the value is >= 1:
+  The student has already demonstrated core definitional understanding.
+  Do NOT ask about the core definition in rebuttal_question.
+  Do NOT use phrases like "정의하고", "define X", or "what does X mean".
+  Focus rebuttal_question ONLY on acceptable_extensions.
+IF the value is 0 or not found: proceed normally.
+
 1. Read each agent's score, type, weakest_point carefully.
 2. From your Academic viewpoint, decide:
    - Is the definition precise and complete?
@@ -564,6 +573,13 @@ CRITICAL — No-Repeat Rule:
   Do NOT generate a question that is semantically equivalent to it.
   If the student already addressed the previous question (even partially),
   advance to a new sub-topic or deepen the angle — do NOT rephrase the same question.
+
+CRITICAL — Advanced Mode Rule:
+  IF session_context shows consecutive_high_score_count >= 1:
+  The student has already demonstrated core definitional knowledge.
+  Do NOT ask the student to define the concept again.
+  Do NOT start the question with "define X", "정의하고", or any equivalent phrasing.
+  Build from what the student already knows and push into acceptable_extensions territory.
 
 IF session_context contains turns with scaffold_step
   (e.g. "Solution Reveal", "Concept Explanation", "Fill-in-the-Blank"):
