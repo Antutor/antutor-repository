@@ -20,7 +20,9 @@ DRAFT_LLM_MODEL = os.getenv("DRAFT_LLM_MODEL", "qwen3:8b")
 DEBATE_LLM_MODEL = os.getenv("DEBATE_LLM_MODEL", "qwen3:8b")
 # NEWS_API_KEY = os.getenv("NEWS_API_KEY", "")  # Deprecated: replaced by Tavily Search
 TAVILY_API_KEY = os.getenv("TAVILY_API_KEY", "")
-DEEPL_API_KEY = os.getenv("DEEPL_API_KEY", "")
+# DEEPL_API_KEY = os.getenv("DEEPL_API_KEY", "")  # Deprecated: replaced by Azure Translator
+AZURE_TRANSLATOR_KEY = os.getenv("AZURE_TRANSLATOR_KEY", "")
+AZURE_TRANSLATOR_REGION = os.getenv("AZURE_TRANSLATOR_REGION", "koreacentral")
 ENABLE_KOREAN_TRANSLATION = os.getenv("ENABLE_KOREAN_TRANSLATION", "true").lower() == "true"
 
 # --- Supabase Database Configuration ---

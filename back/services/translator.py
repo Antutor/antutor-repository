@@ -1,90 +1,82 @@
 import httpx
-from config import DEEPL_API_KEY, ENABLE_KOREAN_TRANSLATION
+import uuid
+from config import AZURE_TRANSLATOR_KEY, AZURE_TRANSLATOR_REGION, ENABLE_KOREAN_TRANSLATION
+
+_AZURE_ENDPOINT = "https://api.cognitive.microsofttranslator.com/translate"
+
+def _azure_headers() -> dict:
+    return {
+        "Ocp-Apim-Subscription-Key": AZURE_TRANSLATOR_KEY,
+        "Ocp-Apim-Subscription-Region": AZURE_TRANSLATOR_REGION,
+        "Content-Type": "application/json",
+        "X-ClientTraceId": str(uuid.uuid4()),
+    }
 
 async def translate_en_to_ko(text: str, target_lang: str = "ko") -> str:
     """
-    Translates English text to Korean using the DeepL Free API.
-    If ENABLE_KOREAN_TRANSLATION is False, or DEEPL_API_KEY is missing, or an error occurs, 
-    the original English text is returned (Fall-back).
+    Translates English text to Korean using Azure Cognitive Services Translator.
+    If ENABLE_KOREAN_TRANSLATION is False, AZURE_TRANSLATOR_KEY is missing,
+    or an error occurs, the original text is returned (fall-back).
     """
-    if not ENABLE_KOREAN_TRANSLATION or not text or not DEEPL_API_KEY or target_lang.lower() != "ko":
+    if not ENABLE_KOREAN_TRANSLATION or not text or not AZURE_TRANSLATOR_KEY or target_lang.lower() != "ko":
         return text
 
-    url = "https://api-free.deepl.com/v2/translate"
-    headers = {
-        "Authorization": f"DeepL-Auth-Key {DEEPL_API_KEY}",
-        "Content-Type": "application/json"
-    }
-    payload = {
-        "text": [text],
-        "target_lang": "KO"
-    }
-    
-    # httpx를 통해 비동기로 API 전송
+    params = {"api-version": "3.0", "from": "en", "to": "ko"}
+    body = [{"text": text}]
+
     async with httpx.AsyncClient() as client:
         try:
-            response = await client.post(url, headers=headers, json=payload, timeout=10.0)
+            response = await client.post(
+                _AZURE_ENDPOINT, headers=_azure_headers(), params=params, json=body, timeout=10.0
+            )
             response.raise_for_status()
-            data = response.json()
-            return data["translations"][0]["text"]
+            return response.json()[0]["translations"][0]["text"]
         except Exception as e:
-            print(f"DeepL Translation Error (EN->KO): {e}")
-            return text  # 에러 발생 시 원문(영어)을 그대로 반환하여 시스템 다운 방지
+            print(f"Azure Translation Error (EN->KO): {e}")
+            return text  # 에러 발생 시 원문(영어) 반환하여 시스템 다운 방지
+
 
 async def translate_list_en_to_ko(texts: list[str], target_lang: str = "ko") -> list[str]:
     """
-    Translates a list of English strings to Korean in a single DeepL API call.
+    Translates a list of English strings to Korean in a single Azure Translator API call.
     """
-    if not ENABLE_KOREAN_TRANSLATION or not texts or not DEEPL_API_KEY or target_lang.lower() != "ko":
+    if not ENABLE_KOREAN_TRANSLATION or not texts or not AZURE_TRANSLATOR_KEY or target_lang.lower() != "ko":
         return texts
 
-    # Filter out empty strings to avoid API errors, but keep indices correct
-    # Actually DeepL handles multiple texts in one go
-    url = "https://api-free.deepl.com/v2/translate"
-    headers = {
-        "Authorization": f"DeepL-Auth-Key {DEEPL_API_KEY}",
-        "Content-Type": "application/json"
-    }
-    payload = {
-        "text": texts,
-        "target_lang": "KO"
-    }
+    params = {"api-version": "3.0", "from": "en", "to": "ko"}
+    body = [{"text": t} for t in texts]
 
     async with httpx.AsyncClient() as client:
         try:
-            response = await client.post(url, headers=headers, json=payload, timeout=15.0)
+            response = await client.post(
+                _AZURE_ENDPOINT, headers=_azure_headers(), params=params, json=body, timeout=15.0
+            )
             response.raise_for_status()
             data = response.json()
-            return [t["text"] for t in data["translations"]]
+            return [item["translations"][0]["text"] for item in data]
         except Exception as e:
-            print(f"DeepL Batch Translation Error: {e}")
+            print(f"Azure Batch Translation Error: {e}")
             return texts
+
 
 async def translate_ko_to_en(text: str, source_lang: str = "ko") -> str:
     """
-    Translates Korean text to English using the DeepL Free API.
+    Translates Korean text to English using Azure Cognitive Services Translator.
     Used for translating user inputs before they hit the English LLM pipeline.
     """
-    if not ENABLE_KOREAN_TRANSLATION or not text or not DEEPL_API_KEY or source_lang.lower() != "ko":
+    if not ENABLE_KOREAN_TRANSLATION or not text or not AZURE_TRANSLATOR_KEY or source_lang.lower() != "ko":
         return text
 
-    url = "https://api-free.deepl.com/v2/translate"
-    headers = {
-        "Authorization": f"DeepL-Auth-Key {DEEPL_API_KEY}",
-        "Content-Type": "application/json"
-    }
-    payload = {
-        "text": [text],
-        "target_lang": "EN-US"
-    }
-    
+    params = {"api-version": "3.0", "from": "ko", "to": "en"}
+    body = [{"text": text}]
+
     async with httpx.AsyncClient() as client:
         try:
-            response = await client.post(url, headers=headers, json=payload, timeout=10.0)
+            response = await client.post(
+                _AZURE_ENDPOINT, headers=_azure_headers(), params=params, json=body, timeout=10.0
+            )
             response.raise_for_status()
-            data = response.json()
-            return data["translations"][0]["text"]
+            return response.json()[0]["translations"][0]["text"]
         except Exception as e:
-            print(f"DeepL Translation Error (KO->EN): {e}")
+            print(f"Azure Translation Error (KO->EN): {e}")
             return text
-
