@@ -104,8 +104,8 @@ const QuizScreen = ({ questions, sessionId, concept, userId, language, isPostTes
             setResult(response.data);
         } catch (error) {
             console.error("Quiz submission failed", error);
-            // Fallback: just proceed
-            onComplete();
+            alert(language === 'ko' ? '퀴즈 제출 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.' : 'An error occurred while submitting the quiz. Please try again.');
+            // Do not call onComplete() here so it doesn't skip directly to the final report
         } finally {
             setIsSubmitting(false);
         }

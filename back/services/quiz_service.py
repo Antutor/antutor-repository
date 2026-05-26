@@ -142,9 +142,10 @@ class QuizService:
                 .execute()
             
             if pre_test_res.data:
-                pre_test_score = pre_test_res.data[0]["total_score"]
+                pre_test_score = pre_test_res.data[0].get("total_score")
+                pre_score_val = float(pre_test_score) if pre_test_score is not None else 0.0
                 skill_improvement = QuizService._calculate_hakes_gain(
-                    pre_score=float(pre_test_score),
+                    pre_score=pre_score_val,
                     post_score=float(total_score),
                     perfect_score=float(max_possible_score)
                 )

@@ -105,7 +105,7 @@ class QuizSubmission(BaseModel):
 
 class QuizAnswerDetailOut(BaseModel):
     question_id: Any
-    correct_option: int
+    correct_option: Optional[int] = 0
     commentary: Optional[str] = None
     earned_score: Optional[int] = 0
 
