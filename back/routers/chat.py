@@ -506,7 +506,7 @@ async def chat(request: ChatRequest, background_tasks: BackgroundTasks, current_
     current_count = session.get("consecutive_high_score_count", 0)
 
     if current_count == 0:
-        new_count = 1 if academic_score >= 0.69 else 0
+        new_count = 1 if academic_score >= 0.5 else 0
     else:
         new_count = current_count + 1 if avg_score >= 0.6 else 1
 
@@ -1173,7 +1173,7 @@ async def websocket_chat(websocket: WebSocket):
         current_count = session.get("consecutive_high_score_count", 0)
 
         if current_count == 0:
-            new_count = 1 if academic_score >= 0.69 else 0
+            new_count = 1 if academic_score >= 0.5 else 0
         else:
             new_count = current_count + 1 if avg_score >= 0.6 else 1
 
