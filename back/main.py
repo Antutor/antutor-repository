@@ -18,15 +18,18 @@ from routers import users, dictionary, chat, sandbox, benchmark, attendance, qui
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # 서버 시작 시 임베딩 모델 미리 로드 (첫 요청 지연 방지)
-    async def _warmup():
-        try:
-            from services.semantic_cache import get_embedding
-            await get_embedding("warmup")
-            print("🚀 [Startup] Embedding model warm-up complete.", flush=True)
-        except Exception as e:
-            print(f"⚠️ [Startup] Embedding warm-up failed (non-critical): {e}", flush=True)
-    asyncio.create_task(_warmup())
+    # ⚠️ Render 무료 플랜(512MB) 메모리 절약을 위해 warm-up 비활성화
+    # 임베딩 모델은 첫 요청 시 lazy 로딩됩니다.
+    # (로컬 개발 시 warm-up을 원하면 아래 주석을 풀어 사용하세요)
+    # async def _warmup():
+    #     try:
+    #         from services.semantic_cache import get_embedding
+    #         await get_embedding("warmup")
+    #         print("🚀 [Startup] Embedding model warm-up complete.", flush=True)
+    #     except Exception as e:
+    #         print(f"⚠️ [Startup] Embedding warm-up failed (non-critical): {e}", flush=True)
+    # asyncio.create_task(_warmup())
+    print("✅ [Startup] Server started (embedding lazy-load mode).", flush=True)
     yield
 
 app = FastAPI(
@@ -56,7 +59,8 @@ app.add_middleware(
         "http://127.0.0.1:8080",
         # --- Production (Vercel) ---
         # Vercel 배포 완료 후 아래에 실제 URL 추가
-        # "https://antutor.vercel.app",
+        "https://antutor.vercel.app",
+        "https://antutor-front.vercel.app",  # 예상되는 기본 vercel 주소 보강
     ],
     allow_origin_regex=r"https://.*\.vercel\.app",  # 모든 Vercel 프리뷰 URL 허용
     allow_credentials=True,
