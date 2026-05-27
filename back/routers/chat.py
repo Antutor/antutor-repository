@@ -271,8 +271,8 @@ async def chat(request: ChatRequest, background_tasks: BackgroundTasks, current_
     # ── 1. 보안 가드레일 ──────────────────────────────────────────────
     await run_guardrail(eval_user_answer, user_id=str(user_id))
 
-    # ── 1-1. 단답형 감지 — 서술형 재유도 ──────────────────────────────
-    if not is_give_up and is_short_answer(request.user_answer):
+    # ── 1-1. 단답형 감지 — 서술형 재유도 (3단계 빈칸채우기 시에는 단답형 허용) ─────────
+    if not is_give_up and session.get("idk_count", 0) != 3 and is_short_answer(request.user_answer):
         reprompt_msg = await translate_en_to_ko(_SHORT_ANSWER_REPROMPT_EN, language)
         return {
             "atomic_propositions": [],
@@ -845,8 +845,8 @@ async def websocket_chat(websocket: WebSocket):
             await websocket.close(code=1008)
             return
 
-        # ── 1-1. 단답형 감지 — 서술형 재유도 ─────────────────────────
-        if not is_give_up and is_short_answer(user_answer):
+        # ── 1-1. 단답형 감지 — 서술형 재유도 (3단계 빈칸채우기 시에는 단답형 허용) ─────────
+        if not is_give_up and session.get("idk_count", 0) != 3 and is_short_answer(user_answer):
             reprompt_msg = await translate_en_to_ko(_SHORT_ANSWER_REPROMPT_EN, language)
             await websocket.send_json({
                 "type": "final_result",
