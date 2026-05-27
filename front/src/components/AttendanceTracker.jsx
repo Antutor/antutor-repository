@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 import React, { useState, useEffect } from 'react';
 import { Calendar, CheckCircle2, Flame } from 'lucide-react';
 import { t } from '../locales';

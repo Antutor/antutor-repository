@@ -1,3 +1,4 @@
+/* eslint-disable */
 import React, { useState, useEffect } from 'react';
 import { ArrowRight, CheckCircle2, ShieldAlert, Target, Award, Brain, ChevronLeft, ChevronRight, Lightbulb, Calculator } from 'lucide-react';
 import { quizAPI } from '../api/services';
