@@ -45,7 +45,7 @@ def _protect_terms(text: str) -> tuple[str, dict[str, str]]:
     for i, (term, _) in enumerate(_TERM_PROTECTION.items()):
         pattern = re.compile(re.escape(term), re.IGNORECASE)
         if pattern.search(result):
-            placeholder = f"[[TERM{i}]]"
+            placeholder = f"__TERM{i}__"
             replacements[placeholder] = _TERM_PROTECTION[term]
             result = pattern.sub(placeholder, result)
     return result, replacements
@@ -54,8 +54,9 @@ def _restore_terms(text: str, replacements: dict[str, str]) -> str:
     """플레이스홀더를 올바른 한국어 용어로 복원."""
     for placeholder, ko_term in replacements.items():
         text = text.replace(placeholder, ko_term)
-        # Azure가 placeholder를 살짝 변형할 수도 있어 소문자 처리도 시도
         text = text.replace(placeholder.lower(), ko_term)
+        # 만약 기존 괄호 방식([[]])의 잔재로 인해 ']'가 붙어있을 경우를 대비한 추가 제거
+        text = text.replace(ko_term + "]", ko_term)
     return text
 
 def _azure_headers() -> dict:
