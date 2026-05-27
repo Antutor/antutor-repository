@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 import React, { useEffect, useState } from 'react';
 import { X, BookOpen, Check } from 'lucide-react';
 import './ReviewModal.css';
