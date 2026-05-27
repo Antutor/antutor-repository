@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 import React, { useState, useRef, useEffect } from 'react';
 import './App.css';
 import { Send, BookOpen, TrendingUp, Radar, X, Library, CheckCircle, Star, Globe, Tag, Landmark, Scale, AlertCircle, Lightbulb, Info, PlusCircle } from 'lucide-react';
