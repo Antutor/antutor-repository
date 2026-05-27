@@ -112,7 +112,7 @@ class QuizService:
                 "attempt_id": attempt_id,
                 "question_id": ea["question_id"],
                 "selected_option": ea["selected_option"],
-                "confidence_level": ea["confidence_level"],
+                "confidence_level": None if ea["confidence_level"] == 0 else ea["confidence_level"],
                 "is_correct": ea["is_correct"],
                 "earned_score": ea["earned_score"]
             })
