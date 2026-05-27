@@ -84,3 +84,7 @@ app.include_router(quiz.router)
 @app.get("/debug-concepts")
 def debug_concepts():
     return supabase.table("concepts").select("name").execute().data
+
+@app.get("/")
+def health_check():
+    return {"status": "ok", "message": "Server is running."}
