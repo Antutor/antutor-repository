@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { 
   Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer, Tooltip
 } from 'recharts';
-import { X, Award } from 'lucide-react';
+import { X, Award, AlertCircle, ArrowRight } from 'lucide-react';
 import './SummaryModal.css';
 import { t } from './locales';
 

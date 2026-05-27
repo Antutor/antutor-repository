@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowRight, CheckCircle2, ShieldAlert, Target, Award, ChevronLeft, ChevronRight, Lightbulb, Calculator } from 'lucide-react';
+import { ArrowRight, CheckCircle2, ShieldAlert, Target, Award, Brain, ChevronLeft, ChevronRight, Lightbulb, Calculator } from 'lucide-react';
 import { quizAPI } from '../api/services';
-
+import { t } from '../locales';
 import './QuizScreen.css';
 
 const QuizScreen = ({ questions, sessionId, concept, userId, language, isPostTest = false, onComplete }) => {
@@ -46,7 +46,7 @@ const QuizScreen = ({ questions, sessionId, concept, userId, language, isPostTes
                 confidence_level: null
             })));
         }
-    }, [displayQuestions, answers.length]);
+    }, [displayQuestions]);
 
     const currentAnswer = answers[currentIndex] || { selected_choice: null, confidence_level: null };
     const selectedChoice = currentAnswer.selected_choice;
