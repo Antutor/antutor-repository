@@ -1,6 +1,7 @@
 import React from 'react';
 import { Play } from 'lucide-react';
 import './ChatTutorialOverlay.css';
+// eslint-disable-next-line no-unused-vars
 import { t } from '../locales';
 
 const ChatTutorialOverlay = ({ onClose, language }) => {
