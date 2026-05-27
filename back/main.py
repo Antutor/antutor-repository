@@ -57,12 +57,12 @@ app.add_middleware(
         "http://127.0.0.1:3000",
         "http://127.0.0.1:3001",
         "http://127.0.0.1:8080",
-        # --- Production (Vercel) ---
-        # Vercel 배포 완료 후 아래에 실제 URL 추가
+        # --- Production (Vercel & Netlify) ---
         "https://antutor.vercel.app",
-        "https://antutor-front.vercel.app",  # 예상되는 기본 vercel 주소 보강
+        "https://antutor-front.vercel.app",
+        "https://antutor.netlify.app",
     ],
-    allow_origin_regex=r"https://.*\.vercel\.app",  # 모든 Vercel 프리뷰 URL 허용
+    allow_origin_regex=r"https://.*\.(vercel|netlify)\.app",  # 모든 Vercel/Netlify 프리뷰 URL 허용
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
