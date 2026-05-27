@@ -83,6 +83,7 @@ Return ONLY this JSON:
   "score": 0.0,
   "type": "",
   "weakest_point": "",
+  "feedback": "",
   "error_clauses": [
     {{
       "clause": "",
@@ -109,6 +110,11 @@ Output rules:
     If retry_needed = true: one concrete clue to fix weakest_point.
     If type is "correct": one forward-looking clue toward the weakest acceptable_extension.
     Empty string ONLY if acceptable_extensions is empty and retry_needed = false.
+- feedback: ONE sentence explaining the score reason.
+    Format: "[What the student addressed correctly, if any] was satisfied, but [weakest_point] was [missing/insufficient/incorrect], giving [score×100] points."
+    If type is "correct": "[All key definition elements] were correctly addressed, giving [score×100] points."
+    If type is "incorrect": "[weakest_point] was factually incorrect or entirely missing, giving [score×100] points."
+    Replace [score×100] with the actual integer value (e.g. score=0.45 → 45).
 
 Student answer:
 {user_answer}
@@ -165,6 +171,7 @@ Return ONLY this JSON:
   "score": 0.0,
   "type": "",
   "weakest_point": "",
+  "feedback": "",
   "error_clauses": [
     {{
       "clause": "",
@@ -187,6 +194,11 @@ Output rules:
 - hint: ONE direct clue pointing toward the weakest extension item. Never leave empty.
 - score: must match type range.
 - clause_counts: count against extension items only, not core definition.
+- feedback: ONE sentence explaining the score reason.
+    If type is "correct": "The key extension items were correctly addressed, giving [score×100] points."
+    If type is "partial": "[weakest_point] was not addressed or was incomplete, giving [score×100] points."
+    If type is "incorrect": "[weakest_point] was contradicted or misrepresented, giving [score×100] points."
+    Replace [score×100] with the actual integer value (e.g. score=0.45 → 45).
 
 Student answer:
 {user_answer}
@@ -232,13 +244,19 @@ Return ONLY this JSON:
   "persona": "market",
   "score": 0.0,
   "type": "",
-  "weakest_point": ""
+  "weakest_point": "",
+  "feedback": ""
 }}
 
 Output rules:
 - persona: always "market"
 - weakest_point: the missing or weakest real-world connection in the answer.
 - score: refer to the score reference table in Step 4.
+- feedback: ONE sentence explaining the score reason.
+    If type is "correct": "A specific real-world market connection was clearly stated, giving [score×100] points."
+    If type is "partial": "A real-world signal was mentioned but [weakest_point] lacked specificity, giving [score×100] points."
+    If type is "incorrect": "[weakest_point] was absent or factually unsound, giving [score×100] points."
+    Replace [score×100] with the actual integer value (e.g. score=0.45 → 45).
 
 Student answer:
 {user_answer}
@@ -287,13 +305,19 @@ Return ONLY this JSON:
   "persona": "macro",
   "score": 0.0,
   "type": "",
-  "weakest_point": ""
+  "weakest_point": "",
+  "feedback": ""
 }}
 
 Output rules:
 - persona: always "macro"
 - weakest_point: the missing or weakest macroeconomic linkage in the answer.
 - score: refer to the score reference table in Step 4.
+- feedback: ONE sentence explaining the score reason.
+    If type is "correct": "The causal relationship between [macro variables] was clearly explained, giving [score×100] points."
+    If type is "partial": "A macro signal was present but [weakest_point] lacked a clear causal mechanism, giving [score×100] points."
+    If type is "incorrect": "[weakest_point] was absent or the causal direction was economically unsound, giving [score×100] points."
+    Replace [score×100] with the actual integer value (e.g. score=0.35 → 35).
 
 Student answer:
 {user_answer}
@@ -626,11 +650,6 @@ Agents:
 
 --- Decision Logic ---
 
-P0 — Mastery:
-  IF mode == "mastery":
-    message = congratulate student warmly on completing the concept.
-    Do NOT ask any more questions. hint_provided = false. STOP.
-
 P1 — Retry:
   IF Academic retry_needed == true:
     mode = "retry"
@@ -695,7 +714,7 @@ P3/P4 — Focus Mode:
     Synthesize rebuttal_questions from academic, market, and macro into a single natural question.
 
   Case 2 — Spread > 0.15 (one agent is clearly ahead):
-    The bottom two agents are the weak pair.
+    Find the agent with the highest score — the other two are the weak pair.
     Ask ONE integrated question from those two lower-scoring agents only.
     Synthesize their rebuttal_questions into a single natural question.
 
@@ -783,13 +802,18 @@ Return ONLY this JSON:
   "mode": "",
   "focus": "",
   "hint": "",
-  "hint_provided": false
+  "hint_provided": false,
+  "turn_summary": ""
 }}
+
+turn_summary rules:
+- ONE sentence, max 25 words.
+- Format: "Student [key claim in 3-5 words]. A=[academic score], M=[market score], X=[macro score]. Q: [core topic of question asked]."
+- Example: "Student defined inflation as price rise. A=0.65, M=0.40, X=0.35. Q: consumer spending effect."
+- Do NOT include the full question text. Only the topic keyword.
 
 Concept: {concept}
 Turn: {turn_count}
-Mode: {mode}
-Focus agent: {focus_agent}
 Consecutive high score count: {consecutive_high_score_count}
 Session context: {session_context}
 News context: {news_context}
@@ -832,6 +856,15 @@ Student's current answer: '{student_answer}'
   (If empty, student indicated they don't know — hint based on definition only.)
 Conversation history: {session_context}
   (Use this to see what the student has already tried. Build on what they got right.)
+
+CRITICAL — No-Repeat Rule:
+Check session_context for any prior scaffolding hints already given (look for entries with scaffold_step).
+Do NOT rephrase or repeat an angle that was already used in a previous hint.
+Choose a DIFFERENT angle from this list (pick one NOT already covered):
+  - A different element of the core definition not yet mentioned
+  - A real-world example or analogy tied to {concept_name}
+  - A specific term or idea from acceptable_extensions
+  - A causal relationship from kg_context
 
 CRITICAL: If 'last_question' is provided and non-empty,
 your nudge MUST help the student answer THAT SPECIFIC QUESTION.
@@ -886,6 +919,14 @@ Student's current answer: '{student_answer}'
 Conversation history: {session_context}
   (Use this to identify which concept the student keeps missing across attempts.)
 
+CRITICAL — No-Repeat Rule:
+Check session_context for any concept that was already explicitly named and explained in a prior hint.
+Do NOT re-explain the same concept again.
+If a concept was already named, move to a DIFFERENT concept element:
+  - A different term from the core definition
+  - A related concept from acceptable_extensions not yet explained
+  - A causal link from kg_context not yet mentioned
+
 CRITICAL: If 'last_question' is provided and non-empty,
 your hint MUST name the key concept required to answer THAT SPECIFIC QUESTION.
 Do NOT explain the general concept. Focus only on what last_question demands.
@@ -934,6 +975,14 @@ Student's current answer: '{student_answer}'
 Conversation history: {session_context}
   (Use this to identify the persistent gap — place the blank at exactly that concept.)
 
+CRITICAL — No-Repeat Rule:
+Check session_context for any fill-in-the-blank that was already given in a prior scaffolding step.
+Do NOT repeat the same blank or the same target term.
+If the same blank was already used, target a DIFFERENT key term:
+  - A different critical term from the core definition
+  - A term from acceptable_extensions not yet blanked
+  - A causal variable from kg_context
+
 CRITICAL: If 'last_question' is provided and non-empty,
 the blank MUST target the key term required to answer THAT SPECIFIC QUESTION.
 Do NOT fall back to a generic definition-based blank.
@@ -954,7 +1003,7 @@ Rules:
 - Make it feel achievable, not intimidating
 
 Example:
-"Almost there! Inflation is a phenomenon where the general price level of the economy rises continuously, causing the ____ of money to fall."
+"Inflation is a phenomenon where the general price level of the economy rises continuously, causing the ____ of money to fall."
 
 Return ONLY this JSON:
 {{"message": "your fill-in-the-blank text"}}"""
