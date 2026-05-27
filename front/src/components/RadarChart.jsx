@@ -35,7 +35,30 @@ function RadarScoreChart({ scores, isSidebar = false, language = 'ko' }) {
                     <PolarGrid stroke="#e2e8f0" />
                     <PolarAngleAxis 
                         dataKey="subject" 
-                        tick={{ fill: 'var(--color-text-secondary)', fontSize: isSidebar ? 10 : 12, fontWeight: 600 }}
+                        tick={(props) => {
+                            const { payload, x, y, textAnchor, stroke, radius, ...rest } = props;
+                            let color = 'var(--color-text-secondary)';
+                            if (payload.value === t(language, 'chartAccuracy')) {
+                                color = 'var(--color-expert-academic)';
+                            } else if (payload.value === t(language, 'chartPracticality')) {
+                                color = 'var(--color-expert-market)';
+                            } else if (payload.value === t(language, 'chartInsight')) {
+                                color = 'var(--color-expert-macro)';
+                            }
+                            return (
+                                <text 
+                                    {...rest} 
+                                    x={x} 
+                                    y={y + (y > 150 ? 5 : -5)} 
+                                    fill={color} 
+                                    fontSize={isSidebar ? 10 : 12} 
+                                    fontWeight={800} 
+                                    textAnchor={textAnchor}
+                                >
+                                    {payload.value}
+                                </text>
+                            );
+                        }}
                     />
                     <PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} axisLine={false} />
                     <Tooltip 
