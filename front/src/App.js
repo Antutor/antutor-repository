@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import './App.css';
-import { Menu, Send, BookOpen, TrendingUp, Gem, Radar, X, Library, CheckCircle, Lock, Star, Globe, Tag, Landmark, Scale, Circle, AlertCircle, Lightbulb, Info, HelpCircle, PlusCircle } from 'lucide-react';
+import { Send, BookOpen, TrendingUp, Radar, X, Library, CheckCircle, Star, Globe, Tag, Landmark, Scale, AlertCircle, Lightbulb, Info, PlusCircle } from 'lucide-react';
 import SummaryModal from './SummaryModal';
 import ConceptDictionary from './ConceptDictionary';
 import ReviewModal from './ReviewModal';
@@ -22,7 +22,7 @@ const getInitialPath = (lang) => [
 ];
 
 function App() {
-    const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+
     const [activeExpert, setActiveExpert] = useState(null);
     const [expertDrawerMode, setExpertDrawerMode] = useState('feedback');
     const [isSummaryModalOpen, setIsSummaryModalOpen] = useState(false);

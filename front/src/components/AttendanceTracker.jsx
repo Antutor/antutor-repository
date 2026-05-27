@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, CheckCircle2, Flame } from 'lucide-react';
+import { CheckCircle2, Flame } from 'lucide-react';
 import { t } from '../locales';
 import api from '../api';
 
