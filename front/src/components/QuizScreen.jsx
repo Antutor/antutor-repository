@@ -586,7 +586,7 @@ const QuizScreen = ({ questions, sessionId, concept, userId, language, isPostTes
                         <button 
                             className="nav-btn next-btn" 
                             onClick={handleNextOrSubmit}
-                            disabled={selectedChoice === null || confidenceLevel === null}
+                            disabled={selectedChoice === null || confidenceLevel === null || isSubmitting}
                             style={{ padding: '10px 18px', fontSize: '1rem' }}
                         >
                             {currentIndex < displayQuestions.length - 1 ? (

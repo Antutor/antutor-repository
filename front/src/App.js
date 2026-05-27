@@ -12,6 +12,7 @@ import RadarScoreChart from './components/RadarChart';
 import LineScoreChart from './components/LineChart';
 import AttendanceTracker from './components/AttendanceTracker';
 import QuizScreen from './components/QuizScreen';
+import ChatTutorialOverlay from './components/ChatTutorialOverlay';
 import { studyAPI, dictionaryAPI, quizAPI } from './api/services';
 import { t } from './locales';
 
@@ -141,6 +142,7 @@ function App() {
     const [newFeedback, setNewFeedback] = useState({ academic: false, market: false, macro: false });
     const [currentScaffold, setCurrentScaffold] = useState(null);
     const [isEndSuggested, setIsEndSuggested] = useState(false);
+    const [showChatTutorial, setShowChatTutorial] = useState(false);
 
     // 2. 차트에 표시할 실제 점수 데이터 (여기에 저장하면 됩니다)
     const [userScores, setUserScores] = useState(() => {
@@ -428,6 +430,7 @@ function App() {
     };
 
     const handleKeyDown = (e) => { 
+        if (e.nativeEvent.isComposing) return;
         if (e.key === 'Enter' && !e.shiftKey) { 
             e.preventDefault(); 
             handleSendMessage(); 
@@ -694,6 +697,21 @@ function App() {
                                 <div style={{ flex: 1 }}></div> {/* 스페이서로 공간 확보 */}
                                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '10px', borderTop: '1px solid var(--color-border)', backgroundColor: 'rgba(255,255,255,0.5)', marginBottom: '10px' }}>
                                     <RadarScoreChart scores={userScores} isSidebar={true} language={language} />
+                                    <div style={{ marginTop: '-5px', fontSize: '0.75rem', color: 'var(--color-text-secondary)', textAlign: 'center', lineHeight: '1.4' }}>
+                                        {language === 'ko' ? (
+                                            <>
+                                                <div><strong style={{color: 'var(--color-expert-academic)'}}>정확성</strong> - 학술전문가</div>
+                                                <div><strong style={{color: 'var(--color-expert-market)'}}>현실성</strong> - 시장전문가</div>
+                                                <div><strong style={{color: 'var(--color-expert-macro)'}}>통찰력</strong> - 거시전문가</div>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <div><strong style={{color: 'var(--color-expert-academic)'}}>Accuracy</strong> - Academic Expert</div>
+                                                <div><strong style={{color: 'var(--color-expert-market)'}}>Realism</strong> - Market Expert</div>
+                                                <div><strong style={{color: 'var(--color-expert-macro)'}}>Insight</strong> - Macro Expert</div>
+                                            </>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
                         )}
@@ -740,7 +758,10 @@ function App() {
                         concept={selectedMission}
                         userId={userName}
                         language={language}
-                        onComplete={() => setShowQuiz(false)}
+                        onComplete={() => {
+                            setShowQuiz(false);
+                            setShowChatTutorial(true);
+                        }}
                     />
                 ) : showPostQuiz ? (
                     <QuizScreen 
@@ -928,6 +949,14 @@ function App() {
                                 </div>
                             )}
                         </div>
+                        
+                        {/* Chat Tutorial Overlay */}
+                        {showChatTutorial && (
+                            <ChatTutorialOverlay 
+                                language={language} 
+                                onClose={() => setShowChatTutorial(false)} 
+                            />
+                        )}
                     </section>
                 )}
 

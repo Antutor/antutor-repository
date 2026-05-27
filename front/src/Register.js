@@ -9,9 +9,11 @@ const Register = ({ onGoToLogin, language = 'ko', onLanguageChange }) => {
   const [password, setPassword] = useState('');
   const [isIdChecked, setIsIdChecked] = useState(false);
   const [isFadingOut, setIsFadingOut] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleCheckId = async (e) => {
     e.preventDefault();
+    if (isSubmitting) return;
     if (!userId) {
       alert(t(language, 'enterUserId'));
       return;
@@ -20,6 +22,7 @@ const Register = ({ onGoToLogin, language = 'ko', onLanguageChange }) => {
       alert(t(language, 'invalidUserId'));
       return;
     }
+    setIsSubmitting(true);
     try {
       const response = await authAPI.checkUsername(userId);
       if (response.data && response.data.available) {
@@ -39,11 +42,14 @@ const Register = ({ onGoToLogin, language = 'ko', onLanguageChange }) => {
         alert(t(language, 'registerFailed'));
       }
       setIsIdChecked(false);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (isSubmitting) return;
     if (!isIdChecked) {
       alert(t(language, 'checkIdFirst'));
       return;
@@ -56,6 +62,7 @@ const Register = ({ onGoToLogin, language = 'ko', onLanguageChange }) => {
       alert(t(language, 'invalidPassword'));
       return;
     }
+    setIsSubmitting(true);
     try {
       await authAPI.register({ username: userId, password });
       alert(t(language, 'registerSuccess'));
@@ -63,6 +70,7 @@ const Register = ({ onGoToLogin, language = 'ko', onLanguageChange }) => {
       setTimeout(() => { onGoToLogin(); }, 500);
     } catch (error) {
       alert(t(language, 'registerFailed'));
+      setIsSubmitting(false);
     }
   };
 
@@ -119,18 +127,19 @@ const Register = ({ onGoToLogin, language = 'ko', onLanguageChange }) => {
                 <button
                   type="button"
                   onClick={handleCheckId}
+                  disabled={isIdChecked || isSubmitting}
                   style={{
                     padding: '0 12px',
                     borderRadius: '10px',
                     border: isIdChecked ? 'none' : '1px solid var(--color-border)',
-                    background: isIdChecked ? '#10b981' : 'var(--color-bg-light)',
+                    background: isIdChecked ? '#10b981' : (isSubmitting ? 'var(--color-border)' : 'var(--color-bg-light)'),
                     color: isIdChecked ? 'white' : 'var(--color-deep-navy)',
                     fontWeight: '600',
-                    cursor: 'pointer',
+                    cursor: (isIdChecked || isSubmitting) ? 'not-allowed' : 'pointer',
                     minWidth: '95px'
                   }}
                 >
-                  {isIdChecked ? <CheckCircle size={18} style={{ margin: '0 auto' }} /> : t(language, 'checkDuplicate')}
+                  {isIdChecked ? <CheckCircle size={18} style={{ margin: '0 auto' }} /> : (isSubmitting ? '...' : t(language, 'checkDuplicate'))}
                 </button>
               </div>
             </div>
@@ -154,8 +163,8 @@ const Register = ({ onGoToLogin, language = 'ko', onLanguageChange }) => {
               * {t(language, 'inputRule')}
             </div>
 
-            <button type="submit" className="login-submit-btn">
-              <span>{t(language, 'registerBtn')}</span>
+            <button type="submit" className="login-submit-btn" disabled={isSubmitting} style={{ opacity: isSubmitting ? 0.7 : 1, cursor: isSubmitting ? 'not-allowed' : 'pointer' }}>
+              <span>{isSubmitting ? '처리 중...' : t(language, 'registerBtn')}</span>
               <ArrowRight size={18} />
             </button>
           </form>
