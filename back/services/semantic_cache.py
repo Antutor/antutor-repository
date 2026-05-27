@@ -57,17 +57,13 @@ def _load_encoder():
     if _encoder_ready:
         return
     try:
-        from sentence_transformers import SentenceTransformer  # type: ignore
-        _encoder = SentenceTransformer("all-MiniLM-L6-v2")
+        # Render 무료 티어 메모리 한계(512MB)로 인해 모델 로딩을 스킵하고 캐시를 비활성화합니다.
+        print("⚠️ [SemanticCache] Render Free 티어 메모리 제한(OOM 방지)으로 인해 임베딩 캐시 기능을 비활성화합니다.", flush=True)
+        _encoder = None
         _encoder_ready = True
-        print("✅ [SemanticCache] 임베딩 모델 로드 완료 (all-MiniLM-L6-v2)", flush=True)
-    except ImportError:
-        print(
-            "⚠️ [SemanticCache] sentence-transformers 미설치 — 캐시 비활성화.\n"
-            "   활성화하려면: pip install sentence-transformers",
-            flush=True,
-        )
-        _encoder_ready = True   # 재시도 방지
+    except Exception as e:
+        print(f"⚠️ [SemanticCache] 오류: {e}", flush=True)
+        _encoder_ready = True
 
 
 # ---------------------------------------------------------------------------
