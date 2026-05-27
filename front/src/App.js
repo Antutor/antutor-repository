@@ -24,10 +24,10 @@ const getInitialPath = (lang) => [
 function App() {
 
     const [activeExpert, setActiveExpert] = useState(null);
-
+    const [expertDrawerMode, setExpertDrawerMode] = useState('feedback');
     const [isSummaryModalOpen, setIsSummaryModalOpen] = useState(false);
     const [isDictionaryOpen, setIsDictionaryOpen] = useState(false);
-
+    const [dictionarySearchTerm, setDictionarySearchTerm] = useState('');
     const [language, setLanguage] = useState('ko');
     const [expandedSidebarExpert, setExpandedSidebarExpert] = useState(null);
 
@@ -84,7 +84,7 @@ function App() {
     const [isLoggedIn, setIsLoggedIn] = useState(false);
     const [authPage, setAuthPage] = useState('login'); // 'login' or 'register'
     const [showSplash, setShowSplash] = useState(false);
-
+    const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
     const [showLeftSidebarProfile, setShowLeftSidebarProfile] = useState(false);
     const [userName, setUserName] = useState('');
     const [profileImage, setProfileImage] = useState(null);
@@ -103,7 +103,7 @@ function App() {
 
     // Character UI States
     const [showWelcomeBubble, setShowWelcomeBubble] = useState(true);
-
+    const [showAchievement, setShowAchievement] = useState(false);
 
     // Scaffolding Counter States
     const [helpCountLevel1, setHelpCountLevel1] = useState(0);
@@ -114,7 +114,12 @@ function App() {
     const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
     const [reviewNode, setReviewNode] = useState(null);
 
-
+    // Learning Path State
+    const [pathNodes, setPathNodes] = useState(getInitialPath(language));
+    
+    useEffect(() => {
+        setPathNodes(getInitialPath(language));
+    }, [language]);
     const [activeNodeId, setActiveNodeId] = useState(null);
     const [selectedMission, setSelectedMission] = useState(null);
     const [hoveredMission, setHoveredMission] = useState(null);
@@ -129,7 +134,10 @@ function App() {
     const [thinkingText, setThinkingText] = useState(t(language, 'analyzingQuestion'));
     const [fallbackToast, setFallbackToast] = useState(false);
 
-
+    const [consecutiveFailures, setConsecutiveFailures] = useState(0);
+    const [highlightedSubNode, setHighlightedSubNode] = useState(null);
+    const [academicGlow, setAcademicGlow] = useState(false);
+    const [newFeedback, setNewFeedback] = useState({ academic: false, market: false, macro: false });
     const [currentScaffold, setCurrentScaffold] = useState(null);
     const [isEndSuggested, setIsEndSuggested] = useState(false);
 
@@ -206,6 +214,7 @@ function App() {
         
         const thinkingStartTime = Date.now();
         setIsThinking(true);
+        setNewFeedback({ academic: true, market: true, macro: true });
         setThinkingText(t(language, 'connecting'));
 
         const token = localStorage.getItem('access_token');
@@ -406,7 +415,7 @@ function App() {
 
     const openExpertPanel = (id) => {
         if (activeExpert === id) { setActiveExpert(null); }
-        else { setActiveExpert(id); }
+        else { setActiveExpert(id); setExpertDrawerMode('feedback'); setNewFeedback(prev => ({ ...prev, [id]: false })); }
     };
 
     const handleMissionSelect = async (mission) => {
@@ -523,7 +532,15 @@ function App() {
         }
     };
 
-
+    const handleNodeClick = (node) => {
+        if (node.status === 'locked' || !selectedMission) return;
+        if (node.status === 'completed' && node.id !== activeNodeId) {
+            setReviewNode(node);
+            setIsReviewModalOpen(true);
+        } else {
+            setActiveNodeId(node.id);
+        }
+    };
 
     if (!isLoggedIn) {
         if (authPage === 'login') return <Login onLogin={(uid) => { setUserName(uid); setIsLoggedIn(true); setShowSplash(true); }} onGoToRegister={() => setAuthPage('register')} language={language} onLanguageChange={setLanguage} />;
