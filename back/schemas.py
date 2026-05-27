@@ -97,7 +97,7 @@ class QuizAnswerSubmit(BaseModel):
     confidence_level: int # 1(low), 2(mid), 3(high), 0(No Reply)
 
 class QuizSubmission(BaseModel):
-    session_id: str
+    session_id: Optional[str] = None
     user_id: str
     concept: str
     is_pre_test: bool

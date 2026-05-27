@@ -46,13 +46,23 @@ def save_chat_log_db(chat_log_payload):
     try:
         supabase.table("chat_logs").insert(chat_log_payload).execute()
     except Exception as e:
-        error_msg = f"Failed to save chat log to DB: {e}"
-        print(error_msg, flush=True)
-        try:
-            with open("db_error.log", "a", encoding="utf-8") as f:
-                f.write(f"[{datetime.now().isoformat()}] {error_msg} | Payload: {json.dumps(chat_log_payload, ensure_ascii=False)}\n")
-        except:
-            pass
+        if 'turn_summary' in str(e) or 'PGRST204' in str(e):
+            print(f"[Warning] 'turn_summary' 컬럼이 없어 제외하고 저장 시도: {e}", flush=True)
+            chat_log_payload.pop("turn_summary", None)
+            try:
+                supabase.table("chat_logs").insert(chat_log_payload).execute()
+                return
+            except Exception as e2:
+                error_msg = f"Failed to save chat log to DB after fallback: {e2}"
+                print(error_msg, flush=True)
+        else:
+            error_msg = f"Failed to save chat log to DB: {e}"
+            print(error_msg, flush=True)
+            try:
+                with open("db_error.log", "a", encoding="utf-8") as f:
+                    f.write(f"[{datetime.now().isoformat()}] {error_msg} | Payload: {json.dumps(chat_log_payload, ensure_ascii=False)}\n")
+            except:
+                pass
 
 async def db(fn):
     """
@@ -355,24 +365,52 @@ async def chat(request: ChatRequest, background_tasks: BackgroundTasks, current_
 
     # ── session_context 히스토리 빌드 ────────────────────────────────
     # give_up 경로(scaffolding)와 정상 경로 모두에서 사용하므로 분기 전에 빌드합니다.
-    history_res = await db(lambda: supabase.table("chat_logs") \
-        .select("turn_number, user_message, ai_response, scaffold_step, news_urls, selected_agent") \
-        .eq("session_id", session["session_id"]) \
-        .order("turn_number", desc=False) \
-        .execute())
-    session_history = {
-        f"turn_{log['turn_number']}": {
-            "user_answer": log.get("user_message") or "",
-            "final_synthesis": log.get("ai_response") or "",
-            "scaffold_step": log.get("scaffold_step") or None
-        }
-        for log in history_res.data
-    }
-    session_context_payload = {
-        "consecutive_high_score_count": session.get("consecutive_high_score_count", 0),
-        "conversation_history": session_history
-    }
-    session_context_str = json.dumps(session_context_payload, ensure_ascii=False)
+    try:
+        history_res = await db(lambda: supabase.table("chat_logs") \
+            .select("turn_number, user_message, ai_response, scaffold_step, news_urls, selected_agent, turn_summary") \
+            .eq("session_id", session["session_id"]) \
+            .order("turn_number", desc=False) \
+            .execute())
+    except Exception as e:
+        print(f"[Warning] 'turn_summary' 컬럼 조회 실패. 일반 조회로 폴백합니다: {e}")
+        history_res = await db(lambda: supabase.table("chat_logs") \
+            .select("turn_number, user_message, ai_response, scaffold_step, news_urls, selected_agent") \
+            .eq("session_id", session["session_id"]) \
+            .order("turn_number", desc=False) \
+            .execute())
+
+    full_history = history_res.data
+    turn_summaries = []
+    for log in full_history:
+        summary = log.get("turn_summary")
+        if summary:
+            turn_summaries.append(f"[Turn {log['turn_number']}] {summary}")
+        else:
+            turn_summaries.append(f"[Turn {log['turn_number']}] (No summary available)")
+
+    RECENT_N = 3
+
+    def format_full(logs):
+        formatted = {}
+        for log in logs:
+            formatted[f"turn_{log['turn_number']}"] = {
+                "user_answer": log.get("user_message") or "",
+                "final_synthesis": log.get("ai_response") or "",
+                "scaffold_step": log.get("scaffold_step") or None
+            }
+        return json.dumps(formatted, ensure_ascii=False, indent=2)
+
+    if len(full_history) <= RECENT_N:
+        session_context_str = format_full(full_history)
+    else:
+        older = turn_summaries[:-RECENT_N]
+        recent = full_history[-RECENT_N:]
+        session_context_str = (
+            "[Past turns summary]\n" + "\n".join(older) +
+            "\n\n[Recent turns]\n" + format_full(recent)
+        )
+    
+    session_context_str = f"consecutive_high_score_count: {session.get('consecutive_high_score_count', 0)}\n\n" + session_context_str
     
     last_question_from_history = ""
     for log in reversed(history_res.data):
@@ -483,6 +521,8 @@ async def chat(request: ChatRequest, background_tasks: BackgroundTasks, current_
             critiques=final_state.get("critiques", []),
             final_synthesis=final_state.get("final_synthesis", "")
         )
+        
+        turn_summary_to_save = final_state.get("turn_summary", "")
         
         if is_contradiction:
             antutor_score = 0.0
@@ -629,10 +669,11 @@ async def chat(request: ChatRequest, background_tasks: BackgroundTasks, current_
         "score_academic": antutor_score,
         "score_market": expert_scores.get("The Market Practitioner", 0),
         "score_macro": expert_scores.get("The Macro-Connector", 0),
-        "selected_agent": lowest_persona,
+        "selected_agent": lowest_persona[:20] if lowest_persona else None,
         "ai_response": guidance_message,
         "scaffold_step": scaffold_plan.get("step") if is_give_up and scaffold_plan else None,
         "news_urls": list(news_urls) if news_urls else [],
+        "turn_summary": turn_summary_to_save if not is_give_up else "",
         "created_at": datetime.now(timezone(timedelta(hours=9))).isoformat()
     }
     
@@ -646,7 +687,7 @@ async def chat(request: ChatRequest, background_tasks: BackgroundTasks, current_
         raw_feedback = expert.get("feedback")
         if isinstance(raw_feedback, dict):
             # JSON 객체인 경우 실제 텍스트 피드백만 추출
-            actual_text = raw_feedback.get("weakest_point", raw_feedback.get("feedback", ""))
+            actual_text = raw_feedback.get("feedback", raw_feedback.get("weakest_point", ""))
             if actual_text:
                 expert["feedback"] = await translate_en_to_ko(actual_text, language)
             else:
@@ -907,24 +948,52 @@ async def websocket_chat(websocket: WebSocket):
         await websocket.send_json({"type": "status", "message": await translate_en_to_ko("🌐 Searching Knowledge Graph & News...", language)})
         
         # ── 히스토리를 gather 전에 먼저 조회 — last_question + used_urls를 gather에 전달 ─────────────
-        history_res = await db(lambda: supabase.table("chat_logs") \
-            .select("turn_number, user_message, ai_response, scaffold_step, news_urls, selected_agent") \
-            .eq("session_id", session["session_id"]) \
-            .order("turn_number", desc=False) \
-            .execute())
-        session_history = {
-            f"turn_{log['turn_number']}": {
-                "user_answer": log.get("user_message") or "",
-                "final_synthesis": log.get("ai_response") or "",
-                "scaffold_step": log.get("scaffold_step") or None
-            }
-            for log in history_res.data
-        }
-        session_context_payload = {
-            "consecutive_high_score_count": session.get("consecutive_high_score_count", 0),
-            "conversation_history": session_history
-        }
-        session_context_str = json.dumps(session_context_payload, ensure_ascii=False)
+        try:
+            history_res = await db(lambda: supabase.table("chat_logs") \
+                .select("turn_number, user_message, ai_response, scaffold_step, news_urls, selected_agent, turn_summary") \
+                .eq("session_id", session["session_id"]) \
+                .order("turn_number", desc=False) \
+                .execute())
+        except Exception as e:
+            print(f"[Warning] 'turn_summary' 컬럼 조회 실패. 일반 조회로 폴백합니다: {e}")
+            history_res = await db(lambda: supabase.table("chat_logs") \
+                .select("turn_number, user_message, ai_response, scaffold_step, news_urls, selected_agent") \
+                .eq("session_id", session["session_id"]) \
+                .order("turn_number", desc=False) \
+                .execute())
+
+        full_history = history_res.data
+        turn_summaries = []
+        for log in full_history:
+            summary = log.get("turn_summary")
+            if summary:
+                turn_summaries.append(f"[Turn {log['turn_number']}] {summary}")
+            else:
+                turn_summaries.append(f"[Turn {log['turn_number']}] (No summary available)")
+
+        RECENT_N = 3
+
+        def format_full(logs):
+            formatted = {}
+            for log in logs:
+                formatted[f"turn_{log['turn_number']}"] = {
+                    "user_answer": log.get("user_message") or "",
+                    "final_synthesis": log.get("ai_response") or "",
+                    "scaffold_step": log.get("scaffold_step") or None
+                }
+            return json.dumps(formatted, ensure_ascii=False, indent=2)
+
+        if len(full_history) <= RECENT_N:
+            session_context_str = format_full(full_history)
+        else:
+            older = turn_summaries[:-RECENT_N]
+            recent = full_history[-RECENT_N:]
+            session_context_str = (
+                "[Past turns summary]\n" + "\n".join(older) +
+                "\n\n[Recent turns]\n" + format_full(recent)
+            )
+        
+        session_context_str = f"consecutive_high_score_count: {session.get('consecutive_high_score_count', 0)}\n\n" + session_context_str
 
         last_question_from_history = ""
         for log in reversed(history_res.data):
@@ -1231,6 +1300,7 @@ async def websocket_chat(websocket: WebSocket):
             "ai_response": guidance_message,
             "scaffold_step": scaffold_plan.get("step") if is_give_up and scaffold_plan else None,
             "news_urls": list(news_urls) if news_urls else [],
+            "turn_summary": final_state.get("turn_summary", "") if not is_give_up else "",
             "created_at": datetime.now(timezone(timedelta(hours=9))).isoformat()
         }
         
@@ -1242,7 +1312,7 @@ async def websocket_chat(websocket: WebSocket):
         for expert in expert_results:
             raw_feedback = expert.get("feedback")
             if isinstance(raw_feedback, dict):
-                actual_text = raw_feedback.get("weakest_point", raw_feedback.get("feedback", ""))
+                actual_text = raw_feedback.get("feedback", raw_feedback.get("weakest_point", ""))
                 expert["feedback"] = await translate_en_to_ko(actual_text, language) if actual_text else ""
             elif isinstance(raw_feedback, str):
                 expert["feedback"] = await translate_en_to_ko(raw_feedback, language)

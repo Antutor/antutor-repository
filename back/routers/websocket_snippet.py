@@ -227,7 +227,7 @@ async def websocket_chat(websocket: WebSocket):
         for expert in expert_results:
             raw_feedback = expert.get("feedback")
             if isinstance(raw_feedback, dict):
-                actual_text = raw_feedback.get("weakest_point", raw_feedback.get("feedback", ""))
+                actual_text = raw_feedback.get("feedback", raw_feedback.get("weakest_point", ""))
                 expert["feedback"] = await translate_en_to_ko(actual_text, language) if actual_text else ""
             elif isinstance(raw_feedback, str):
                 expert["feedback"] = await translate_en_to_ko(raw_feedback, language)

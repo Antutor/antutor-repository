@@ -57,8 +57,8 @@ def _load_encoder():
     if _encoder_ready:
         return
     try:
-        # Render 무료 티어 메모리 한계(512MB)로 인해 모델 로딩을 스킵하고 캐시를 비활성화합니다.
-        print("⚠️ [SemanticCache] Render Free 티어 메모리 제한(OOM 방지)으로 인해 임베딩 캐시 기능을 비활성화합니다.", flush=True)
+        # Render Standard/Starter 메모리 환경 안정성을 위해 시맨틱 캐시(임베딩 모델) 비활성화
+        print("⚠️ [SemanticCache] 메모리 안정성(OOM 방지)을 위해 임베딩 캐시 기능을 비활성화합니다.", flush=True)
         _encoder = None
         _encoder_ready = True
     except Exception as e:
