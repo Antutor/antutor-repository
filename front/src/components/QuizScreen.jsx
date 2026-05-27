@@ -13,15 +13,16 @@ const QuizScreen = ({ questions, sessionId, concept, userId, language, isPostTes
     const [startedPostQuiz, setStartedPostQuiz] = useState(false);
     const [reviewPage, setReviewPage] = useState(0);
     const [showCommentary, setShowCommentary] = useState(false);
-    const [showInstructions, setShowInstructions] = useState(true);
-    const [isMinLoadingDone, setIsMinLoadingDone] = useState(false);
+    const [showInstructions, setShowInstructions] = useState(!isPostTest);
+    const [isMinLoadingDone, setIsMinLoadingDone] = useState(isPostTest);
 
     useEffect(() => {
+        if (isPostTest) return;
         const timer = setTimeout(() => {
             setIsMinLoadingDone(true);
         }, 5000);
         return () => clearTimeout(timer);
-    }, []);
+    }, [isPostTest]);
 
     const displayQuestions = React.useMemo(() => {
         if (!questions) return [];
@@ -248,107 +249,131 @@ const QuizScreen = ({ questions, sessionId, concept, userId, language, isPostTes
                                     {language === 'ko' ? '사후 테스트 결과' : 'Post-test Results'}
                                 </h2>
                                 
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '40px', alignItems: 'flex-start' }}>
-                                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', background: 'rgba(241, 245, 249, 0.5)', padding: '25px 30px', borderRadius: '24px' }}>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '15px' }}>
-                                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                                                <span style={{ fontSize: '1.2rem', color: 'var(--color-text-secondary)', fontWeight: '600', marginBottom: '8px' }}>
-                                                    {language === 'ko' ? '내 점수' : 'My Score'}
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', alignItems: 'flex-start' }}>
+                                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'rgba(241, 245, 249, 0.5)', padding: '20px', borderRadius: '24px', gap: '15px' }}>
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', width: '100%', background: 'white', padding: '25px', borderRadius: '16px', boxShadow: '0 4px 15px rgba(0,0,0,0.03)' }}>
+                                            {/* 사전 테스트 점수 */}
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '15px', borderBottom: '1px dashed #cbd5e1' }}>
+                                                <span style={{ fontSize: '1.2rem', color: 'var(--color-text-secondary)', fontWeight: '600' }}>
+                                                    {language === 'ko' ? '사전 테스트 점수' : 'Pre-test Score'}
                                                 </span>
-                                                <span style={{ fontSize: '4rem', fontWeight: '800', color: 'var(--color-expert-academic)', lineHeight: '1' }}>
-                                                    {result.score}
+                                                <span style={{ fontSize: '1.4rem', fontWeight: '700', color: 'var(--color-text-secondary)' }}>
+                                                    {result.pre_test_score !== undefined && result.pre_test_score !== null ? result.pre_test_score : 0} <span style={{ fontSize: '1rem', fontWeight: '500' }}>/ {result.max_score}{language === 'ko' ? '점' : 'pts'}</span>
                                                 </span>
                                             </div>
-                                            <span style={{ fontSize: '3rem', color: '#cbd5e1', fontWeight: '300', margin: '0 10px' }}>/</span>
-                                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                                                <span style={{ fontSize: '1.2rem', color: 'var(--color-text-secondary)', fontWeight: '600', marginBottom: '8px' }}>
-                                                    {language === 'ko' ? '총점' : 'Total'}
+                                            
+                                            {/* 사후 테스트 점수 */}
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '5px' }}>
+                                                <span style={{ fontSize: '1.4rem', color: 'var(--color-deep-navy)', fontWeight: '700' }}>
+                                                    {language === 'ko' ? '사후 테스트 결과 점수' : 'Post-test Score'}
                                                 </span>
-                                                <span style={{ fontSize: '4rem', fontWeight: '800', color: 'var(--color-deep-navy)', lineHeight: '1' }}>
-                                                    {result.max_score}
+                                                <span style={{ fontSize: '2rem', fontWeight: '800', color: 'var(--color-expert-academic)' }}>
+                                                    {result.score} <span style={{ fontSize: '1.4rem', fontWeight: '600', color: '#94a3b8' }}>/ {result.max_score}{language === 'ko' ? '점' : 'pts'}</span>
                                                 </span>
                                             </div>
                                         </div>
                                         
-                                        <div style={{ background: 'white', padding: '20px', borderRadius: '16px', boxShadow: '0 4px 15px rgba(0,0,0,0.03)', width: '100%' }}>
-                                            <h4 style={{ color: 'var(--color-deep-navy)', marginBottom: '10px', fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                        <div style={{ width: '100%', textAlign: 'center', padding: '15px', borderRadius: '16px', background: result.score > (result.pre_test_score || 0) ? 'rgba(16, 185, 129, 0.1)' : 'rgba(245, 158, 11, 0.1)' }}>
+                                            <span style={{ fontSize: '1.15rem', fontWeight: '700', color: result.score > (result.pre_test_score || 0) ? '#10b981' : '#d97706', lineHeight: '1.4', display: 'block' }}>
+                                                {result.score > (result.pre_test_score || 0) 
+                                                    ? (language === 'ko' ? '참 잘했어요! 경제 지식이 높아졌습니다!' : 'Great job! Your economic knowledge has improved!')
+                                                    : (language === 'ko' ? '경제 학습을 더 하러 가볼까요?' : 'Shall we go study more economics?')}
+                                            </span>
+                                        </div>
+                                        
+                                        <div style={{ background: 'white', padding: '15px', borderRadius: '16px', boxShadow: '0 4px 15px rgba(0,0,0,0.03)', width: '100%' }}>
+                                            <h4 style={{ color: 'var(--color-deep-navy)', marginBottom: '8px', fontSize: '1.05rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
                                                 <Calculator size={18} color="#8b5cf6" />
-                                                {language === 'ko' ? 'CBM 채점 방식 적용' : 'CBM Scoring Applied'}
+                                                {language === 'ko' ? 'CBM 채점 방식' : 'CBM Scoring'}
                                             </h4>
-                                            <div style={{ fontSize: '0.95rem', color: 'var(--color-text-secondary)', lineHeight: '1.6', margin: 0, wordBreak: 'keep-all' }}>
-                                                {language === 'ko' ? (
-                                                    <p style={{ margin: 0 }}>
-                                                        <strong>확신도 기반 채점(CBM: Certainty-Based Marking)</strong>은 정답에 대해 '얼마나 확신하는지'를 함께 평가하는 방식입니다. 단순한 정/오답 평가를 넘어, 무작위 찍기를 방지하고 학생의 실제 이해도와 메타인지(객관적 지식 수준)를 측정하기 위해 고안되었습니다.
-                                                    </p>
-                                                ) : (
-                                                    <p style={{ margin: 0 }}>
-                                                        <strong>Certainty-Based Marking (CBM)</strong> assesses how confident you are in your answer. It goes beyond simple correct/incorrect grading to prevent random guessing and measure actual understanding and metacognition.
-                                                    </p>
-                                                )}
-                                            </div>
                                             
-                                            <div style={{ marginTop: '20px', overflowX: 'auto', display: 'flex', justifyContent: 'center' }}>
-                                                <table style={{ borderCollapse: 'collapse', fontSize: '0.9rem', textAlign: 'center', color: '#000', border: '1px solid #000', width: '100%' }}>
+                                            <div style={{ overflowX: 'auto', display: 'flex', justifyContent: 'center' }}>
+                                                <table style={{ borderCollapse: 'collapse', fontSize: '0.8rem', textAlign: 'center', color: '#000', border: '1px solid #cbd5e1', width: '100%' }}>
                                                     <thead>
-                                                        <tr>
-                                                            <th style={{ border: '1px solid #000', padding: '8px 12px', fontWeight: '500', textAlign: 'left' }}>Confidence level :</th>
-                                                            <th style={{ border: '1px solid #000', padding: '8px 12px', fontWeight: '500' }}>C=1<br/>(low)</th>
-                                                            <th style={{ border: '1px solid #000', padding: '8px 12px', fontWeight: '500' }}>C=2<br/>(mid)</th>
-                                                            <th style={{ border: '1px solid #000', padding: '8px 12px', fontWeight: '500' }}>C=3<br/>(high)</th>
-                                                            <th style={{ border: '1px solid #000', padding: '8px 12px', fontWeight: '500' }}>No<br/>Reply</th>
+                                                        <tr style={{ backgroundColor: '#f8fafc' }}>
+                                                            <th style={{ border: '1px solid #cbd5e1', padding: '6px', fontWeight: '600' }}>C=1 (low)</th>
+                                                            <th style={{ border: '1px solid #cbd5e1', padding: '6px', fontWeight: '600' }}>C=2 (mid)</th>
+                                                            <th style={{ border: '1px solid #cbd5e1', padding: '6px', fontWeight: '600' }}>C=3 (high)</th>
                                                         </tr>
                                                     </thead>
                                                     <tbody>
                                                         <tr>
-                                                            <td style={{ border: '1px solid #000', padding: '8px 12px', textAlign: 'left' }}>Mark if correct :</td>
-                                                            <td style={{ border: '1px solid #000', padding: '8px 12px' }}>1</td>
-                                                            <td style={{ border: '1px solid #000', padding: '8px 12px' }}>2</td>
-                                                            <td style={{ border: '1px solid #000', padding: '8px 12px' }}>3</td>
-                                                            <td style={{ border: '1px solid #000', padding: '8px 12px' }}>(0)</td>
-                                                        </tr>
-                                                        <tr>
-                                                            <td style={{ border: '1px solid #000', padding: '8px 12px', textAlign: 'left' }}>Penalty if wrong :</td>
-                                                            <td style={{ border: '1px solid #000', padding: '8px 12px' }}>0</td>
-                                                            <td style={{ border: '1px solid #000', padding: '8px 12px' }}>- 2</td>
-                                                            <td style={{ border: '1px solid #000', padding: '8px 12px' }}>- 6</td>
-                                                            <td style={{ border: '1px solid #000', padding: '8px 12px' }}>(0)</td>
+                                                            <td style={{ border: '1px solid #cbd5e1', padding: '6px' }}>+1 / 0</td>
+                                                            <td style={{ border: '1px solid #cbd5e1', padding: '6px' }}>+2 / -2</td>
+                                                            <td style={{ border: '1px solid #cbd5e1', padding: '6px' }}>+3 / -6</td>
                                                         </tr>
                                                     </tbody>
                                                 </table>
                                             </div>
+                                            <p style={{ margin: '8px 0 0 0', fontSize: '0.8rem', color: 'var(--color-text-secondary)', textAlign: 'center' }}>
+                                                * {language === 'ko' ? '정답 시 획득 점수 / 오답 시 감점' : 'Points earned / Penalty'}
+                                            </p>
                                         </div>
                                     </div>
 
                                     <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                        <h3 style={{ marginBottom: '20px', color: 'var(--color-deep-navy)', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '1.4rem' }}>
-                                            <Target size={24} color="#3b82f6" />
+                                        <h3 style={{ marginBottom: '10px', color: 'var(--color-deep-navy)', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '1.3rem' }}>
+                                            <Target size={22} color="#3b82f6" />
                                             {language === 'ko' ? '문항별 점수 상세 내역' : 'Score Details by Question'}
                                         </h3>
-                                        <div style={{ width: '100%', backgroundColor: 'white', borderRadius: '16px', padding: '15px 20px', boxShadow: '0 4px 15px rgba(0,0,0,0.03)' }}>
-                                            {result.details.map((detail, idx) => {
-                                                const userAnswer = answers.find(a => a.question_id === detail.question_id);
-                                                const isCorrect = userAnswer?.selected_choice === detail.correct_option;
-                                                const earnedScore = detail.earned_score || 0;
-                                                
-                                                return (
-                                                    <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: '1px solid #e2e8f0' }}>
-                                                        <span style={{ fontWeight: '600', fontSize: '1.15rem', color: 'var(--color-text-primary)' }}>
-                                                            Q{idx + 1}. <span style={{ color: isCorrect ? '#10b981' : '#ef4444', marginLeft: '6px' }}>{isCorrect ? (language === 'ko' ? '정답' : 'Correct') : (language === 'ko' ? '오답' : 'Incorrect')}</span>
-                                                        </span>
-                                                        <span style={{ fontWeight: '800', fontSize: '1.3rem', color: earnedScore > 0 ? '#10b981' : (earnedScore < 0 ? '#ef4444' : '#64748b') }}>
-                                                            {earnedScore > 0 ? `+${earnedScore}` : earnedScore} {language === 'ko' ? '점' : 'pts'}
-                                                        </span>
+                                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '10px' }}>
+                                            {/* 사전 테스트 상세 내역 */}
+                                            <div style={{ width: '100%', backgroundColor: 'white', borderRadius: '16px', padding: '12px 15px', boxShadow: '0 4px 15px rgba(0,0,0,0.03)' }}>
+                                                <h4 style={{ marginBottom: '10px', color: 'var(--color-text-secondary)', fontSize: '1.05rem', textAlign: 'center' }}>
+                                                    {language === 'ko' ? '사전 테스트' : 'Pre-test'}
+                                                </h4>
+                                                {result.pre_test_details && result.pre_test_details.length > 0 ? result.pre_test_details.map((detail, idx) => {
+                                                    const earnedScore = detail.earned_score || 0;
+                                                    const isCorrect = earnedScore > 0;
+                                                    
+                                                    return (
+                                                        <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: '1px solid #e2e8f0' }}>
+                                                            <span style={{ fontWeight: '600', fontSize: '1.0rem', color: 'var(--color-text-primary)' }}>
+                                                                Q{idx + 1}. <span style={{ color: isCorrect ? '#10b981' : '#ef4444', marginLeft: '6px' }}>{isCorrect ? (language === 'ko' ? '정답' : 'Correct') : (language === 'ko' ? '오답' : 'Incorrect')}</span>
+                                                            </span>
+                                                            <span style={{ fontWeight: '800', fontSize: '1.1rem', color: earnedScore > 0 ? '#10b981' : (earnedScore < 0 ? '#ef4444' : '#64748b') }}>
+                                                                {earnedScore > 0 ? `+${earnedScore}` : earnedScore} {language === 'ko' ? '점' : 'pts'}
+                                                            </span>
+                                                        </div>
+                                                    );
+                                                }) : (
+                                                    <div style={{ padding: '20px', textAlign: 'center', color: 'var(--color-text-secondary)' }}>
+                                                        {language === 'ko' ? '기록 없음' : 'No records'}
                                                     </div>
-                                                );
-                                            })}
-                                            <div style={{ marginTop: '15px' }}>
-                                                <button className="start-chat-btn" onClick={() => setShowCommentary(true)} style={{ width: '100%', justifyContent: 'center', padding: '14px', fontSize: '1.1rem' }}>
-                                                    {language === 'ko' ? '상세 해설 보기' : 'View Detailed Commentary'} <ArrowRight size={22} />
-                                                </button>
-                                                <p style={{ textAlign: 'center', marginTop: '8px', fontSize: '0.85rem', color: 'var(--color-text-secondary)', fontWeight: '500' }}>
-                                                    {language === 'ko' ? '💡 최종 평가 지표는 상세 해설을 모두 확인한 후 나타납니다.' : '💡 The final evaluation metrics will appear after reviewing all detailed commentaries.'}
-                                                </p>
+                                                )}
                                             </div>
+                                            
+                                            {/* 사후 테스트 상세 내역 */}
+                                            <div style={{ width: '100%', backgroundColor: 'white', borderRadius: '16px', padding: '12px 15px', boxShadow: '0 4px 15px rgba(0,0,0,0.03)' }}>
+                                                <h4 style={{ marginBottom: '10px', color: 'var(--color-expert-academic)', fontSize: '1.05rem', textAlign: 'center' }}>
+                                                    {language === 'ko' ? '사후 테스트' : 'Post-test'}
+                                                </h4>
+                                                {result.details.map((detail, idx) => {
+                                                    const userAnswer = answers.find(a => a.question_id === detail.question_id);
+                                                    const isCorrect = userAnswer?.selected_choice === detail.correct_option;
+                                                    const earnedScore = detail.earned_score || 0;
+                                                    
+                                                    return (
+                                                        <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: '1px solid #e2e8f0' }}>
+                                                            <span style={{ fontWeight: '600', fontSize: '1.0rem', color: 'var(--color-text-primary)' }}>
+                                                                Q{idx + 1}. <span style={{ color: isCorrect ? '#10b981' : '#ef4444', marginLeft: '6px' }}>{isCorrect ? (language === 'ko' ? '정답' : 'Correct') : (language === 'ko' ? '오답' : 'Incorrect')}</span>
+                                                            </span>
+                                                            <span style={{ fontWeight: '800', fontSize: '1.1rem', color: earnedScore > 0 ? '#10b981' : (earnedScore < 0 ? '#ef4444' : '#64748b') }}>
+                                                                {earnedScore > 0 ? `+${earnedScore}` : earnedScore} {language === 'ko' ? '점' : 'pts'}
+                                                            </span>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+
+                                        <div style={{ width: '100%', backgroundColor: 'white', borderRadius: '16px', padding: '10px 15px', boxShadow: '0 4px 15px rgba(0,0,0,0.03)' }}>
+                                            <button className="start-chat-btn" onClick={() => setShowCommentary(true)} style={{ width: '100%', justifyContent: 'center', padding: '12px', fontSize: '1.05rem' }}>
+                                                {language === 'ko' ? '상세 해설 보기' : 'View Detailed Commentary'} <ArrowRight size={22} />
+                                            </button>
+                                            <p style={{ textAlign: 'center', marginTop: '8px', fontSize: '0.85rem', color: 'var(--color-text-secondary)', fontWeight: '500' }}>
+                                                {language === 'ko' ? '💡 최종 평가 지표는 상세 해설을 모두 확인한 후 나타납니다.' : '💡 The final evaluation metrics will appear after reviewing all detailed commentaries.'}
+                                            </p>
                                         </div>
                                     </div>
                                 </div>
@@ -460,6 +485,23 @@ const QuizScreen = ({ questions, sessionId, concept, userId, language, isPostTes
                     <button className="start-chat-btn" onClick={onComplete}>
                         {language === 'ko' ? (isPostTest ? '결과 보기' : '학습 시작하기') : (isPostTest ? 'View Results' : 'Start Learning')} <ArrowRight size={18} />
                     </button>
+                    {!isPostTest && (
+                        <p style={{ margin: '35px auto 0', fontSize: '0.9rem', color: '#ef4444', fontWeight: '600', width: '100%', textAlign: 'center', lineHeight: '1.6', wordBreak: 'keep-all' }}>
+                            {language === 'ko' 
+                                ? (
+                                    <>
+                                        🚨 안내사항: 학습이 끝나면 반드시 '학습 종료' 버튼을 눌러 사후 테스트까지 진행해 주시길 바랍니다.<br/>
+                                        사후 테스트도 사전 테스트와 동일하게 진행됩니다.
+                                    </>
+                                ) 
+                                : (
+                                    <>
+                                        🚨 Notice: After finishing the learning, please make sure to click the 'End Learning' button to proceed with the post-test.<br/>
+                                        The post-test will be conducted in the same manner as the pre-test.
+                                    </>
+                                )}
+                        </p>
+                    )}
                 </div>
             </section>
         );

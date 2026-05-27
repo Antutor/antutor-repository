@@ -115,3 +115,5 @@ class QuizResultOut(BaseModel):
     max_score: int
     skill_improvement: Optional[float] = None
     details: Optional[List[QuizAnswerDetailOut]] = None
+    pre_test_score: Optional[int] = None
+    pre_test_details: Optional[List[QuizAnswerDetailOut]] = None

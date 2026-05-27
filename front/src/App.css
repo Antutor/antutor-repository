@@ -229,10 +229,19 @@
   flex: 1;
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  justify-content: flex-start;
   align-items: center;
   padding: 40px;
   animation-delay: 0.1s;
+  overflow-y: auto;
+}
+
+.mission-selection-content-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin: auto; /* This centers it when there is no overflow, but allows scrolling when there is */
+  width: 100%;
 }
 
 .mission-title {
@@ -768,6 +777,63 @@
 
   .chat-input-area {
     padding: 15px 20px;
+  }
+}
+
+/* Laptop Responsive Design */
+@media (max-width: 1440px) {
+  .sidebar {
+    width: 260px;
+  }
+  
+  .expert-drawer {
+    width: 320px;
+  }
+  
+  .profile-drawer {
+    width: 320px;
+  }
+
+  .mission-card {
+    width: 200px;
+    padding: 24px;
+  }
+  
+  .mission-grid {
+    gap: 20px;
+  }
+}
+
+@media (max-width: 1024px) {
+  .sidebar {
+    width: 220px;
+  }
+  
+  .expert-drawer {
+    width: 280px;
+  }
+  
+  .profile-drawer {
+    width: 280px;
+  }
+
+  .mission-card {
+    width: 170px;
+    padding: 20px;
+  }
+  
+  .mission-card-icon {
+    width: 60px;
+    height: 60px;
+  }
+  
+  .mission-card-icon svg {
+    width: 28px;
+    height: 28px;
+  }
+  
+  .app-header {
+    padding: 0 15px;
   }
 }
 

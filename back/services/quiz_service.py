@@ -125,6 +125,8 @@ class QuizService:
             
         skill_improvement = None
         details = None
+        pre_test_score_out = None
+        pre_test_details_out = None
             
         # 3. 사후 퀴즈인 경우 사전 퀴즈 점수 조회 및 Hake's Gain 계산, 그리고 세션 테이블 업데이트
         if quiz_type == "POST":
@@ -144,7 +146,7 @@ class QuizService:
             pre_test_res = None
             try:
                 pre_test_res = supabase.table("quiz_attempts") \
-                    .select("total_score") \
+                    .select("total_score, attempt_id") \
                     .eq("session_id", session_id) \
                     .eq("quiz_type", "PRE") \
                     .order("created_at", desc=True) \
@@ -155,12 +157,34 @@ class QuizService:
             
             if pre_test_res and pre_test_res.data:
                 pre_test_score = pre_test_res.data[0].get("total_score")
+                pre_attempt_id = pre_test_res.data[0].get("attempt_id")
+                
                 pre_score_val = float(pre_test_score) if pre_test_score is not None else 0.0
+                pre_test_score_out = int(pre_test_score) if pre_test_score is not None else 0
                 skill_improvement = QuizService._calculate_hakes_gain(
                     pre_score=pre_score_val,
                     post_score=float(total_score),
                     perfect_score=float(max_possible_score)
                 )
+                
+                if pre_attempt_id:
+                    try:
+                        pre_answers_res = supabase.table("quiz_answers") \
+                            .select("*") \
+                            .eq("attempt_id", pre_attempt_id) \
+                            .execute()
+                        if pre_answers_res and pre_answers_res.data:
+                            pre_test_details_out = [
+                                QuizAnswerDetailOut(
+                                    question_id=ans.get("question_id"),
+                                    correct_option=questions_map.get(ans.get("question_id"), {}).get("correct_option", 0),
+                                    commentary=questions_map.get(ans.get("question_id"), {}).get("commentary", ""),
+                                    earned_score=ans.get("earned_score", 0)
+                                )
+                                for ans in pre_answers_res.data
+                            ]
+                    except Exception as e:
+                        print(f"DB Query Error (quiz_answers for PRE details): {e}")
                 
                 # sessions 테이블에 hakes_gain 수치 업데이트
                 try:
@@ -175,5 +199,7 @@ class QuizService:
             score=total_score,
             max_score=max_possible_score,
             skill_improvement=skill_improvement,
-            details=details
+            details=details,
+            pre_test_score=pre_test_score_out,
+            pre_test_details=pre_test_details_out
         )

@@ -22,14 +22,33 @@
 .login-card {
   background: rgba(255, 255, 255, 0.95);
   backdrop-filter: blur(20px);
-  width: 100%;
-  max-width: 440px;
-  border-radius: 16px;
-  padding: 40px;
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+  width: 95%;
+  max-width: 900px;
+  border-radius: 24px;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.2);
+  display: flex;
+  flex-direction: row;
+  overflow: hidden;
+  min-height: 550px;
+}
+
+.login-visual-panel {
+  flex: 1;
+  background: transparent;
   display: flex;
   flex-direction: column;
-  gap: 30px;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+  border-right: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.login-form-panel {
+  flex: 1;
+  padding: 50px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
 }
 
 .login-header {
@@ -155,4 +174,28 @@
 
 .signup-link:hover {
   text-decoration: underline;
+}
+
+/* Responsive for Mobile */
+@media (max-width: 768px) {
+  .login-card {
+    flex-direction: column;
+    max-width: 440px;
+    min-height: auto;
+  }
+  
+  .login-visual-panel {
+    padding: 30px 20px 20px 20px;
+    border-right: none;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+  }
+  
+  .login-logo-img {
+    width: 100px;
+    height: 100px;
+  }
+  
+  .login-form-panel {
+    padding: 30px 20px;
+  }
 }

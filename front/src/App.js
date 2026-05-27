@@ -1,7 +1,7 @@
 /* eslint-disable no-unused-vars */
 import React, { useState, useRef, useEffect } from 'react';
 import './App.css';
-import { Menu, Send, BookOpen, TrendingUp, Gem, Radar, X, Library, CheckCircle, Lock, Star, Globe, Tag, Landmark, Scale, Circle, AlertCircle, Lightbulb, Info, HelpCircle, PlusCircle } from 'lucide-react';
+import { Menu, Send, BookOpen, TrendingUp, Gem, Radar, X, Library, CheckCircle, Lock, Star, Globe, Tag, Landmark, Scale, Circle, AlertCircle, Lightbulb, Info, HelpCircle, PlusCircle, Award } from 'lucide-react';
 import SummaryModal from './SummaryModal';
 import ConceptDictionary from './ConceptDictionary';
 import ReviewModal from './ReviewModal';
@@ -143,13 +143,33 @@ function App() {
     const [isEndSuggested, setIsEndSuggested] = useState(false);
 
     // 2. 차트에 표시할 실제 점수 데이터 (여기에 저장하면 됩니다)
-    const [userScores, setUserScores] = useState({
-        Academic: 0,
-        Market: 0,
-        Macro: 0,
-        Independence: 0 // 이 값은 차트 컴포넌트 내부 filter에 의해 자동으로 무시됩니다.
+    const [userScores, setUserScores] = useState(() => {
+        const saved = localStorage.getItem('lastUserScores');
+        if (saved) {
+            try { return JSON.parse(saved); } catch (e) {}
+        }
+        return { Academic: 0, Market: 0, Macro: 0, Independence: 0 };
     });
-    const [reportData, setReportData] = useState(null);
+    
+    const [reportData, setReportData] = useState(() => {
+        const saved = localStorage.getItem('lastReportData');
+        if (saved) {
+            try { return JSON.parse(saved); } catch (e) {}
+        }
+        return null;
+    });
+
+    useEffect(() => {
+        if (reportData) {
+            localStorage.setItem('lastReportData', JSON.stringify(reportData));
+        } else {
+            localStorage.removeItem('lastReportData');
+        }
+    }, [reportData]);
+
+    useEffect(() => {
+        localStorage.setItem('lastUserScores', JSON.stringify(userScores));
+    }, [userScores]);
     const [isErrorModalOpen, setIsErrorModalOpen] = useState(false);
     const [failedUserMessage, setFailedUserMessage] = useState(null);
     const [scoreHistory, setScoreHistory] = useState([]);
@@ -651,6 +671,18 @@ function App() {
                                 
                                 {/* Motivation Section: Streak & Attendance */}
                                 <AttendanceTracker language={language} />
+                                
+                                {reportData && (
+                                    <button 
+                                        onClick={() => setIsSummaryModalOpen(true)} 
+                                        className="summary-btn" 
+                                        style={{marginTop: '20px', width: '100%', justifyContent: 'center', backgroundColor: 'var(--color-bg-light)', color: 'var(--color-deep-navy)', border: '1px solid var(--color-border)', boxShadow: '0 4px 15px rgba(0,0,0,0.05)'}}
+                                        onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'white'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
+                                        onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'var(--color-bg-light)'; e.currentTarget.style.transform = 'none'; }}
+                                    >
+                                        <Award size={18} color="#f59e0b" /> {language === 'ko' ? '최근 리포트 다시보기' : 'View Recent Report'}
+                                    </button>
+                                )}
                             </div>
                         ) : (
                             <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
@@ -670,33 +702,35 @@ function App() {
 
                 {!selectedMission ? (
                     <section className="mission-selection-container glass-panel">
-                        <h2 className="mission-title">
-                            {language === 'ko' ? (
-                                <>{userName}<span style={{ fontWeight: '400' }}>{t(language, 'missionSelectTitleUser')}</span></>
-                            ) : (
-                                <>{userName}{t(language, 'missionSelectTitleUser')}</>
-                            )}
-                        </h2>
-                        <div className="mission-grid">
-                            {isLoadingMissions ? (
-                                <div style={{ textAlign: 'center', width: '100%', padding: '40px', color: 'var(--color-text-secondary)' }}>
-                                    <div style={{ display: 'inline-block', width: '30px', height: '30px', border: '3px solid rgba(59, 130, 246, 0.3)', borderTopColor: 'var(--color-expert-academic)', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
-                                </div>
-                            ) : missionConcepts.map(mission => (
-                                <div 
-                                    key={mission.id} 
-                                    className="mission-card" 
-                                    onClick={() => handleMissionSelect(mission)}
-                                    onMouseEnter={() => mission.id !== 'coming_soon' && setHoveredMission(mission.id)}
-                                    onMouseLeave={() => setHoveredMission(null)}
-                                    style={mission.id === 'coming_soon' ? { cursor: 'default', opacity: 0.7, transform: 'none', boxShadow: 'none' } : {}}
-                                >
-                                    <div className="mission-card-icon" style={mission.id === 'coming_soon' ? { backgroundColor: 'transparent' } : {}}>
-                                        <mission.icon size={38} color={mission.id === 'coming_soon' ? "#cbd5e1" : "#4ade80"} />
+                        <div className="mission-selection-content-wrapper">
+                            <h2 className="mission-title">
+                                {language === 'ko' ? (
+                                    <>{userName}<span style={{ fontWeight: '400' }}>{t(language, 'missionSelectTitleUser')}</span></>
+                                ) : (
+                                    <>{userName}{t(language, 'missionSelectTitleUser')}</>
+                                )}
+                            </h2>
+                            <div className="mission-grid">
+                                {isLoadingMissions ? (
+                                    <div style={{ textAlign: 'center', width: '100%', padding: '40px', color: 'var(--color-text-secondary)' }}>
+                                        <div style={{ display: 'inline-block', width: '30px', height: '30px', border: '3px solid rgba(59, 130, 246, 0.3)', borderTopColor: 'var(--color-expert-academic)', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
                                     </div>
-                                    <h3 style={mission.id === 'coming_soon' ? { color: '#94a3b8' } : {}}>{mission.title}</h3>
-                                </div>
-                            ))}
+                                ) : missionConcepts.map(mission => (
+                                    <div 
+                                        key={mission.id} 
+                                        className="mission-card" 
+                                        onClick={() => handleMissionSelect(mission)}
+                                        onMouseEnter={() => mission.id !== 'coming_soon' && setHoveredMission(mission.id)}
+                                        onMouseLeave={() => setHoveredMission(null)}
+                                        style={mission.id === 'coming_soon' ? { cursor: 'default', opacity: 0.7, transform: 'none', boxShadow: 'none' } : {}}
+                                    >
+                                        <div className="mission-card-icon" style={mission.id === 'coming_soon' ? { backgroundColor: 'transparent' } : {}}>
+                                            <mission.icon size={38} color={mission.id === 'coming_soon' ? "#cbd5e1" : "#4ade80"} />
+                                        </div>
+                                        <h3 style={mission.id === 'coming_soon' ? { color: '#94a3b8' } : {}}>{mission.title}</h3>
+                                    </div>
+                                ))}
+                            </div>
                         </div>
                     </section>
                 ) : showQuiz ? (
@@ -1019,7 +1053,7 @@ function App() {
             {/* Summary Modal에 차트 전달 */}
             <SummaryModal
                 isOpen={isSummaryModalOpen}
-                onClose={() => setIsSummaryModalOpen(false)}
+                onClose={() => { setSelectedMission(null); setHoveredMission(null); setShowQuiz(false); setShowPostQuiz(false); setIsSummaryModalOpen(false); }}
                 helpCountLevel1={helpCountLevel1}
                 helpCountLevel2={helpCountLevel2}
                 helpCountLevel3={helpCountLevel3}

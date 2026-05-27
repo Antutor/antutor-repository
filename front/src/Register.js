@@ -69,95 +69,100 @@ const Register = ({ onGoToLogin, language = 'ko', onLanguageChange }) => {
   return (
     <div className={`login-page ${isFadingOut ? 'fade-out' : ''}`}>
       <div className="login-card">
-
-        {/* Language Toggle */}
-        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '12px' }}>
-          <select
-            value={language}
-            onChange={(e) => onLanguageChange && onLanguageChange(e.target.value)}
-            style={{
-              padding: '6px 12px',
-              borderRadius: '8px',
-              border: '1px solid var(--color-border)',
-              backgroundColor: 'var(--color-bg-light)',
-              color: 'var(--color-deep-navy)',
-              fontWeight: '600',
-              fontSize: '0.85rem',
-              cursor: 'pointer'
-            }}
-          >
-            <option value="ko">🇰🇷 한국어</option>
-            <option value="en">🇺🇸 English</option>
-          </select>
-        </div>
-
-        <div className="login-header">
+        {/* Left Side: Visual Panel */}
+        <div className="login-visual-panel">
           <img src="/images/antutor%20standup.png" alt="Antutor" className="login-logo-img" />
-          <h2>{t(language, 'registerTitle')}</h2>
-          <p>{t(language, 'registerSubtitle')}</p>
+          <div className="login-header">
+            <h2>{t(language, 'registerTitle')}</h2>
+            <p>{t(language, 'registerSubtitle')}</p>
+          </div>
         </div>
 
-        {/* noValidate: disable browser-native validation tooltips, JS handles all */}
-        <form onSubmit={handleSubmit} className="login-form" noValidate>
-          <div className="input-group">
-            <label>{t(language, 'loginUserId')}</label>
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <div className="input-field" style={{ flex: 1 }}>
-                <User size={18} className="input-icon" />
+        {/* Right Side: Form Panel */}
+        <div className="login-form-panel">
+          {/* Language Toggle */}
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '20px' }}>
+            <select
+              value={language}
+              onChange={(e) => onLanguageChange && onLanguageChange(e.target.value)}
+              style={{
+                padding: '6px 12px',
+                borderRadius: '8px',
+                border: '1px solid var(--color-border)',
+                backgroundColor: 'var(--color-bg-light)',
+                color: 'var(--color-deep-navy)',
+                fontWeight: '600',
+                fontSize: '0.85rem',
+                cursor: 'pointer'
+              }}
+            >
+              <option value="ko">🇰🇷 한국어</option>
+              <option value="en">🇺🇸 English</option>
+            </select>
+          </div>
+
+          {/* noValidate: disable browser-native validation tooltips, JS handles all */}
+          <form onSubmit={handleSubmit} className="login-form" noValidate>
+            <div className="input-group">
+              <label>{t(language, 'loginUserId')}</label>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <div className="input-field" style={{ flex: 1 }}>
+                  <User size={18} className="input-icon" />
+                  <input
+                    type="text"
+                    placeholder={t(language, 'loginUserIdPlaceholder')}
+                    value={userId}
+                    onChange={(e) => { setUserId(e.target.value); setIsIdChecked(false); }}
+                    disabled={isIdChecked}
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={handleCheckId}
+                  style={{
+                    padding: '0 12px',
+                    borderRadius: '10px',
+                    border: isIdChecked ? 'none' : '1px solid var(--color-border)',
+                    background: isIdChecked ? '#10b981' : 'var(--color-bg-light)',
+                    color: isIdChecked ? 'white' : 'var(--color-deep-navy)',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    minWidth: '95px'
+                  }}
+                >
+                  {isIdChecked ? <CheckCircle size={18} style={{ margin: '0 auto' }} /> : t(language, 'checkDuplicate')}
+                </button>
+              </div>
+            </div>
+
+            <div className="input-group">
+              <label>{t(language, 'loginPassword')}</label>
+              <div className="input-field">
+                <Lock size={18} className="input-icon" />
                 <input
                   type="text"
-                  placeholder={t(language, 'loginUserIdPlaceholder')}
-                  value={userId}
-                  onChange={(e) => { setUserId(e.target.value); setIsIdChecked(false); }}
-                  disabled={isIdChecked}
+                  style={{ WebkitTextSecurity: 'disc' }}
+                  autoComplete="off"
+                  placeholder={t(language, 'loginPasswordPlaceholder')}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
                 />
               </div>
-              <button
-                type="button"
-                onClick={handleCheckId}
-                style={{
-                  padding: '0 12px',
-                  borderRadius: '10px',
-                  border: isIdChecked ? 'none' : '1px solid var(--color-border)',
-                  background: isIdChecked ? '#10b981' : 'var(--color-bg-light)',
-                  color: isIdChecked ? 'white' : 'var(--color-deep-navy)',
-                  fontWeight: '600',
-                  cursor: 'pointer',
-                  minWidth: '95px'
-                }}
-              >
-                {isIdChecked ? <CheckCircle size={18} style={{ margin: '0 auto' }} /> : t(language, 'checkDuplicate')}
-              </button>
             </div>
-          </div>
-
-          <div className="input-group">
-            <label>{t(language, 'loginPassword')}</label>
-            <div className="input-field">
-              <Lock size={18} className="input-icon" />
-              <input
-                type="text"
-                style={{ WebkitTextSecurity: 'disc' }}
-                autoComplete="off"
-                placeholder={t(language, 'loginPasswordPlaceholder')}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-              />
+            
+            <div style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)', marginBottom: '20px', textAlign: 'left', paddingLeft: '5px' }}>
+              * {t(language, 'inputRule')}
             </div>
-          </div>
-          
-          <div style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)', marginBottom: '20px', textAlign: 'left', paddingLeft: '5px' }}>
-            * {t(language, 'inputRule')}
-          </div>
 
-          <button type="submit" className="login-submit-btn">
-            <span>{t(language, 'registerBtn')}</span>
-            <ArrowRight size={18} />
-          </button>
-        </form>
+            <button type="submit" className="login-submit-btn">
+              <span>{t(language, 'registerBtn')}</span>
+              <ArrowRight size={18} />
+            </button>
+          </form>
 
-        <div className="login-footer">
-          {t(language, 'alreadyHaveAccount')} <span className="signup-link" onClick={onGoToLogin}>{t(language, 'goToLogin')}</span>
+          <div className="login-footer" style={{ marginTop: '24px' }}>
+            {t(language, 'alreadyHaveAccount')} <span className="signup-link" onClick={onGoToLogin}>{t(language, 'goToLogin')}</span>
+          </div>
         </div>
       </div>
     </div>

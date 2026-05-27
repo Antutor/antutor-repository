@@ -714,34 +714,13 @@ async def end_session(request: EndSessionRequest, current_user: dict = Depends(g
             
     latest_avg = (last_academic + last_market + last_macro) / 3.0
     
-    if nudge_count == 0:
-        final_score = latest_avg * 1.5
-        educational_insights = f"Excellent! Your base average was {latest_avg:.1f}. You earned a 1.5x bonus for completing without help, making your final score {final_score:.1f}!"
-    else:
-        final_score = latest_avg
-        educational_insights = f"Your score is {latest_avg:.1f}. You received help from the agent {nudge_count} times. Try harder next time for a bonus score!"
-        
-    # 과거 ENDED 된 동종 concept 이력이 있는지 검사
-    past_sessions_res = await db(lambda: supabase.table("sessions").select("session_id").eq("user_id", user_id).eq("concept_id", session["concept_id"]).eq("status", "ENDED").execute())
-    is_first_time = len(past_sessions_res.data) <= 1  # 현재 방금 ENDED 시킨 세션이 포함되어 있으므로 <= 1
-
-    # Exclude scaffolding turns (score=0) from the radar chart to avoid dragging down the cumulative total
-    valid_logs = [log for log in logs_res.data if (float(log["score_academic"] or 0) + float(log["score_market"] or 0) + float(log["score_macro"] or 0)) > 0]
-    radar_academic = [float(log["score_academic"] or 0) * 100 for log in valid_logs]
-    radar_market = [float(log["score_market"] or 0) * 100 for log in valid_logs]
-    radar_macro = [float(log["score_macro"] or 0) * 100 for log in valid_logs]
-    radar_payload = {"Academic": radar_academic, "Market": radar_market, "Macro": radar_macro}
-
-
-    translated_insights = await translate_en_to_ko(educational_insights, language)
-    translated_message = await translate_en_to_ko("Session terminated successfully.", language)
-
     # ── 스캐폴딩 단계별 사용 횟수 집계 ─────────────────────────────────
     scaffold_step_labels = {
         "Sub-concept Nudge": "nudge",
         "Concept Explanation": "concept",
         "Fill-in-the-Blank": "fill_blank",
-        "Solution Reveal": "reveal"
+        "Solution Reveal": "reveal",
+        "Counterfactual Probe": "nudge"
     }
     scaffolding_summary = {"nudge": 0, "concept": 0, "fill_blank": 0, "reveal": 0, "total": 0}
     try:
@@ -759,6 +738,27 @@ async def end_session(request: EndSessionRequest, current_user: dict = Depends(g
     except Exception:
         # scaffold_step 컬럼이 DB에 아직 없는 경우 graceful fallback
         scaffolding_summary["total"] = nudge_count
+        
+    if scaffolding_summary["total"] == 0:
+        final_score = latest_avg + 50
+        educational_insights = f"Excellent! Your base average was {latest_avg:.1f}. You earned a 50-point bonus for completing without help, making your final score {final_score:.1f}!"
+    else:
+        final_score = latest_avg
+        educational_insights = f"Your score is {latest_avg:.1f}. You received help from the agent {scaffolding_summary['total']} times. Try harder next time for a bonus score!"
+        
+    # 과거 ENDED 된 동종 concept 이력이 있는지 검사
+    past_sessions_res = await db(lambda: supabase.table("sessions").select("session_id").eq("user_id", user_id).eq("concept_id", session["concept_id"]).eq("status", "ENDED").execute())
+    is_first_time = len(past_sessions_res.data) <= 1  # 현재 방금 ENDED 시킨 세션이 포함되어 있으므로 <= 1
+
+    # Exclude scaffolding turns (score=0) from the radar chart to avoid dragging down the cumulative total
+    valid_logs = [log for log in logs_res.data if (float(log["score_academic"] or 0) + float(log["score_market"] or 0) + float(log["score_macro"] or 0)) > 0]
+    radar_academic = [float(log["score_academic"] or 0) * 100 for log in valid_logs]
+    radar_market = [float(log["score_market"] or 0) * 100 for log in valid_logs]
+    radar_macro = [float(log["score_macro"] or 0) * 100 for log in valid_logs]
+    radar_payload = {"Academic": radar_academic, "Market": radar_market, "Macro": radar_macro}
+
+    translated_insights = await translate_en_to_ko(educational_insights, language)
+    translated_message = await translate_en_to_ko("Session terminated successfully.", language)
 
     # ── 최종 리포트 반환 ─────────────────────────────────────────────
     return {
