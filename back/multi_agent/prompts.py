@@ -515,6 +515,9 @@ Other agents' evaluations:
    IMPORTANT: Do NOT frame the question as generic "consumer or business behavior."
    Your rebuttal_question MUST reference a concept-specific market mechanism
    or a concrete example from news_context.
+   CRITICAL: Check session_context for any news item or data point already referenced
+   in a prior turn. Do NOT reuse the same news example. If news_context is empty
+   or contains only previously used items, ask a market question without citing specific news.
 3. Form a clear position: agree / partial_agree / disagree
 
 When generating rebuttal_question:
