@@ -234,6 +234,7 @@ function App() {
         setMessages(prev => [...prev, userMessage]);
         setInputValue('');
         setCurrentScaffold(null); 
+        setIsEndSuggested(false);
         
         const thinkingStartTime = Date.now();
         setIsThinking(true);
@@ -325,9 +326,8 @@ function App() {
                     
                     if (decision?.status === "mastery" || decision?.status === "suggest_termination") {
                         setIsEndSuggested(true);
-                    } else {
-                        setIsEndSuggested(false);
                     }
+
                     
                     if (plan && plan.message) {
                         moderatorText = plan.message;
