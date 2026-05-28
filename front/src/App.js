@@ -508,9 +508,9 @@ function App() {
             setHelpCountLevel1(0);
             setHelpCountLevel2(0);
             setHelpCountLevel3(0);
+            setUserScores({ Academic: 0, Market: 0, Macro: 0, Independence: 0 });
             setReportData(null);
             setExpertFeedbackData([]);
-            setScoreHistory([]);
             setIsSummaryModalOpen(false);
             
             const elapsed = Date.now() - thinkingStartTime;
@@ -535,6 +535,12 @@ function App() {
             const response = await studyAPI.resolveResume({ concept: selectedMission, decision, language });
             setSessionId(response.data.session_id);
             setIsResumePending(false);
+            
+            // Reset charts
+            setUserScores({ Academic: 0, Market: 0, Macro: 0, Independence: 0 });
+            setReportData(null);
+            setExpertFeedbackData([]);
+
             setMessages(prev => [...prev, { id: Date.now(), sender: 'user', text: decision === 'resume' ? t(language, 'resumeSession') : t(language, 'startFresh') }]);
             
             if (decision === 'fresh') {

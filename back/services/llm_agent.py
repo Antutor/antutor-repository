@@ -321,8 +321,9 @@ async def retrieve_tavily_news(concept: str, user_answer: str = "") -> str:
                 return f"Recent news context for {concept}:\n- {trimmed}"
             return f"No relevant news found for {concept}."
 
-        # ② score 내림차순 정렬 → 관련성 높은 기사 우선
-        items = sorted(items, key=lambda r: r.get("score", 0) if isinstance(r, dict) else 0, reverse=True)
+        # ② score 내림차순 정렬 (Shuffle 적용)
+        import random
+        random.shuffle(items)
 
         snippets = []
         seen_titles: set = set()
@@ -410,7 +411,8 @@ async def retrieve_tavily_news_v2(concept: str, user_answer: str = "", last_ques
         elif isinstance(results, list):
             items = results
 
-        items = sorted(items, key=lambda r: r.get("score", 0) if isinstance(r, dict) else 0, reverse=True)
+        import random
+        random.shuffle(items)
 
         snippets = []
         seen_titles = set()

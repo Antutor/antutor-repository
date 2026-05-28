@@ -150,7 +150,7 @@ const SummaryModal = ({ isOpen, onClose, helpCountLevel1, helpCountLevel2, helpC
               <div className="bonus-score-section">
                 <h3>{t(language, 'selfDirectedBonus')}</h3>
                 <div className={`bonus-card ${(reportData?.scaffolding_summary?.total ?? (helpCountLevel1 + helpCountLevel2 + helpCountLevel3)) === 0 ? 'earned' : 'missed'}`}>
-                  <div className="bonus-points">+{(reportData?.scaffolding_summary?.total ?? (helpCountLevel1 + helpCountLevel2 + helpCountLevel3)) === 0 ? 50 : 0}</div>
+                  <div className="bonus-points">+{(reportData?.scaffolding_summary?.total ?? (helpCountLevel1 + helpCountLevel2 + helpCountLevel3)) === 0 ? ((reportData?.base_score || 0) * 0.5).toFixed(1) : 0}</div>
                   <div className="bonus-caption">{t(language, 'bonusCondition')}</div>
                 </div>
               </div>
