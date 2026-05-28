@@ -807,10 +807,10 @@ Return ONLY this JSON:
 }}
 
 turn_summary rules:
-- ONE sentence, max 25 words.
-- Format: "Student [key claim in 3-5 words]. A=[academic score], M=[market score], X=[macro score]. Q: [core topic of question asked]."
-- Example: "Student defined inflation as price rise. A=0.65, M=0.40, X=0.35. Q: consumer spending effect."
-- Do NOT include the full question text. Only the topic keyword.
+- ONE sentence, max 20 words.
+- Format: "Student [key claim in 3-5 words]. Asked: [question asked in 5-8 words]."
+- Example: "Student said price rise reduces spending. Asked: how does this affect aggregate demand?"
+- Do NOT include scores. Capture what the student said and what was asked.
 
 Concept: {concept}
 Turn: {turn_count}
