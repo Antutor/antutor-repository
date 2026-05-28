@@ -636,7 +636,7 @@ async def chat(request: ChatRequest, background_tasks: BackgroundTasks, current_
 
         if new_count >= 3 and avg_score >= 0.6:
             moderator_action = "suggest_termination"
-            guidance_message = "You have achieved a high level of mastery. Would you like to terminate the session? (Yes/No)"
+            guidance_message = final_state.get("final_synthesis", "Excellent job! You have fully understood this concept.")
             scaffold_plan = {
                 "step": "Termination Suggestion",
                 "message": guidance_message
@@ -1273,7 +1273,7 @@ async def websocket_chat(websocket: WebSocket):
             if new_count >= 3 and avg_score >= 0.6:
                 moderator_action = "suggest_termination"
                 base_msg = final_state.get("final_synthesis", "Excellent job! You have fully understood this concept.")
-                guidance_message = f"{base_msg}\n\nWould you like to terminate the session? (Yes/No)"
+                guidance_message = base_msg
                 scaffold_plan = {"step": "Termination Suggestion", "message": guidance_message}
             elif is_contradiction or synth_mode == "retry":
                 # retry_node 또는 is_contradiction → final_synthesis는 이미 올바른 retry 메시지

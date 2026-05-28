@@ -196,7 +196,7 @@ async def websocket_chat(websocket: WebSocket):
         else:
             if raw_avg_score >= 85:
                 moderator_action = "suggest_termination"
-                guidance_message = "You have achieved a high level of mastery. Would you like to terminate the session? (Yes/No)"
+                guidance_message = final_state.get("final_synthesis", "Excellent job! You have fully understood this concept.")
                 scaffold_plan = {"step": "Termination Suggestion", "message": guidance_message}
             elif is_contradiction:
                 moderator_action = "retry"
