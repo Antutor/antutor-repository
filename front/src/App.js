@@ -697,7 +697,7 @@ function App() {
                                 <div style={{ flex: 1 }}></div> {/* 스페이서로 공간 확보 */}
                                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '10px', borderTop: '1px solid var(--color-border)', backgroundColor: 'rgba(255,255,255,0.5)', marginBottom: '10px' }}>
                                     <RadarScoreChart scores={userScores} isSidebar={true} language={language} />
-                                    <div style={{ marginTop: '-5px', fontSize: '0.75rem', color: 'var(--color-text-secondary)', textAlign: 'center', lineHeight: '1.4' }}>
+                                    <div style={{ marginTop: '-30px', fontSize: '0.75rem', color: 'var(--color-text-secondary)', textAlign: 'center', lineHeight: '1.4' }}>
                                         {language === 'ko' ? (
                                             <>
                                                 <div><strong style={{color: 'var(--color-expert-academic)'}}>정확성</strong> - 학술전문가</div>
