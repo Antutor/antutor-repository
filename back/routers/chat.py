@@ -331,6 +331,7 @@ async def chat(request: ChatRequest, background_tasks: BackgroundTasks, current_
     
     any_fallback = False
     is_scaffold_success = False
+    scaffold_step = None
 
     # kg_context: give_up 시 스캐폴딩 프롬프트에도 필요하므로 is_give_up 여부와 무관하게 항상 조회합니다.
     # (첫 턴에서 바로 give_up 시 NameError 방지)
@@ -1066,6 +1067,7 @@ async def websocket_chat(websocket: WebSocket):
         # idk_count > 0 이고 give_up이 아닌 실제 답변이 들어온 경우:
         # Academic Agent로 평가 후 correct이면 정상 흐름 복귀, 아니면 다음 scaffolding 레벨로 진입
         is_scaffold_success = False
+        scaffold_step = None
         if not is_give_up and session["idk_count"] > 0:
             print(f"\n[WS ChatRouter] 📋 Scaffolding 답변 평가 중... (idk_count={session['idk_count']})", flush=True)
             await websocket.send_json({"type": "status", "message": await translate_en_to_ko("📋 Evaluating your answer...", language)})
