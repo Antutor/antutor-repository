@@ -57,12 +57,13 @@ app.add_middleware(
         "http://127.0.0.1:3000",
         "http://127.0.0.1:3001",
         "http://127.0.0.1:8080",
-        # --- Production (Vercel & Netlify) ---
+        # --- Production (Vercel, Netlify, Cloudflare) ---
         "https://antutor.vercel.app",
         "https://antutor-front.vercel.app",
         "https://antutor.netlify.app",
+        "https://antutor.pages.dev",  # Cloudflare Pages URL
     ],
-    allow_origin_regex=r"https://.*\.(vercel|netlify)\.app",  # 모든 Vercel/Netlify 프리뷰 URL 허용
+    allow_origin_regex=r"https://.*\.(vercel|netlify|pages)\.(app|dev)",  # 모든 Vercel/Netlify/Cloudflare 프리뷰 URL 허용
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
