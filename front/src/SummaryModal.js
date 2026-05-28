@@ -132,7 +132,7 @@ const SummaryModal = ({ isOpen, onClose, helpCountLevel1, helpCountLevel2, helpC
                 <span style={{ fontSize: '1.2rem', color: '#cbd5e1', fontWeight: '400', marginLeft: '8px' }}>/ 100</span>
               </p>
               <p style={{ marginTop: '8px', marginBottom: 0, fontSize: '0.75rem', color: '#94a3b8', fontStyle: 'italic', wordBreak: 'keep-all', padding: '0 10px' }}>
-                {language === 'ko' ? '*기본 점수는 지금까지 진행한 모든 유효 턴 점수들의 누적 평균값입니다*' : '*The base score is the cumulative average of all valid turns.*'}
+                {language === 'ko' ? '*기본 점수는 지금까지 진행한 모든 유효 턴 점수들의 누적 평균값입니다 (유효 턴은 힌트를 제외한 답변 횟수입니다)*' : '*The base score is the cumulative average of all valid turns (valid turns exclude hint usage).*'}
               </p>
             </div>
           </div>
