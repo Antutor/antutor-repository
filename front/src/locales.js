@@ -92,7 +92,8 @@ export const locales = {
     level2Hint: '2단계 힌트',
     level3Hint: '3단계 힌트',
     selfDirectedBonus: '자기 주도 보너스',
-    bonusCondition: '도움 없이 세션을 완료하면 50점을 추가로 획득할 수 있습니다!',
+    bonusEarned: '힌트 없이 세션을 완료하여 {points}점의 보너스를 획득했습니다!',
+    bonusMissed: '다음엔 힌트 없이 세션을 완료하고 기본 점수의 50%를 보너스로 획득해보세요!',
     eduInsights: '학습 인사이트',
     evalResult: '평가 결과',
     
@@ -255,7 +256,8 @@ export const locales = {
     level2Hint: 'Level 2 Hint',
     level3Hint: 'Level 3 Hint',
     selfDirectedBonus: 'Self-Directed Bonus',
-    bonusCondition: 'Earn 50 extra points if you complete without hints!',
+    bonusEarned: 'You earned {points} bonus points for completing without hints!',
+    bonusMissed: 'Complete without hints next time to earn a 50% bonus on your base score!',
     eduInsights: 'Educational Insights',
     evalResult: 'Evaluation Result',
     
