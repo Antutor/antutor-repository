@@ -119,11 +119,11 @@ const SummaryModal = ({ isOpen, onClose, helpCountLevel1, helpCountLevel2, helpC
               </ResponsiveContainer>
             </div>
             
-            <div style={{ textAlign: 'center', marginTop: '-15px', marginBottom: '20px', fontSize: '0.75rem', color: '#94a3b8', fontStyle: 'italic', wordBreak: 'keep-all', padding: '0 10px' }}>
-                {language === 'ko' ? '*참고 : 이 그래프는 채팅창 왼쪽 아래에 있던 그래프의 수치들을 평균 내어 나타낸 그래프입니다*' : '*Note: This graph averages the values from the graph located at the bottom left of the chat window.*'}
+            <div style={{ textAlign: 'center', marginTop: '-35px', marginBottom: '20px', fontSize: '0.75rem', color: '#94a3b8', fontStyle: 'italic', wordBreak: 'keep-all', padding: '0 10px' }}>
+                {language === 'ko' ? '*참고 : 본 그래프는 전체 학습 과정에서 획득한 각 영역별 점수의 평균을 시각화한 것입니다*' : '*Note: This graph visualizes the average score for each area obtained throughout the entire learning session.*'}
             </div>
 
-            <div style={{ textAlign: 'center', marginTop: '15px' }}>
+            <div style={{ textAlign: 'center', marginTop: '45px' }}>
               <p style={{ color: 'var(--color-text-secondary)', fontSize: '1rem', margin: '0 0 5px 0', fontWeight: '500' }}>
                 {language === 'ko' ? '기본 점수' : 'Base Score'}
               </p>
@@ -134,6 +134,17 @@ const SummaryModal = ({ isOpen, onClose, helpCountLevel1, helpCountLevel2, helpC
               <p style={{ marginTop: '8px', marginBottom: 0, fontSize: '0.75rem', color: '#94a3b8', fontStyle: 'italic', wordBreak: 'keep-all', padding: '0 10px' }}>
                 {language === 'ko' ? '*기본 점수는 지금까지 진행한 모든 유효 턴 점수들의 누적 평균값입니다 (유효 턴은 힌트를 제외한 답변 횟수입니다)*' : '*The base score is the cumulative average of all valid turns (valid turns exclude hint usage).*'}
               </p>
+              
+              {reportData?.final_score !== undefined && reportData.final_score > (reportData?.base_score || 0) && (
+                <div style={{ marginTop: '20px', padding: '12px 25px', backgroundColor: 'rgba(52, 211, 153, 0.1)', border: '2px solid #6ee7b7', borderRadius: '12px', display: 'inline-block' }}>
+                  <p style={{ color: '#047857', fontSize: '0.95rem', margin: '0 0 4px 0', fontWeight: '700' }}>
+                    {language === 'ko' ? '최종 점수 (1.5배 보너스 적용)' : 'Final Score (1.5x Bonus)'}
+                  </p>
+                  <p style={{ color: '#059669', fontSize: '2.2rem', fontWeight: '800', margin: 0 }}>
+                    {reportData.final_score.toFixed(1)}
+                  </p>
+                </div>
+              )}
             </div>
           </div>
 
@@ -161,7 +172,7 @@ const SummaryModal = ({ isOpen, onClose, helpCountLevel1, helpCountLevel2, helpC
                 <h3>{t(language, 'selfDirectedBonus')}</h3>
                 <div className={`bonus-card ${(reportData?.scaffolding_summary?.total ?? (helpCountLevel1 + helpCountLevel2 + helpCountLevel3)) === 0 ? 'earned' : 'missed'}`}>
                   <div className="bonus-points">+{(reportData?.scaffolding_summary?.total ?? (helpCountLevel1 + helpCountLevel2 + helpCountLevel3)) === 0 ? ((reportData?.base_score || 0) * 0.5).toFixed(1) : 0}</div>
-                  <div className="bonus-caption">
+                  <div className="bonus-caption" style={{ whiteSpace: 'pre-line' }}>
                     {t(language, (reportData?.scaffolding_summary?.total ?? (helpCountLevel1 + helpCountLevel2 + helpCountLevel3)) === 0 ? 'bonusEarned' : 'bonusMissed')
                       .replace('{points}', ((reportData?.base_score || 0) * 0.5).toFixed(1).replace(/\.0$/, ''))}
                   </div>
