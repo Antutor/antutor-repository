@@ -376,7 +376,7 @@ async def retrieve_tavily_news(concept: str, user_answer: str = "") -> str:
         print(f"⚠️ [Tavily] 검색 오류: {e}", flush=True)
         return f"Error fetching news for {concept}: {str(e)}"
 
-async def retrieve_tavily_news_v2(concept: str, user_answer: str = "", last_question: str = "", used_urls: set = None) -> tuple[str, set]:
+async def retrieve_tavily_news_v2(concept: str, user_answer: str = "", last_question: str = "", used_urls: set = None, turn_number: int = 1) -> tuple[str, set]:
     """
     v2 version of retrieve_tavily_news that takes last_question for better query formulation
     and deduplicates based on used_urls to prevent repetitive articles across turns.
@@ -392,11 +392,19 @@ async def retrieve_tavily_news_v2(concept: str, user_answer: str = "", last_ques
         used_urls = set()
 
     try:
-        # 기존에는 last_question 키워드를 검색어에 추가했으나,
-        # 이는 매 턴마다 동일한 특정 주제(예: 2.1% 인플레이션)의 뉴스만 검색하게 만들어
-        # url 중복 제거 시 결과 고갈(empty) 현상을 유발하고, 동일한 사례가 반복되게 만들었습니다.
-        # 따라서 키워드 추가 없이 개념에 대한 폭넓은 뉴스를 검색하여 url 필터링이 정상 작동하도록 합니다.
-        query = f"{concept} news recent impact market 2024 2025"
+        # 검색 쿼리를 매 턴 순환하여 매 턴마다 다른 서브토픽 검색 → 근본적으로 다른 기사 풀
+        SUBTOPICS = [
+            "consumer prices 2025",
+            "housing rent 2025",
+            "wages employment 2025",
+            "food prices 2025",
+            "interest rates economy 2025",
+            "retail spending 2025",
+            "trade exports 2025",
+        ]
+        subtopic = SUBTOPICS[(turn_number - 1) % len(SUBTOPICS)]
+        
+        query = f"{concept} {subtopic} news recent impact market"
         loop = asyncio.get_event_loop()
         results = await loop.run_in_executor(
             _tavily_executor, lambda: _tavily_tool.invoke(query)

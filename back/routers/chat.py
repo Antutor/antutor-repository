@@ -466,7 +466,8 @@ async def chat(request: ChatRequest, background_tasks: BackgroundTasks, current_
         news_context, news_urls = await retrieve_tavily_news_v2(
             concept_name, eval_user_answer,
             last_question=last_question_from_history,
-            used_urls=used_news_urls
+            used_urls=used_news_urls,
+            turn_number=turn_number
         )
 
         turn_count = len(session_history)
