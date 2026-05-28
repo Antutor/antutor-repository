@@ -93,7 +93,7 @@ export const locales = {
     level3Hint: '3단계 힌트',
     selfDirectedBonus: '자기 주도 보너스',
     bonusEarned: '힌트 없이 세션을 완료하여\n{points}점의 보너스를 획득했습니다!',
-    bonusMissed: '다음엔 힌트 없이 세션을 완료하고\n기본 점수의 50%를 보너스로 획득해보세요!',
+    bonusMissed: '다음엔 힌트 없이\n세션을 완료하고\n기본 점수의 50%를\n보너스로 획득해보세요!',
     eduInsights: '학습 인사이트',
     evalResult: '평가 결과',
     
