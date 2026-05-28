@@ -20,7 +20,7 @@ export const locales = {
     academicRole: '기본 이론과 학문적 엄밀성에 중점을 둡니다.',
     marketName: '시장 실무자',
     marketRole: '실제 시장 동향 및 데이터에 중점을 둡니다.',
-    macroName: '매크로 분석가',
+    macroName: '거시 경제 분석가',
     macroRole: '글로벌 경제 지표 및 정책에 중점을 둡니다.',
     
     // Buttons & Header
