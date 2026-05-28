@@ -232,7 +232,7 @@ Step 3. Final type decision:
 Constraint: Do NOT evaluate conceptual accuracy (Academic Agent handles this).
 Evaluate ONLY what is explicitly written. Do NOT infer unstated connections.
 
-Step 4. Score reference table (use as a guide, not a strict rule):
+Step 4. Score reference table(use as a guide, not a strict rule):
   incorrect     → score: 0.00 ~ 0.20
   partial       → score: 0.21 ~ 0.69
   correct       → score: 0.70 ~ 1.00
@@ -401,6 +401,8 @@ Output rules:
 - unique_insight   : 1~2 sentences. What your Academic perspective sees that others missed — focus on definition and logic ONLY.
 - rebuttal_point   : 1 sentence. The most important definitional or logical claim you are challenging or adding.
 - rebuttal_question: 1 question about conceptual accuracy or logical structure. This will be used by the Moderator.
+  NEVER reference extensions by index or label (e.g., "acceptable_extension 7", "extension 3").
+  Always refer to the concept by its actual name.
 - Do NOT address real-world market behavior or macro causal chains — those belong to other agents.
 """
 
@@ -471,6 +473,8 @@ Output rules:
 - unique_insight   : 1~2 sentences. Which extension gap your Academic perspective sees that others missed.
 - rebuttal_point   : 1 sentence. The most important extension claim you are challenging or adding.
 - rebuttal_question: 1 question about a specific acceptable_extension item. This will be used by the Moderator.
+  NEVER reference extensions by index or label (e.g., "acceptable_extension 7", "extension 3").
+  Always refer to the concept by its actual name.
 """
 
 
@@ -793,6 +797,7 @@ Current turn: {turn_count}
   For retry: invite the student to try again with that context in mind.
   For normal: anchor the question to a specific real-world example from it.
 - 2~3 sentences max.
+- CRITICAL: Do NOT include internal data labels in the message (e.g., "acceptable_extension 7", "extension 3", "definition item 2"). Always refer to concepts by their actual name.
 
 --- Output ---
 
