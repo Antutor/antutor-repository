@@ -16,11 +16,11 @@ export const locales = {
     risk: '리스크 관리',
     
     // Experts
-    academicName: '학술 전문가',
+    academicName: '학술 개념 전문가',
     academicRole: '기본 이론과 학문적 엄밀성에 중점을 둡니다.',
-    marketName: '시장 실무자',
+    marketName: '시장 실무 전문가',
     marketRole: '실제 시장 동향 및 데이터에 중점을 둡니다.',
-    macroName: '거시 경제 분석가',
+    macroName: '거시 경제 전문가',
     macroRole: '글로벌 경제 지표 및 정책에 중점을 둡니다.',
     
     // Buttons & Header

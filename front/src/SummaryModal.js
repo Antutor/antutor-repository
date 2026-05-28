@@ -21,15 +21,14 @@ const SummaryModal = ({ isOpen, onClose, helpCountLevel1, helpCountLevel2, helpC
 
   if (reportData && reportData.growth_visualization) {
       const gv = reportData.growth_visualization;
-      const calcTotal = (arr) => arr && arr.length > 0 ? arr.reduce((sum, val) => sum + val, 0) : 0;
+      const calcAverage = (arr) => arr && arr.length > 0 ? Math.round(arr.reduce((sum, val) => sum + val, 0) / arr.length * 10) / 10 : 0;
       
-      const turnCount = gv.Academic ? gv.Academic.length : 0;
-      maxScore = turnCount > 0 ? turnCount * 100 : 100;
+      maxScore = 100;
 
       radarData = [
-        { subject: t(language, 'accuracy'), value: calcTotal(gv.Academic), fullMark: maxScore },
-        { subject: t(language, 'practicality'), value: calcTotal(gv.Market), fullMark: maxScore },
-        { subject: t(language, 'insight'), value: calcTotal(gv.Macro), fullMark: maxScore },
+        { subject: t(language, 'accuracy'), value: calcAverage(gv.Academic), fullMark: maxScore },
+        { subject: t(language, 'practicality'), value: calcAverage(gv.Market), fullMark: maxScore },
+        { subject: t(language, 'insight'), value: calcAverage(gv.Macro), fullMark: maxScore },
       ];
       insightText = reportData.educational_insights || insightText;
   }
@@ -87,6 +86,9 @@ const SummaryModal = ({ isOpen, onClose, helpCountLevel1, helpCountLevel2, helpC
           {/* Radar Chart Section */}
           <div className="summary-section radar-section">
             <h3>{t(language, 'knowledgeLevel')}</h3>
+            <div style={{ color: 'black', fontWeight: '800', fontSize: '1rem', marginBottom: '5px' }}>
+              {language === 'ko' ? '평균 점수' : 'Average Score'}
+            </div>
             <div className="chart-container">
               <ResponsiveContainer width="100%" height={260}>
                 <RadarChart cx="50%" cy="50%" outerRadius="70%" data={radarData}>
@@ -116,6 +118,11 @@ const SummaryModal = ({ isOpen, onClose, helpCountLevel1, helpCountLevel2, helpC
                 </RadarChart>
               </ResponsiveContainer>
             </div>
+            
+            <div style={{ textAlign: 'center', marginTop: '-15px', marginBottom: '20px', fontSize: '0.75rem', color: '#94a3b8', fontStyle: 'italic', wordBreak: 'keep-all', padding: '0 10px' }}>
+                {language === 'ko' ? '*참고 : 이 그래프는 채팅창 왼쪽 아래에 있던 그래프의 수치들을 평균 내어 나타낸 그래프입니다*' : '*Note: This graph averages the values from the graph located at the bottom left of the chat window.*'}
+            </div>
+
             <div style={{ textAlign: 'center', marginTop: '15px' }}>
               <p style={{ color: 'var(--color-text-secondary)', fontSize: '1rem', margin: '0 0 5px 0', fontWeight: '500' }}>
                 {language === 'ko' ? '기본 점수' : 'Base Score'}
@@ -123,6 +130,9 @@ const SummaryModal = ({ isOpen, onClose, helpCountLevel1, helpCountLevel2, helpC
               <p style={{ color: 'var(--color-expert-academic)', fontSize: '2.5rem', fontWeight: '800', margin: 0 }}>
                 {reportData?.base_score !== undefined ? reportData.base_score.toFixed(1) : '0.0'}
                 <span style={{ fontSize: '1.2rem', color: '#cbd5e1', fontWeight: '400', marginLeft: '8px' }}>/ 100</span>
+              </p>
+              <p style={{ marginTop: '8px', marginBottom: 0, fontSize: '0.75rem', color: '#94a3b8', fontStyle: 'italic', wordBreak: 'keep-all', padding: '0 10px' }}>
+                {language === 'ko' ? '*기본 점수는 지금까지 진행한 모든 유효 턴 점수들의 누적 평균값입니다*' : '*The base score is the cumulative average of all valid turns.*'}
               </p>
             </div>
           </div>

@@ -691,18 +691,24 @@ function App() {
                             <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
                                 <div className="sidebar-header"><h2>{t(language, 'learningPath')}</h2></div>
                                 {/* 학습 경로 노드 제거됨 */}
-                                <div style={{ flex: 'none', padding: '0 10px', marginTop: '30px' }}>
+                                <div style={{ flex: 'none', padding: '0 10px', marginTop: '20px' }}>
+                                    <div style={{ fontSize: '1rem', fontWeight: '800', color: 'var(--color-deep-navy)', marginBottom: '8px' }}>
+                                        {language === 'ko' ? '누적 점수' : 'Cumulative Score'}
+                                    </div>
                                     <LineScoreChart history={scoreHistory} language={language} />
                                 </div>
                                 <div style={{ flex: 1 }}></div> {/* 스페이서로 공간 확보 */}
-                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '10px', borderTop: '1px solid var(--color-border)', backgroundColor: 'rgba(255,255,255,0.5)', marginBottom: '10px' }}>
+                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '10px 15px', borderTop: '1px solid var(--color-border)', backgroundColor: 'rgba(255,255,255,0.5)', marginBottom: '10px' }}>
+                                    <div style={{ alignSelf: 'flex-start', fontSize: '1rem', fontWeight: '800', color: 'var(--color-deep-navy)', marginBottom: '5px' }}>
+                                        {language === 'ko' ? '현재 점수' : 'Current Score'}
+                                    </div>
                                     <RadarScoreChart scores={userScores} isSidebar={true} language={language} />
                                     <div style={{ marginTop: '-30px', fontSize: '0.75rem', color: 'var(--color-text-secondary)', textAlign: 'center', lineHeight: '1.4' }}>
                                         {language === 'ko' ? (
                                             <>
-                                                <div><strong style={{color: 'var(--color-expert-academic)'}}>정확성</strong> - 학술전문가</div>
-                                                <div><strong style={{color: 'var(--color-expert-market)'}}>현실성</strong> - 시장전문가</div>
-                                                <div><strong style={{color: 'var(--color-expert-macro)'}}>통찰력</strong> - 거시전문가</div>
+                                                <div><strong style={{color: 'var(--color-expert-academic)'}}>정확성</strong> - 학술 개념 전문가</div>
+                                                <div><strong style={{color: 'var(--color-expert-market)'}}>현실성</strong> - 시장 실무 전문가</div>
+                                                <div><strong style={{color: 'var(--color-expert-macro)'}}>통찰력</strong> - 거시 경제 전문가</div>
                                             </>
                                         ) : (
                                             <>
