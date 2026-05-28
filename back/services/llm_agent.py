@@ -251,8 +251,8 @@ try:
     # setdefault 대신 직접 할당: 빈 문자열로 이미 설정된 경우에도 덮어씁니다.
     if TAVILY_API_KEY:
         _os.environ["TAVILY_API_KEY"] = TAVILY_API_KEY
-    # max_results=5로 늘려서 필터링 후에도 충분한 결과 확보
-    _tavily_tool = TavilySearch(max_results=5)
+    # max_results=15로 늘려서 필터링 후에도 충분한 결과 확보 (여러 턴에 걸쳐 URL 중복 제거 시 고갈 방지)
+    _tavily_tool = TavilySearch(max_results=15)
     print(f"✅ [Tavily] 초기화 완료 (key={'설정됨' if TAVILY_API_KEY else '없음'})", flush=True)
 except Exception as _e:
     print(f"⚠️ [Tavily] 초기화 오류: {_e}")
@@ -391,27 +391,11 @@ async def retrieve_tavily_news_v2(concept: str, user_answer: str = "", last_ques
         used_urls = set()
 
     try:
-        # Extract keywords from last_question and user_answer
-        keyword_str = ""
-        import re
-        stopwords = {"this", "that", "there", "their", "what", "which", "when", "where", "because", "would", "should", "could", "about", "with", "from"}
-        
-        combined_text = f"{last_question} {user_answer}"
-        words = re.findall(r'\b[a-zA-Z]{4,}\b', combined_text.lower())
-        filtered_words = [w for w in words if w not in stopwords]
-        
-        # Use top 3 unique keywords
-        unique_words = []
-        for w in filtered_words:
-            if w not in unique_words:
-                unique_words.append(w)
-            if len(unique_words) >= 3:
-                break
-                
-        if unique_words:
-            keyword_str = " " + " ".join(unique_words)
-
-        query = f"{concept}{keyword_str} news recent impact 2024 2025"
+        # 기존에는 last_question 키워드를 검색어에 추가했으나,
+        # 이는 매 턴마다 동일한 특정 주제(예: 2.1% 인플레이션)의 뉴스만 검색하게 만들어
+        # url 중복 제거 시 결과 고갈(empty) 현상을 유발하고, 동일한 사례가 반복되게 만들었습니다.
+        # 따라서 키워드 추가 없이 개념에 대한 폭넓은 뉴스를 검색하여 url 필터링이 정상 작동하도록 합니다.
+        query = f"{concept} news recent impact market 2024 2025"
         loop = asyncio.get_event_loop()
         results = await loop.run_in_executor(
             _tavily_executor, lambda: _tavily_tool.invoke(query)
