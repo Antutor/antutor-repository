@@ -100,7 +100,7 @@ async def websocket_chat(websocket: WebSocket):
             final_state["is_contradiction"] = False
             final_state["final_synthesis"] = "You requested help."
         else:
-            async for event in debate_graph.astream_events(initial_state, version="v1"):
+            async for event in debate_graph.astream_events(initial_state, version="v2"):
                 kind = event["event"]
                 
                 if kind == "on_chat_model_stream":

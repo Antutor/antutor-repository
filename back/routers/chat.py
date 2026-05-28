@@ -330,6 +330,8 @@ async def chat(request: ChatRequest, background_tasks: BackgroundTasks, current_
             }
     
     any_fallback = False
+    is_scaffold_success = False
+    scaffold_step = None
 
     # kg_context: give_up 시 스캐폴딩 프롬프트에도 필요하므로 is_give_up 여부와 무관하게 항상 조회합니다.
     # (첫 턴에서 바로 give_up 시 NameError 방지)
@@ -358,6 +360,15 @@ async def chat(request: ChatRequest, background_tasks: BackgroundTasks, current_
             # 정답 → idk_count 초기화 후 정상 debate 흐름으로
             print(f"  ✅ Scaffolding 답변 정답 인정 — idk_count 초기화, 정상 흐름으로 복귀", flush=True)
             await db(lambda: supabase.table("sessions").update({"idk_count": 0}).eq("session_id", session["session_id"]).execute())
+            is_scaffold_success = True
+            
+            if scaffold_step in ["Fill-in-the-Blank", "3단계 힌트", "Level 3"]:
+                import re
+                pattern = r'_{2,}|\[\s*_*\s*\]|\(\s*_*\s*\)'
+                if re.search(pattern, last_hint):
+                    eval_user_answer = re.sub(pattern, eval_user_answer, last_hint, count=1)
+                else:
+                    eval_user_answer = f"{last_hint} {eval_user_answer}"
         else:
             # 오답 → is_give_up=True로 전환해 다음 scaffolding 레벨 힌트 생성
             print(f"  ⚠️ Scaffolding 답변 오답 — 다음 scaffolding 레벨로 진입", flush=True)
@@ -480,7 +491,9 @@ async def chat(request: ChatRequest, background_tasks: BackgroundTasks, current_
             "session_context": session_context_str,
             "last_question": last_question_from_history,
             "turn_count": turn_count,
-            "previous_lowest_agent": last_selected_agent
+            "previous_lowest_agent": last_selected_agent,
+            "is_scaffold_success": is_scaffold_success,
+            "scaffold_step": scaffold_step
         }
         
         print(f"👉 [ChatRouter] 랭그래프 호출 진입 전... (RAG 완료, State 준비 완료)", flush=True)
@@ -521,6 +534,26 @@ async def chat(request: ChatRequest, background_tasks: BackgroundTasks, current_
             critiques=final_state.get("critiques", []),
             final_synthesis=final_state.get("final_synthesis", "")
         )
+        
+        final_synthesis = final_state.get("final_synthesis", "")
+        if is_scaffold_success:
+            if language == "en":
+                success_step_name = {
+                    "Sub-concept Nudge": "Level 1 Hint",
+                    "Concept Explanation": "Level 2 Hint",
+                    "Fill-in-the-Blank": "Level 3 Hint"
+                }.get(scaffold_step, scaffold_step)
+                success_msg = f"That is correct! You have successfully completed the {success_step_name}. "
+            else:
+                success_step_name = {
+                    "Sub-concept Nudge": "1단계 힌트",
+                    "Concept Explanation": "2단계 힌트",
+                    "Fill-in-the-Blank": "3단계 힌트"
+                }.get(scaffold_step, scaffold_step)
+                success_msg = f"정답입니다! 훌륭하게 맞추셨어요. {success_step_name}를 벗어났습니다. "
+                
+            final_synthesis = success_msg + final_synthesis
+            final_state["final_synthesis"] = final_synthesis
         
         turn_summary_to_save = final_state.get("turn_summary", "")
         
@@ -634,7 +667,7 @@ async def chat(request: ChatRequest, background_tasks: BackgroundTasks, current_
         # 그 외의 경우 synthesis_node가 moderate_action을 설정합니다.
         synth_mode = final_state.get("moderator_action", "proceed")
 
-        if new_count >= 3 and avg_score >= 0.6:
+        if new_count == 3 and avg_score >= 0.6:
             moderator_action = "suggest_termination"
             guidance_message = final_state.get("final_synthesis", "Excellent job! You have fully understood this concept.")
             scaffold_plan = {
@@ -1033,6 +1066,8 @@ async def websocket_chat(websocket: WebSocket):
         # ── Scaffolding 답변 평가 ─────────────────────────────────────────
         # idk_count > 0 이고 give_up이 아닌 실제 답변이 들어온 경우:
         # Academic Agent로 평가 후 correct이면 정상 흐름 복귀, 아니면 다음 scaffolding 레벨로 진입
+        is_scaffold_success = False
+        scaffold_step = None
         if not is_give_up and session["idk_count"] > 0:
             print(f"\n[WS ChatRouter] 📋 Scaffolding 답변 평가 중... (idk_count={session['idk_count']})", flush=True)
             await websocket.send_json({"type": "status", "message": await translate_en_to_ko("📋 Evaluating your answer...", language)})
@@ -1053,6 +1088,15 @@ async def websocket_chat(websocket: WebSocket):
             if scaffold_eval.get("type") == "correct":
                 print(f"  ✅ Scaffolding 답변 정답 인정 — idk_count 초기화, 정상 흐름으로 복귀", flush=True)
                 supabase.table("sessions").update({"idk_count": 0}).eq("session_id", session["session_id"]).execute()
+                is_scaffold_success = True
+                
+                if scaffold_step in ["Fill-in-the-Blank", "3단계 힌트", "Level 3"]:
+                    import re
+                    pattern = r'_{2,}|\[\s*_*\s*\]|\(\s*_*\s*\)'
+                    if re.search(pattern, last_hint):
+                        eval_user_answer = re.sub(pattern, eval_user_answer, last_hint, count=1)
+                    else:
+                        eval_user_answer = f"{last_hint} {eval_user_answer}"
             else:
                 print(f"  ⚠️ Scaffolding 답변 오답 — 다음 scaffolding 레벨로 진입", flush=True)
                 is_give_up = True
@@ -1077,7 +1121,9 @@ async def websocket_chat(websocket: WebSocket):
             "language": language,
             "session_context": session_context_str,
             "last_question": last_question_from_history,
-            "previous_lowest_agent": last_selected_agent
+            "previous_lowest_agent": last_selected_agent,
+            "is_scaffold_success": is_scaffold_success,
+            "scaffold_step": scaffold_step
         }
         
         await websocket.send_json({"type": "status", "message": await translate_en_to_ko("🤖 AI Agents are drafting & debating...", language)})
@@ -1159,8 +1205,26 @@ async def websocket_chat(websocket: WebSocket):
         else:
             if session["idk_count"] > 0:
                 await db(lambda: supabase.table("sessions").update({"idk_count": 0}).eq("session_id", session["session_id"]).execute())
+                
+            if is_scaffold_success:
+                if language == "en":
+                    success_step_name = {
+                        "Sub-concept Nudge": "Level 1 Hint",
+                        "Concept Explanation": "Level 2 Hint",
+                        "Fill-in-the-Blank": "Level 3 Hint"
+                    }.get(scaffold_step, scaffold_step)
+                    success_msg = f"That is correct! You have successfully completed the {success_step_name}. "
+                else:
+                    success_step_name = {
+                        "Sub-concept Nudge": "1단계 힌트",
+                        "Concept Explanation": "2단계 힌트",
+                        "Fill-in-the-Blank": "3단계 힌트"
+                    }.get(scaffold_step, scaffold_step)
+                    success_msg = f"정답입니다! 훌륭하게 맞추셨어요. {success_step_name}를 벗어났습니다. "
+                await websocket.send_json({"type": "stream", "chunk": success_msg})
+                
             think_filter = ThinkTagStreamFilter()
-            async for event in debate_graph.astream_events(initial_state, version="v1"):
+            async for event in debate_graph.astream_events(initial_state, version="v2"):
                 kind = event["event"]
                 
                 if kind == "on_chat_model_stream":
@@ -1175,10 +1239,29 @@ async def websocket_chat(websocket: WebSocket):
                 elif kind == "on_chain_end":
                     out = event["data"].get("output")
                     if isinstance(out, dict):
-                        valid_keys = {"draft_reviews", "raw_scores", "is_contradiction", "critiques", "rebuttal_results", "final_synthesis", "debate_count", "moderator_action", "hint_provided"}
+                        valid_keys = {"draft_reviews", "raw_scores", "is_contradiction", "critiques", "rebuttal_results", "final_synthesis", "debate_count", "moderator_action", "hint_provided", "turn_summary"}
                         updates = {k: v for k, v in out.items() if k in valid_keys}
                         if updates:
                             final_state.update(updates)
+                            
+            if is_scaffold_success:
+                if language == "en":
+                    success_step_name = {
+                        "Sub-concept Nudge": "Level 1 Hint",
+                        "Concept Explanation": "Level 2 Hint",
+                        "Fill-in-the-Blank": "Level 3 Hint"
+                    }.get(scaffold_step, scaffold_step)
+                    success_msg = f"That is correct! You have successfully completed the {success_step_name}. "
+                else:
+                    success_step_name = {
+                        "Sub-concept Nudge": "1단계 힌트",
+                        "Concept Explanation": "2단계 힌트",
+                        "Fill-in-the-Blank": "3단계 힌트"
+                    }.get(scaffold_step, scaffold_step)
+                    success_msg = f"정답입니다! 훌륭하게 맞추셨어요. {success_step_name}를 벗어났습니다. "
+                    
+                if "final_synthesis" in final_state:
+                    final_state["final_synthesis"] = success_msg + final_state["final_synthesis"]
         
         await websocket.send_json({"type": "status", "message": await translate_en_to_ko("✅ Finalizing response...", language)})
         
@@ -1270,7 +1353,7 @@ async def websocket_chat(websocket: WebSocket):
             # retry_node가 final_synthesis와 moderator_action="retry"를 이미 설정합니다.
             synth_mode = final_state.get("moderator_action", "proceed")
 
-            if new_count >= 3 and avg_score >= 0.6:
+            if new_count == 3 and avg_score >= 0.6:
                 moderator_action = "suggest_termination"
                 base_msg = final_state.get("final_synthesis", "Excellent job! You have fully understood this concept.")
                 guidance_message = base_msg

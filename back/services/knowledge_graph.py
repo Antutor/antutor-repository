@@ -58,7 +58,8 @@ async def get_neo4j_driver():
             auth=(NEO4J_USER, NEO4J_PASSWORD),
             encrypted=True,
             ssl_context=_SSL_CONTEXT,
-            max_connection_pool_size=50
+            max_connection_pool_size=50,
+            max_connection_lifetime=200  # Cloud 로드밸런서 유휴 커넥션 끊김 방지
         )
     return _driver
 
@@ -71,9 +72,14 @@ async def get_economic_facts(keyword: str) -> str:
     facts: list[str] = []
 
     driver = await get_neo4j_driver()
+    
+    async def _fetch_records(tx):
+        _res = await tx.run(_CYPHER_QUERY, keyword=keyword)
+        return await _res.data()
+
     async with driver.session() as session:
-        result = await session.run(_CYPHER_QUERY, keyword=keyword)
-        records = await result.data()
+        # execute_read는 커넥션 끊김 등 Transient Error 발생 시 자동 재시도를 수행합니다.
+        records = await session.execute_read(_fetch_records)
 
     for record in records:
         subject = record["Subject"]

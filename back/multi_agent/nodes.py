@@ -247,6 +247,7 @@ async def retry_node(state: AgentState):
         # LLM 응답에서 message 추출
         moderator_data = extract_json(llm_result)
         message = moderator_data.get("message", "").strip()
+        turn_summary = moderator_data.get("turn_summary", "").strip()
         if message:
             print(
                 f"  ✅ Retry Node 완료! LLM P1 메시지 생성 성공\n",
@@ -256,6 +257,7 @@ async def retry_node(state: AgentState):
                 "final_synthesis": message,
                 "moderator_action": "retry",
                 "hint_provided": True,
+                "turn_summary": turn_summary,
             }
 
     # ── Fallback: LLM 실패 또는 빈 message → 문자열 조합 ──────────────────
@@ -289,6 +291,7 @@ async def retry_node(state: AgentState):
         "final_synthesis": message,
         "moderator_action": "retry",
         "hint_provided": True,
+        "turn_summary": ""
     }
 
 @with_retry_and_fallback(
@@ -462,7 +465,7 @@ async def synthesis_node(state: AgentState):
     else:
         new_count = current_count + 1 if avg_score >= 0.6 else 1
 
-    mode = "mastery" if new_count >= 3 and avg_score >= 0.6 else ""
+    mode = "mastery" if new_count == 3 and avg_score >= 0.6 else ""
     
     # focus_agent calculation
     focus_agent = "The Academic Auditor"
@@ -523,9 +526,12 @@ async def synthesis_node(state: AgentState):
                 
         moderator_data = {"message": fallback_msg, "hint_provided": bool(hint), "mode": "retry" if academic_data.get("retry_needed") else "normal"}
         final_message = fallback_msg
+        turn_summary = ""
     else:
         moderator_data = extract_json(res_content)
         final_message = moderator_data.get("message", res_content)
+        turn_summary = moderator_data.get("turn_summary", "")
+
     
     # 안정적인 파싱을 위한 처리
     raw_hint_provided = moderator_data.get("hint_provided", False)
@@ -546,4 +552,4 @@ async def synthesis_node(state: AgentState):
         hint_provided = False
     
     print("  ✅ Synthesis Node 완료! 최종 피드백 산출 완료 🎉\n", flush=True)
-    return {"final_synthesis": final_message, "hint_provided": hint_provided, "moderator_action": mode}
+    return {"final_synthesis": final_message, "hint_provided": hint_provided, "moderator_action": mode, "turn_summary": turn_summary}

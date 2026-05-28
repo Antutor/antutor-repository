@@ -234,6 +234,7 @@ function App() {
         setMessages(prev => [...prev, userMessage]);
         setInputValue('');
         setCurrentScaffold(null); 
+        setIsEndSuggested(false);
         
         const thinkingStartTime = Date.now();
         setIsThinking(true);
@@ -323,11 +324,10 @@ function App() {
                     let moderatorText = decision?.message || "";
                     const plan = decision?.scaffold_plan;
                     
-                    if (decision?.status === "mastery") {
+                    if (decision?.status === "mastery" || decision?.status === "suggest_termination") {
                         setIsEndSuggested(true);
-                    } else {
-                        setIsEndSuggested(false);
                     }
+
                     
                     if (plan && plan.message) {
                         moderatorText = plan.message;
@@ -697,7 +697,7 @@ function App() {
                                 <div style={{ flex: 1 }}></div> {/* 스페이서로 공간 확보 */}
                                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '10px', borderTop: '1px solid var(--color-border)', backgroundColor: 'rgba(255,255,255,0.5)', marginBottom: '10px' }}>
                                     <RadarScoreChart scores={userScores} isSidebar={true} language={language} />
-                                    <div style={{ marginTop: '-5px', fontSize: '0.75rem', color: 'var(--color-text-secondary)', textAlign: 'center', lineHeight: '1.4' }}>
+                                    <div style={{ marginTop: '-30px', fontSize: '0.75rem', color: 'var(--color-text-secondary)', textAlign: 'center', lineHeight: '1.4' }}>
                                         {language === 'ko' ? (
                                             <>
                                                 <div><strong style={{color: 'var(--color-expert-academic)'}}>정확성</strong> - 학술전문가</div>
@@ -819,6 +819,60 @@ function App() {
                                     </div>
                                 </div>
                             )}
+                            {isEndSuggested && (
+                                <div className="message moderator" style={{ animation: 'fadeInUp 0.3s ease-out forwards' }}>
+                                    <div className="message-bubble" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '15px', padding: '15px 20px', backgroundColor: 'var(--color-primary-light)', border: '2px solid var(--color-primary)' }}>
+                                        <div style={{ flex: 1, minWidth: '250px', whiteSpace: 'pre-line' }}>
+                                            {language === 'ko' 
+                                                ? '🎉 평균 60점 이상 3연속을 달성했습니다!\n해당 개념에 대한 학습이 잘 이루어진 것 같네요!\n세션을 종료하시겠습니까, 더 이어서 학습하시겠습니까?'
+                                                : '🎉 You have achieved an average score of 60 or higher 3 times in a row!\nIt seems you have a good understanding of this concept!\nWould you like to end the session, or continue learning?'}
+                                        </div>
+                                        <div style={{ display: 'flex', gap: '10px' }}>
+                                            <button 
+                                                onClick={() => setIsEndSuggested(false)}
+                                                style={{ 
+                                                    padding: '8px 16px', 
+                                                    backgroundColor: 'white', 
+                                                    border: '1px solid var(--color-border)', 
+                                                    color: 'var(--color-text-secondary)', 
+                                                    borderRadius: '8px', 
+                                                    cursor: 'pointer', 
+                                                    fontWeight: '600',
+                                                    fontSize: '0.9rem',
+                                                    whiteSpace: 'nowrap',
+                                                    transition: 'all 0.2s'
+                                                }}
+                                                onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#f1f5f9'; }}
+                                                onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'white'; }}
+                                            >
+                                                {language === 'ko' ? '계속 학습하기' : 'Continue'}
+                                            </button>
+                                            <button 
+                                                onClick={() => {
+                                                    setIsEndSuggested(false);
+                                                    setShowPostQuiz(true);
+                                                }}
+                                                style={{ 
+                                                    padding: '8px 16px', 
+                                                    backgroundColor: '#22c55e', 
+                                                    color: 'white', 
+                                                    border: 'none', 
+                                                    borderRadius: '8px', 
+                                                    cursor: 'pointer', 
+                                                    fontWeight: '600',
+                                                    fontSize: '0.9rem',
+                                                    whiteSpace: 'nowrap',
+                                                    transition: 'all 0.2s',
+                                                }}
+                                                onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#16a34a'; }}
+                                                onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#22c55e'; }}
+                                            >
+                                                {language === 'ko' ? '세션 종료' : 'End Session'}
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
                             <div ref={messagesEndRef} />
                         </div>
                         <div className="chat-input-area">
@@ -866,50 +920,6 @@ function App() {
                                         onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.9)'; e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = '0 4px 15px rgba(0,0,0,0.05)'; }}
                                     >
                                         {t(language, 'startFreshBtn')}
-                                    </button>
-                                </div>
-                            ) : isEndSuggested ? (
-                                <div style={{ display: 'flex', gap: '20px', width: '100%', justifyContent: 'center', padding: '20px 0', animation: 'fadeInUp 0.5s ease-out' }}>
-                                    <button 
-                                        onClick={() => { setIsEndSuggested(false); setShowPostQuiz(true); }}
-                                        style={{ 
-                                            padding: '16px 32px', 
-                                            backgroundColor: '#22c55e', 
-                                            color: 'white', 
-                                            border: 'none', 
-                                            borderRadius: '16px', 
-                                            cursor: 'pointer', 
-                                            fontWeight: '800',
-                                            fontSize: '1.1rem',
-                                            boxShadow: '0 10px 25px rgba(34, 197, 94, 0.3)',
-                                            transition: 'all 0.2s',
-                                        }}
-                                        onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-3px)'; e.currentTarget.style.boxShadow = '0 15px 30px rgba(34, 197, 94, 0.4)'; e.currentTarget.style.backgroundColor = '#16a34a'; }}
-                                        onMouseLeave={(e) => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = '0 10px 25px rgba(34, 197, 94, 0.3)'; e.currentTarget.style.backgroundColor = '#22c55e'; }}
-                                    >
-                                        {language === 'ko' ? '예 (학습 종료)' : 'Yes (End Learning)'}
-                                    </button>
-                                    <button 
-                                        onClick={() => {
-                                            setIsEndSuggested(false);
-                                            handleSendMessage(language === 'ko' ? '아니오, 더 학습할래요.' : 'No, I want to learn more.');
-                                        }}
-                                        style={{ 
-                                            padding: '16px 32px', 
-                                            backgroundColor: 'rgba(255, 255, 255, 0.9)', 
-                                            border: '1px solid var(--color-border)', 
-                                            color: 'var(--color-text-secondary)', 
-                                            borderRadius: '16px', 
-                                            cursor: 'pointer', 
-                                            fontWeight: '700',
-                                            fontSize: '1.1rem',
-                                            boxShadow: '0 4px 15px rgba(0, 0, 0, 0.05)',
-                                            transition: 'all 0.2s'
-                                        }}
-                                        onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'white'; e.currentTarget.style.transform = 'translateY(-3px)'; e.currentTarget.style.boxShadow = '0 8px 20px rgba(0,0,0,0.1)'; }}
-                                        onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.9)'; e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = '0 4px 15px rgba(0,0,0,0.05)'; }}
-                                    >
-                                        {language === 'ko' ? '아니오 (계속하기)' : 'No (Continue)'}
                                     </button>
                                 </div>
                             ) : (

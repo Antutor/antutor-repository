@@ -86,5 +86,6 @@ def debug_concepts():
     return supabase.table("concepts").select("name").execute().data
 
 @app.get("/")
+@app.head("/")
 def health_check():
     return {"status": "ok", "message": "Server is running."}
