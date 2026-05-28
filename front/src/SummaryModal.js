@@ -19,6 +19,10 @@ const SummaryModal = ({ isOpen, onClose, helpCountLevel1, helpCountLevel2, helpC
   let insightText = t(language, 'noEvalData');
   let maxScore = 100;
 
+  let baseScore = 0;
+  let finalScore = 0;
+  let earnedBonus = false;
+
   if (reportData && reportData.growth_visualization) {
       const gv = reportData.growth_visualization;
       const calcAverage = (arr) => arr && arr.length > 0 ? Math.round(arr.reduce((sum, val) => sum + val, 0) / arr.length * 10) / 10 : 0;
@@ -30,7 +34,21 @@ const SummaryModal = ({ isOpen, onClose, helpCountLevel1, helpCountLevel2, helpC
         { subject: t(language, 'practicality'), value: calcAverage(gv.Market), fullMark: maxScore },
         { subject: t(language, 'insight'), value: calcAverage(gv.Macro), fullMark: maxScore },
       ];
-      insightText = reportData.educational_insights || insightText;
+
+      baseScore = reportData.base_score || 0;
+      const totalHints = reportData?.scaffolding_summary?.total ?? (helpCountLevel1 + helpCountLevel2 + helpCountLevel3);
+      earnedBonus = totalHints === 0;
+      const bonusPoints = earnedBonus ? baseScore * 0.5 : 0;
+      finalScore = baseScore + bonusPoints;
+
+      if (earnedBonus) {
+        insightText = (language === 'ko' 
+          ? `훌륭합니다! 기본 평균은 ${baseScore.toFixed(1)}점이었어요. 도움 없이 완주하여 보너스를 받아 최종 점수 ${finalScore.toFixed(1)}점이 되었습니다!\n\n`
+          : `Excellent! Your base average was ${baseScore.toFixed(1)}. By completing without hints, you earned a bonus for a final score of ${finalScore.toFixed(1)}!\n\n`) 
+          + (reportData.educational_insights || '');
+      } else {
+        insightText = reportData.educational_insights || insightText;
+      }
   }
 
   // Handle animation mounting/unmounting
@@ -128,20 +146,20 @@ const SummaryModal = ({ isOpen, onClose, helpCountLevel1, helpCountLevel2, helpC
                 {language === 'ko' ? '기본 점수' : 'Base Score'}
               </p>
               <p style={{ color: 'var(--color-expert-academic)', fontSize: '2.5rem', fontWeight: '800', margin: 0 }}>
-                {reportData?.base_score !== undefined ? reportData.base_score.toFixed(1) : '0.0'}
+                {baseScore.toFixed(1)}
                 <span style={{ fontSize: '1.2rem', color: '#cbd5e1', fontWeight: '400', marginLeft: '8px' }}>/ 100</span>
               </p>
               <p style={{ marginTop: '8px', marginBottom: 0, fontSize: '0.75rem', color: '#94a3b8', fontStyle: 'italic', wordBreak: 'keep-all', padding: '0 10px' }}>
                 {language === 'ko' ? '*기본 점수는 지금까지 진행한 모든 유효 턴 점수들의 누적 평균값입니다 (유효 턴은 힌트를 제외한 답변 횟수입니다)*' : '*The base score is the cumulative average of all valid turns (valid turns exclude hint usage).*'}
               </p>
               
-              {reportData?.final_score !== undefined && reportData.final_score > (reportData?.base_score || 0) && (
-                <div style={{ marginTop: '20px', padding: '12px 25px', backgroundColor: 'rgba(52, 211, 153, 0.1)', border: '2px solid #6ee7b7', borderRadius: '12px', display: 'inline-block' }}>
-                  <p style={{ color: '#047857', fontSize: '0.95rem', margin: '0 0 4px 0', fontWeight: '700' }}>
+              {earnedBonus && (
+                <div style={{ marginTop: '20px' }}>
+                  <p style={{ color: 'var(--color-text-secondary)', fontSize: '1rem', margin: '0 0 5px 0', fontWeight: '500' }}>
                     {language === 'ko' ? '최종 점수 (1.5배 보너스 적용)' : 'Final Score (1.5x Bonus)'}
                   </p>
-                  <p style={{ color: '#059669', fontSize: '2.2rem', fontWeight: '800', margin: 0 }}>
-                    {reportData.final_score.toFixed(1)}
+                  <p style={{ color: 'var(--color-expert-academic)', fontSize: '2.5rem', fontWeight: '800', margin: 0 }}>
+                    {finalScore.toFixed(1)}
                   </p>
                 </div>
               )}

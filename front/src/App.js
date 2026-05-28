@@ -826,7 +826,7 @@ function App() {
                                 </div>
                             )}
                             {isEndSuggested && (
-                                <div className="message moderator" style={{ animation: 'fadeInUp 0.3s ease-out' }}>
+                                <div className="message moderator" style={{ animation: 'fadeInUp 0.3s ease-out forwards' }}>
                                     <div className="message-bubble" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '15px', padding: '15px 20px', backgroundColor: 'var(--color-primary-light)', border: '2px solid var(--color-primary)' }}>
                                         <div style={{ flex: 1, minWidth: '250px', whiteSpace: 'pre-line' }}>
                                             {language === 'ko' 
