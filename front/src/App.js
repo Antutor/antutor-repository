@@ -508,9 +508,9 @@ function App() {
             setHelpCountLevel1(0);
             setHelpCountLevel2(0);
             setHelpCountLevel3(0);
-            setUserScores({ Academic: 0, Market: 0, Macro: 0, Independence: 0 });
             setReportData(null);
             setExpertFeedbackData([]);
+            setScoreHistory([]);
             setIsSummaryModalOpen(false);
             
             const elapsed = Date.now() - thinkingStartTime;
@@ -535,12 +535,6 @@ function App() {
             const response = await studyAPI.resolveResume({ concept: selectedMission, decision, language });
             setSessionId(response.data.session_id);
             setIsResumePending(false);
-            
-            // Reset charts
-            setUserScores({ Academic: 0, Market: 0, Macro: 0, Independence: 0 });
-            setReportData(null);
-            setExpertFeedbackData([]);
-
             setMessages(prev => [...prev, { id: Date.now(), sender: 'user', text: decision === 'resume' ? t(language, 'resumeSession') : t(language, 'startFresh') }]);
             
             if (decision === 'fresh') {
@@ -826,7 +820,7 @@ function App() {
                                 </div>
                             )}
                             {isEndSuggested && (
-                                <div className="message moderator" style={{ animation: 'fadeInUp 0.3s ease-out forwards' }}>
+                                <div className="message moderator" style={{ animation: 'fadeInUp 0.3s ease-out' }}>
                                     <div className="message-bubble" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '15px', padding: '15px 20px', backgroundColor: 'var(--color-primary-light)', border: '2px solid var(--color-primary)' }}>
                                         <div style={{ flex: 1, minWidth: '250px', whiteSpace: 'pre-line' }}>
                                             {language === 'ko' 

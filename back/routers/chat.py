@@ -466,8 +466,7 @@ async def chat(request: ChatRequest, background_tasks: BackgroundTasks, current_
         news_context, news_urls = await retrieve_tavily_news_v2(
             concept_name, eval_user_answer,
             last_question=last_question_from_history,
-            used_urls=used_news_urls,
-            turn_number=turn_number
+            used_urls=used_news_urls
         )
 
         turn_count = len(session_history)
@@ -815,8 +814,8 @@ async def end_session(request: EndSessionRequest, current_user: dict = Depends(g
         scaffolding_summary["total"] = nudge_count
         
     if scaffolding_summary["total"] == 0:
-        final_score = latest_avg * 1.5
-        educational_insights = f"Excellent! Your base average was {latest_avg:.1f}. You earned a 1.5x score multiplier bonus for completing without help, making your final score {final_score:.1f}!"
+        final_score = latest_avg + 50
+        educational_insights = f"Excellent! Your base average was {latest_avg:.1f}. You earned a 50-point bonus for completing without help, making your final score {final_score:.1f}!"
     else:
         final_score = latest_avg
         educational_insights = f"Your score is {latest_avg:.1f}. You received help from the agent {scaffolding_summary['total']} times. Try harder next time for a bonus score!"
@@ -1225,7 +1224,7 @@ async def websocket_chat(websocket: WebSocket):
                 await websocket.send_json({"type": "stream", "chunk": success_msg})
                 
             think_filter = ThinkTagStreamFilter()
-            async for event in debate_graph.astream_events(initial_state, version="v2"):
+            async for event in debate_graph.astream_events(initial_state, version="v1"):
                 kind = event["event"]
                 
                 if kind == "on_chat_model_stream":
@@ -1240,7 +1239,7 @@ async def websocket_chat(websocket: WebSocket):
                 elif kind == "on_chain_end":
                     out = event["data"].get("output")
                     if isinstance(out, dict):
-                        valid_keys = {"draft_reviews", "raw_scores", "is_contradiction", "critiques", "rebuttal_results", "final_synthesis", "debate_count", "moderator_action", "hint_provided", "turn_summary"}
+                        valid_keys = {"draft_reviews", "raw_scores", "is_contradiction", "critiques", "rebuttal_results", "final_synthesis", "debate_count", "moderator_action", "hint_provided"}
                         updates = {k: v for k, v in out.items() if k in valid_keys}
                         if updates:
                             final_state.update(updates)
