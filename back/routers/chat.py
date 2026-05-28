@@ -1224,7 +1224,7 @@ async def websocket_chat(websocket: WebSocket):
                 await websocket.send_json({"type": "stream", "chunk": success_msg})
                 
             think_filter = ThinkTagStreamFilter()
-            async for event in debate_graph.astream_events(initial_state, version="v1"):
+            async for event in debate_graph.astream_events(initial_state, version="v2"):
                 kind = event["event"]
                 
                 if kind == "on_chat_model_stream":
@@ -1239,7 +1239,7 @@ async def websocket_chat(websocket: WebSocket):
                 elif kind == "on_chain_end":
                     out = event["data"].get("output")
                     if isinstance(out, dict):
-                        valid_keys = {"draft_reviews", "raw_scores", "is_contradiction", "critiques", "rebuttal_results", "final_synthesis", "debate_count", "moderator_action", "hint_provided"}
+                        valid_keys = {"draft_reviews", "raw_scores", "is_contradiction", "critiques", "rebuttal_results", "final_synthesis", "debate_count", "moderator_action", "hint_provided", "turn_summary"}
                         updates = {k: v for k, v in out.items() if k in valid_keys}
                         if updates:
                             final_state.update(updates)
