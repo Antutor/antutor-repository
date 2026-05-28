@@ -814,8 +814,8 @@ async def end_session(request: EndSessionRequest, current_user: dict = Depends(g
         scaffolding_summary["total"] = nudge_count
         
     if scaffolding_summary["total"] == 0:
-        final_score = latest_avg + 50
-        educational_insights = f"Excellent! Your base average was {latest_avg:.1f}. You earned a 50-point bonus for completing without help, making your final score {final_score:.1f}!"
+        final_score = latest_avg + (latest_avg * 0.5)
+        educational_insights = ""
     else:
         final_score = latest_avg
         educational_insights = f"Your score is {latest_avg:.1f}. You received help from the agent {scaffolding_summary['total']} times. Try harder next time for a bonus score!"
