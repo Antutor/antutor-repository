@@ -667,7 +667,7 @@ async def chat(request: ChatRequest, background_tasks: BackgroundTasks, current_
         # 그 외의 경우 synthesis_node가 moderate_action을 설정합니다.
         synth_mode = final_state.get("moderator_action", "proceed")
 
-        if new_count >= 3 and avg_score >= 0.6:
+        if new_count == 3 and avg_score >= 0.6:
             moderator_action = "suggest_termination"
             guidance_message = final_state.get("final_synthesis", "Excellent job! You have fully understood this concept.")
             scaffold_plan = {
@@ -1353,7 +1353,7 @@ async def websocket_chat(websocket: WebSocket):
             # retry_node가 final_synthesis와 moderator_action="retry"를 이미 설정합니다.
             synth_mode = final_state.get("moderator_action", "proceed")
 
-            if new_count >= 3 and avg_score >= 0.6:
+            if new_count == 3 and avg_score >= 0.6:
                 moderator_action = "suggest_termination"
                 base_msg = final_state.get("final_synthesis", "Excellent job! You have fully understood this concept.")
                 guidance_message = base_msg

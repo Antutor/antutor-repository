@@ -37,6 +37,7 @@ class AgentState(TypedDict):
     hint_provided: bool                 # Scaffolding Counter 집계용
     language: str                       # 출력 언어 (ko / en)
     session_context: str                # 이전 턴 대화 히스토리 (JSON 직렬화 문자열)
+    turn_summary: str                   # 턴 요약
     last_question: Optional[str]        # 이전 턴에 Moderator가 던진 질문
     turn_count: int                     # 현재 세션의 턴 수
     source_turn_count: int              # 소스 순환용 턴 수

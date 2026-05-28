@@ -9,8 +9,8 @@ _AZURE_ENDPOINT = "https://api.cognitive.microsofttranslator.com/translate"
 # 연소 경제 용어 보호 사전 (에저 번역기가 잘못 번역하는 복합어 보호)
 # Azure Translator가 "cost-push" 등을 "비용 밀어" 등으로 직역하는 문제 해결
 # -----------------------------------------------------------------------
-_TERM_PROTECTION: dict[str, str] = {
-    # --- 복합어 (긴 것 → 짧은 것 순서로 배치: 부분 치환 방지) ---
+_BASE_TERMS: dict[str, str] = {
+    # --- 복합어 ---
     "cost-push inflation": "비용 인상 인플레이션",
     "demand-pull inflation": "수요 견인 인플레이션",
     "purchasing power parity": "구매력 평가",
@@ -26,7 +26,7 @@ _TERM_PROTECTION: dict[str, str] = {
     "aggregate demand": "총수요",
     "aggregate supply": "총공급",
     "trade balance": "무역수지",
-    "interest rate": "금리",       # nominal/real 이후에 배치
+    "interest rate": "금리",
     "monetary policy": "통화정책",
     "fiscal policy": "재정정책",
     "quantitative easing": "양적 완화",
@@ -37,6 +37,21 @@ _TERM_PROTECTION: dict[str, str] = {
     "phillips curve": "필립스 곡선",
     "okun's law": "오쿤의 법칙",
 }
+
+_TERM_PROTECTION: dict[str, str] = {}
+for _term, _ko_term in _BASE_TERMS.items():
+    _TERM_PROTECTION[_term] = _ko_term
+    # 복수형 자동 추가
+    if _term.endswith("y"):
+        _plural = _term[:-1] + "ies"
+    elif _term.endswith(("s", "x", "z", "ch", "sh")):
+        _plural = _term + "es"
+    else:
+        _plural = _term + "s"
+    _TERM_PROTECTION[_plural] = _ko_term
+
+# 부분 치환을 방지하기 위해 단어 길이 역순(긴 단어 우선 매칭)으로 정렬
+_TERM_PROTECTION = dict(sorted(_TERM_PROTECTION.items(), key=lambda item: len(item[0]), reverse=True))
 
 def _protect_terms(text: str) -> tuple[str, dict[str, str]]:
     """경제 용어를 플레이스홀더로 치환하여 번역 보호. 치환 맵 반환."""
