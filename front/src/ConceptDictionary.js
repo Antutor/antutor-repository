@@ -105,13 +105,34 @@ const ConceptDictionary = ({ isOpen, onClose, initialSearchTerm, cameFromScaffol
   }, [language]);
 
   useEffect(() => {
+    if (isOpen && concepts.length === 0) {
+      setLoading(true);
+      dictionaryAPI.getList(language)
+        .then(res => {
+          const formatted = res.data.map(c => ({
+            id: c.term,
+            title: c.term,
+            definition: c.simple_definition || c.definition || (language === 'ko' ? '내용이 없습니다.' : 'No content available.')
+          }));
+          setConcepts(formatted);
+          if (initialSearchTerm) {
+            setSearchTerm(initialSearchTerm);
+            setExpandedCardId(initialSearchTerm);
+          }
+        })
+        .catch(err => console.error("Failed to fetch dictionary", err))
+        .finally(() => setLoading(false));
+    }
+  }, [isOpen, language, concepts.length, initialSearchTerm]);
+
+  useEffect(() => {
     if (isOpen) {
       setShouldRender(true);
     } else {
       const timer = setTimeout(() => setShouldRender(false), 300);
       return () => clearTimeout(timer);
     }
-  }, [isOpen, initialSearchTerm, concepts, language]);
+  }, [isOpen]);
 
   if (!shouldRender) return null;
 
@@ -132,6 +153,16 @@ const ConceptDictionary = ({ isOpen, onClose, initialSearchTerm, cameFromScaffol
               <span>{t(language, 'backToSession')}</span>
             </button>
             <h2>{t(language, 'conceptDictTitle')}</h2>
+          </div>
+
+          <div className="dict-search-wrapper">
+            <Search size={18} className="search-icon" />
+            <input 
+              type="text" 
+              placeholder={language === 'ko' ? "개념 검색..." : "Search concepts..."} 
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -158,16 +189,52 @@ const ConceptDictionary = ({ isOpen, onClose, initialSearchTerm, cameFromScaffol
         </header>
 
         {/* Content Body */}
-        <div className="dict-body" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%', minHeight: '300px' }}>
-          <div style={{ textAlign: 'center', color: 'var(--color-text-secondary)' }}>
-            <BookOpen size={48} style={{ opacity: 0.2, marginBottom: '20px' }} />
-            <h3 style={{ fontSize: '1.2rem', fontWeight: '600', marginBottom: '10px' }}>
-              {language === 'ko' ? '테스트 기간이 끝난 후 다시 공개될 예정입니다' : 'It will be revealed again after the test period'}
-            </h3>
-            <p style={{ opacity: 0.7 }}>
-              {language === 'ko' ? '불편을 드려 죄송합니다.' : 'We apologize for the inconvenience.'}
-            </p>
-          </div>
+        <div className="dict-body">
+          {loading ? (
+            <div style={{ textAlign: 'center', padding: '60px 20px' }}>
+              <div style={{ display: 'inline-block', width: '30px', height: '30px', border: '3px solid rgba(59, 130, 246, 0.3)', borderTopColor: 'var(--color-expert-academic)', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
+            </div>
+          ) : filteredConcepts.length > 0 ? (
+            <div className="concepts-grid">
+              {filteredConcepts.map(concept => (
+                <div 
+                  key={concept.id} 
+                  className={`concept-card ${expandedCardId === concept.id ? 'extended' : ''} ${concept.id === initialSearchTerm ? 'highlighted-card' : ''}`}
+                  onClick={() => setExpandedCardId(expandedCardId === concept.id ? null : concept.id)}
+                >
+                  <div className="card-top">
+                    <h3>{concept.title}</h3>
+                  </div>
+                  
+                  {expandedCardId !== concept.id ? (
+                    <p className="card-definition">
+                      {splitFirstParagraph(concept.definition).first}
+                      <span style={{ color: 'var(--color-expert-academic)', fontSize: '0.85rem', fontWeight: '600', marginLeft: '5px' }}>
+                        {language === 'ko' ? '... 더 보기' : '... Read More'}
+                      </span>
+                    </p>
+                  ) : (
+                    <div className="card-expanded-content" onClick={e => e.stopPropagation()}>
+                      <p className="card-definition">{formatTextWithLineBreaks(concept.definition)}</p>
+                      
+                      {cameFromScaffolding && concept.id === initialSearchTerm && (
+                        <div className="scaffolding-hint-bridge">
+                          <button className="hint-btn" onClick={() => onReturnWithHint && onReturnWithHint(concept.definition)}>
+                            <ArrowRight size={16} />
+                            {language === 'ko' ? '이 개념을 힌트로 답변하기' : 'Use this concept as a hint'}
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="no-results">
+              {language === 'ko' ? '검색 결과가 없습니다.' : 'No results found.'}
+            </div>
+          )}
         </div>
       </div>
       <style>{`
