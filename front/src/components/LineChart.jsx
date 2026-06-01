@@ -25,7 +25,35 @@ function LineScoreChart({ history, language = 'ko' }) {
         );
     }
 
-    const chartData = history.length > 0 ? history : [{ turn: 0, Academic: 0, Market: 0, Macro: 0 }];
+    const baseData = history.length > 0 ? history : [{ turn: 0, Academic: 0, Market: 0, Macro: 0 }];
+
+    // 겹치는 선이 보일 수 있도록 시각적인 오프셋(Jitter) 적용
+    const chartData = baseData.map(point => {
+        const newPoint = { ...point, AcademicLine: point.Academic, MarketLine: point.Market, MacroLine: point.Macro };
+        
+        const groups = {};
+        [
+            { key: 'AcademicLine', val: point.Academic },
+            { key: 'MarketLine', val: point.Market },
+            { key: 'MacroLine', val: point.Macro }
+        ].forEach(v => {
+            if (!groups[v.val]) groups[v.val] = [];
+            groups[v.val].push(v.key);
+        });
+
+        Object.keys(groups).forEach(valStr => {
+            const keys = groups[valStr];
+            if (keys.length === 3) {
+                newPoint[keys[0]] += 1.5;
+                newPoint[keys[2]] -= 1.5;
+            } else if (keys.length === 2) {
+                newPoint[keys[0]] += 1.0;
+                newPoint[keys[1]] -= 1.0;
+            }
+        });
+
+        return newPoint;
+    });
 
     // 1. Y축 최댓값 고정 (턴별 점수는 100점 만점)
     const yAxisMax = 100;
@@ -63,6 +91,13 @@ function LineScoreChart({ history, language = 'ko' }) {
                             tickLine={false}
                         />
                         <Tooltip 
+                            formatter={(value, name, props) => {
+                                let originalValue = value;
+                                if (name === t(language, 'chartAccuracy')) originalValue = props.payload.Academic;
+                                if (name === t(language, 'chartPracticality')) originalValue = props.payload.Market;
+                                if (name === t(language, 'chartInsight')) originalValue = props.payload.Macro;
+                                return [originalValue, name];
+                            }}
                             contentStyle={{ 
                                 borderRadius: '16px', 
                                 border: 'none', 
@@ -78,8 +113,8 @@ function LineScoreChart({ history, language = 'ko' }) {
                             wrapperStyle={{ fontSize: '10px', paddingTop: '10px', fontWeight: 600 }}
                         />
                         <Line 
-                            type="monotone" 
-                            dataKey="Academic" 
+                            type="linear" 
+                            dataKey="AcademicLine" 
                             name={t(language, 'chartAccuracy')}
                             stroke="var(--color-expert-academic)" 
                             strokeWidth={3} 
@@ -89,8 +124,8 @@ function LineScoreChart({ history, language = 'ko' }) {
                             animationDuration={1000}
                         />
                         <Line 
-                            type="monotone" 
-                            dataKey="Market" 
+                            type="linear" 
+                            dataKey="MarketLine" 
                             name={t(language, 'chartPracticality')}
                             stroke="var(--color-expert-market)" 
                             strokeWidth={3} 
@@ -100,8 +135,8 @@ function LineScoreChart({ history, language = 'ko' }) {
                             animationDuration={1000}
                         />
                         <Line 
-                            type="monotone" 
-                            dataKey="Macro" 
+                            type="linear" 
+                            dataKey="MacroLine" 
                             name={t(language, 'chartInsight')}
                             stroke="var(--color-expert-macro)" 
                             strokeWidth={3} 
