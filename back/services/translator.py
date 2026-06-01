@@ -91,10 +91,6 @@ async def translate_en_to_ko(text: str, target_lang: str = "ko") -> str:
     if not ENABLE_KOREAN_TRANSLATION or not text or not AZURE_TRANSLATOR_KEY or target_lang.lower() != "ko":
         return text
 
-    # If the text already has a lot of Korean characters, it's likely already in Korean.
-    ko_chars = len(re.findall(r'[가-힣]', text))
-    if len(text) > 0 and (ko_chars / len(text)) > 0.05:
-        return text
 
     # 경제 복합어 보호 (Azure가 직역하는 용어를 플레이스홀더로 치환)
     protected_text, replacements = _protect_terms(text)
@@ -123,11 +119,6 @@ async def translate_list_en_to_ko(texts: list[str], target_lang: str = "ko") -> 
     if not ENABLE_KOREAN_TRANSLATION or not texts or not AZURE_TRANSLATOR_KEY or target_lang.lower() != "ko":
         return texts
 
-    # If the first string is mostly Korean, assume the list is already in Korean.
-    if texts and len(texts[0]) > 0:
-        ko_chars = len(re.findall(r'[가-힣]', texts[0]))
-        if (ko_chars / len(texts[0])) > 0.05:
-            return texts
 
     params = {"api-version": "3.0", "from": "en", "to": "ko"}
     body = [{"text": t} for t in texts]
