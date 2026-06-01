@@ -19,4 +19,4 @@ langchain-tavily
 
 uvloop; sys_platform != 'win32'
 gunicorn
-sentence-transformers
+sentence-transformers==3.0.1
