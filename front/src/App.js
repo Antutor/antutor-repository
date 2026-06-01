@@ -308,14 +308,13 @@ function App() {
 
                         // Update Score History
                         setScoreHistory(prev => {
-                            const last = prev.length > 0 ? prev[prev.length - 1] : { Academic: 0, Market: 0, Macro: 0 };
                             return [
                                 ...prev,
                                 {
                                     turn: prev.length + 1,
-                                    Academic: last.Academic + newScores.Academic,
-                                    Market: last.Market + newScores.Market,
-                                    Macro: last.Macro + newScores.Macro
+                                    Academic: newScores.Academic,
+                                    Market: newScores.Market,
+                                    Macro: newScores.Macro
                                 }
                             ];
                         });
@@ -511,6 +510,7 @@ function App() {
             setReportData(null);
             setExpertFeedbackData([]);
             setScoreHistory([]);
+            setUserScores({ Academic: 0, Market: 0, Macro: 0, Independence: 0 });
             setIsSummaryModalOpen(false);
             
             const elapsed = Date.now() - thinkingStartTime;
@@ -693,14 +693,14 @@ function App() {
                                 {/* 학습 경로 노드 제거됨 */}
                                 <div style={{ flex: 'none', padding: '0 10px', marginTop: '20px' }}>
                                     <div style={{ fontSize: '1rem', fontWeight: '800', color: 'var(--color-deep-navy)', marginBottom: '8px' }}>
-                                        {language === 'ko' ? '누적 점수' : 'Cumulative Score'}
+                                        {language === 'ko' ? '꺾은선 그래프' : 'Line Graph'}
                                     </div>
                                     <LineScoreChart history={scoreHistory} language={language} />
                                 </div>
                                 <div style={{ flex: 1 }}></div> {/* 스페이서로 공간 확보 */}
                                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '10px 15px', borderTop: '1px solid var(--color-border)', backgroundColor: 'rgba(255,255,255,0.5)', marginBottom: '10px' }}>
                                     <div style={{ alignSelf: 'flex-start', fontSize: '1rem', fontWeight: '800', color: 'var(--color-deep-navy)', marginBottom: '5px' }}>
-                                        {language === 'ko' ? '현재 점수' : 'Current Score'}
+                                        {language === 'ko' ? '역량 평가 그래프' : 'Competency Radar'}
                                     </div>
                                     <RadarScoreChart scores={userScores} isSidebar={true} language={language} />
                                     <div style={{ marginTop: '-30px', fontSize: '0.75rem', color: 'var(--color-text-secondary)', textAlign: 'center', lineHeight: '1.4' }}>

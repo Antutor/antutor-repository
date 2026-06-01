@@ -12,7 +12,7 @@ const ChatTutorialOverlay = ({ onClose, language }) => {
                 <div className="tooltip-content">
                     <h4>{language === 'ko' ? '학습 경로' : 'Learning Path'}</h4>
                     <ul>
-                        <li><strong>{language === 'ko' ? '꺾은선 그래프:' : 'Line Graph:'}</strong>{language === 'ko' ? '학습을 진행하면서 누적된 점수가 턴마다 꺾은선 그래프에 반영됩니다. 턴 횟수가 증가하면서 점수도 누적되므로 최대 점수는 100점을 초과할 수 있습니다.' : 'Your accumulated score updates in real-time on the line graph as you progress. Since the score accumulates with each turn, the maximum score can exceed 100.'}</li>
+                        <li><strong>{language === 'ko' ? '꺾은선 그래프: ' : 'Line Graph: '}</strong>{language === 'ko' ? '학습을 진행하면서 측정되는 점수가 턴마다 꺾은선 그래프에 반영됩니다. 현재 턴의 점수와 이전 턴의 점수의 변화를 한눈에 파악할 수 있습니다.' : 'Your per-turn score is reflected on the line graph as you progress. You can easily see how your score changes from turn to turn.'}</li>
                         <li><strong>{language === 'ko' ? '턴 횟수:' : 'Turn Count:'}</strong>{language === 'ko' ? '답변을 하나 보낼 때마다 턴 수가 1씩 증가합니다. (단, 힌트는 턴 횟수에서 제외됩니다.)' : 'Increases by 1 each time you send an answer. (Hints are excluded from the turn count.)'}</li>
                         <li><strong>{language === 'ko' ? '역량 평가 그래프:' : 'Competency Radar:'}</strong>{language === 'ko' ? '학습을 진행할 때 삼각형 그래프에 해당 턴에 대한 점수가 실시간으로 바뀌게 됩니다. 최대 점수는 100점입니다.' : 'The triangle graph updates your competency levels in real-time each turn. The maximum score is 100.'}</li>
                     </ul>

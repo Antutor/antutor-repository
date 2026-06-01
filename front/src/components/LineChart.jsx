@@ -27,12 +27,8 @@ function LineScoreChart({ history, language = 'ko' }) {
 
     const chartData = history.length > 0 ? history : [{ turn: 0, Academic: 0, Market: 0, Macro: 0 }];
 
-    // 1. Y축 최댓값 동적 계산 (누적 점수에 따라 100 단위로 올림)
-    const maxScore = Math.max(
-        ...chartData.map(d => Math.max(d.Academic || 0, d.Market || 0, d.Macro || 0)),
-        100
-    );
-    const yAxisMax = Math.ceil((maxScore + 50) / 100) * 100;
+    // 1. Y축 최댓값 고정 (턴별 점수는 100점 만점)
+    const yAxisMax = 100;
 
     // 2. 가로 스크롤을 위한 너비 계산 (한 턴당 최소 60px 확보)
     const minChartWidth = Math.max(260, chartData.length * 60);
