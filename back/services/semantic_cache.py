@@ -96,13 +96,14 @@ async def get_embedding(text: str) -> Optional[list[float]]:
 # 캐시 조회
 # ---------------------------------------------------------------------------
 
-async def get_cached_response(concept: str, user_answer: str) -> Optional[str]:
+async def get_cached_response(concept: str, user_answer: str, last_question: str = "") -> Optional[str]:
     """
     해당 개념(concept)에 대해 유사한 사용자 답변(user_answer)이 있었는지 벡터 DB에서 조회합니다.
 
     Args:
         concept: 대상 개념 이름 (예: "inflation")
         user_answer: 사용자의 답변 텍스트 (영어)
+        last_question: 튜터의 직전 질문 텍스트
 
     Returns:
         캐시 히트 시 cached_response 문자열, 미스 시 None
@@ -113,6 +114,7 @@ async def get_cached_response(concept: str, user_answer: str) -> Optional[str]:
     try:
         result = supabase.rpc("match_semantic_cache", {
             "p_concept": concept,
+            "p_last_question": last_question,
             "p_embedding": embedding,
             "p_match_threshold": 0.65,
             "p_match_count": 1
@@ -135,7 +137,7 @@ async def get_cached_response(concept: str, user_answer: str) -> Optional[str]:
 # 캐시 저장
 # ---------------------------------------------------------------------------
 
-async def save_to_cache(concept: str, user_answer: str, response: str) -> None:
+async def save_to_cache(concept: str, user_answer: str, response: str, last_question: str = "") -> None:
     """
     새로운 사용자 답변과 튜터의 피드백 쌍을 벡터 DB에 저장합니다.
     저장 전에 동일·유사(similarity >= 0.98) 항목이 이미 존재하면 건너뜁니다.
@@ -144,6 +146,7 @@ async def save_to_cache(concept: str, user_answer: str, response: str) -> None:
         concept: 대상 개념 이름 (예: "inflation")
         user_answer: 사용자의 답변 텍스트 (영어)
         response: LLM(튜터)이 생성한 최종 피드백 텍스트
+        last_question: 튜터의 직전 질문 텍스트
     """
     embedding = await get_embedding(user_answer)
 
@@ -151,12 +154,15 @@ async def save_to_cache(concept: str, user_answer: str, response: str) -> None:
         # ── 중복 저장 방지 ────────────────────────────────────────────
         # 0.98 이상의 고유사도 항목이 이미 있으면 INSERT를 건너뜁니다.
         try:
-            dup_check = supabase.rpc("match_semantic_cache", {
-                "p_concept": concept,
-                "p_embedding": embedding,
-                "p_match_threshold": 0.98,
-                "p_match_count": 1
-            }).execute()
+            dup_check = await asyncio.to_thread(
+                lambda: supabase.rpc("match_semantic_cache", {
+                    "p_concept": concept,
+                    "p_last_question": last_question,
+                    "p_embedding": embedding,
+                    "p_match_threshold": 0.98,
+                    "p_match_count": 1
+                }).execute()
+            )
             if dup_check.data:
                 print(
                     f"⏭️  [SemanticCache] 중복 항목 감지 — 저장 건너뜀 "
@@ -170,13 +176,16 @@ async def save_to_cache(concept: str, user_answer: str, response: str) -> None:
             print(f"⚠️ [SemanticCache] 중복 체크 오류 (저장 계속 진행): {e}", flush=True)
 
         try:
-            supabase.table("semantic_cache").insert({
-                "concept": concept,
-                "user_answer": user_answer,
-                "cached_response": response,
-                "embedding": embedding,
-                "created_at": datetime.now(KST).isoformat()
-            }).execute()
+            await asyncio.to_thread(
+                lambda: supabase.table("semantic_cache").insert({
+                    "concept": concept,
+                    "last_question": last_question,
+                    "user_answer": user_answer,
+                    "cached_response": response,
+                    "embedding": embedding,
+                    "created_at": datetime.now(KST).isoformat()
+                }).execute()
+            )
             print(
                 f"💾 [SemanticCache] 캐시 DB 저장 완료 "
                 f"| concept='{concept}' | vector_dim={len(embedding)}",

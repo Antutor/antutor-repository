@@ -301,14 +301,87 @@ async def chat(request: ChatRequest, background_tasks: BackgroundTasks, current_
             }
         }
 
-    # 현재 턴 수 계산 (캐싱 로직 및 DB 저장에 활용)
-    logs_count_res = await db(lambda: supabase.table("chat_logs").select("log_id", count="exact").eq("session_id", session["session_id"]).execute())
-    turn_number = logs_count_res.count + 1 if logs_count_res.count is not None else 1
+    # ── session_context 히스토리 빌드 및 턴 수 계산 ────────────────────────────────
+    try:
+        history_res = await db(lambda: supabase.table("chat_logs") \
+            .select("turn_number, user_message, ai_response, scaffold_step, news_urls, selected_agent, turn_summary") \
+            .eq("session_id", session["session_id"]) \
+            .order("turn_number", desc=False) \
+            .execute())
+    except Exception as e:
+        print(f"[Warning] 'turn_summary' 컬럼 조회 실패. 일반 조회로 폴백합니다: {e}")
+        history_res = await db(lambda: supabase.table("chat_logs") \
+            .select("turn_number, user_message, ai_response, scaffold_step, news_urls, selected_agent") \
+            .eq("session_id", session["session_id"]) \
+            .order("turn_number", desc=False) \
+            .execute())
+
+    full_history = history_res.data
+    turn_number = len(full_history) + 1
+
+    turn_summaries = []
+    for log in full_history:
+        summary = log.get("turn_summary")
+        if summary:
+            turn_summaries.append(f"[Turn {log['turn_number']}] {summary}")
+        else:
+            turn_summaries.append(f"[Turn {log['turn_number']}] (No summary available)")
+
+    RECENT_N = 3
+
+    def format_full(logs):
+        formatted = {}
+        for log in logs:
+            formatted[f"turn_{log['turn_number']}"] = {
+                "user_answer": log.get("user_message") or "",
+                "final_synthesis": log.get("ai_response") or "",
+                "scaffold_step": log.get("scaffold_step") or None
+            }
+        return json.dumps(formatted, ensure_ascii=False, indent=2)
+
+    if len(full_history) <= RECENT_N:
+        session_context_str = format_full(full_history)
+    else:
+        older = turn_summaries[:-RECENT_N]
+        recent = full_history[-RECENT_N:]
+        session_context_str = (
+            "[Past turns summary]\n" + "\n".join(older) +
+            "\n\n[Recent turns]\n" + format_full(recent)
+        )
+    
+    session_context_str = f"consecutive_high_score_count: {session.get('consecutive_high_score_count', 0)}\n\n" + session_context_str
+    
+    last_question_from_history = ""
+    for log in reversed(full_history):
+        if log.get("scaffold_step") is None:
+            last_question_from_history = log.get("ai_response") or ""
+            break
+            
+    last_selected_agent = None
+    if full_history:
+        last_selected_agent = full_history[-1].get("selected_agent")
+
+    # 이전 턴에서 사용한 뉴스 URL 수집 (중복 제외)
+    used_news_urls: set = set()
+    for log in full_history:
+        urls = log.get("news_urls")
+        if not urls:
+            continue
+        if isinstance(urls, str):
+            try:
+                # Some DBs return string representations of lists like "['url1', 'url2']"
+                urls = json.loads(urls.replace("'", '"'))
+            except Exception:
+                try:
+                    urls = ast.literal_eval(urls)
+                except Exception:
+                    urls = [urls]
+        if isinstance(urls, list):
+            used_news_urls.update(urls)
 
     # ── 2. 시맨틱 캐시 조회 ──────────────────────────────────────────
-    # 첫 번째 답변(Draft)일 때만 캐시를 조회합니다. 꼬리 질문(turn_number > 1)에 대한 답변은 캐시를 우회해야 문맥에 맞는 평가가 가능합니다.
-    if not is_give_up and turn_number == 1:
-        cached_response = await get_cached_response(concept_name, eval_user_answer)
+    if not is_give_up:
+        cached_response = await get_cached_response(concept_name, eval_user_answer, last_question_from_history)
         if cached_response:
             print(f"✅ [Chat] 시맨틱 캐시 히트! 캐시된 응답 반환", flush=True)
             translated_cached = await translate_en_to_ko(cached_response, language)
@@ -374,82 +447,7 @@ async def chat(request: ChatRequest, background_tasks: BackgroundTasks, current_
             print(f"  ⚠️ Scaffolding 답변 오답 — 다음 scaffolding 레벨로 진입", flush=True)
             is_give_up = True
 
-    # ── session_context 히스토리 빌드 ────────────────────────────────
-    # give_up 경로(scaffolding)와 정상 경로 모두에서 사용하므로 분기 전에 빌드합니다.
-    try:
-        history_res = await db(lambda: supabase.table("chat_logs") \
-            .select("turn_number, user_message, ai_response, scaffold_step, news_urls, selected_agent, turn_summary") \
-            .eq("session_id", session["session_id"]) \
-            .order("turn_number", desc=False) \
-            .execute())
-    except Exception as e:
-        print(f"[Warning] 'turn_summary' 컬럼 조회 실패. 일반 조회로 폴백합니다: {e}")
-        history_res = await db(lambda: supabase.table("chat_logs") \
-            .select("turn_number, user_message, ai_response, scaffold_step, news_urls, selected_agent") \
-            .eq("session_id", session["session_id"]) \
-            .order("turn_number", desc=False) \
-            .execute())
-
-    full_history = history_res.data
-    turn_summaries = []
-    for log in full_history:
-        summary = log.get("turn_summary")
-        if summary:
-            turn_summaries.append(f"[Turn {log['turn_number']}] {summary}")
-        else:
-            turn_summaries.append(f"[Turn {log['turn_number']}] (No summary available)")
-
-    RECENT_N = 3
-
-    def format_full(logs):
-        formatted = {}
-        for log in logs:
-            formatted[f"turn_{log['turn_number']}"] = {
-                "user_answer": log.get("user_message") or "",
-                "final_synthesis": log.get("ai_response") or "",
-                "scaffold_step": log.get("scaffold_step") or None
-            }
-        return json.dumps(formatted, ensure_ascii=False, indent=2)
-
-    if len(full_history) <= RECENT_N:
-        session_context_str = format_full(full_history)
-    else:
-        older = turn_summaries[:-RECENT_N]
-        recent = full_history[-RECENT_N:]
-        session_context_str = (
-            "[Past turns summary]\n" + "\n".join(older) +
-            "\n\n[Recent turns]\n" + format_full(recent)
-        )
-    
-    session_context_str = f"consecutive_high_score_count: {session.get('consecutive_high_score_count', 0)}\n\n" + session_context_str
-    
-    last_question_from_history = ""
-    for log in reversed(history_res.data):
-        if log.get("scaffold_step") is None:
-            last_question_from_history = log.get("ai_response") or ""
-            break
-            
-    last_selected_agent = None
-    if history_res.data:
-        last_selected_agent = history_res.data[-1].get("selected_agent")
-
-    # 이전 턴에서 사용한 뉴스 URL 수집 (중복 제외)
-    used_news_urls: set = set()
-    for log in history_res.data:
-        urls = log.get("news_urls")
-        if not urls:
-            continue
-        if isinstance(urls, str):
-            try:
-                # Some DBs return string representations of lists like "['url1', 'url2']"
-                urls = json.loads(urls.replace("'", '"'))
-            except Exception:
-                try:
-                    urls = ast.literal_eval(urls)
-                except Exception:
-                    urls = [urls]
-        if isinstance(urls, list):
-            used_news_urls.update(urls)
+    # (히스토리 빌드 로직은 상단으로 이동됨)
 
     if is_give_up:
         antutor_score = 0.0
@@ -691,9 +689,8 @@ async def chat(request: ChatRequest, background_tasks: BackgroundTasks, current_
             }
 
     # ── 3. 시맨틱 캐시 저장 ──────────────────────────────────────────
-    # 첫 번째 턴에서 생성된 피드백만 캐시에 저장합니다.
-    if not is_give_up and guidance_message and turn_number == 1:
-        await save_to_cache(concept_name, eval_user_answer, guidance_message)
+    if not is_give_up and guidance_message:
+        await save_to_cache(concept_name, eval_user_answer, guidance_message, last_question_from_history)
 
     chat_log_payload = {
         "session_id": session["session_id"],
