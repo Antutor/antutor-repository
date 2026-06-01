@@ -11,9 +11,8 @@ import Register from './Register';
 import RadarScoreChart from './components/RadarChart';
 import LineScoreChart from './components/LineChart';
 import AttendanceTracker from './components/AttendanceTracker';
-import QuizScreen from './components/QuizScreen';
 import ChatTutorialOverlay from './components/ChatTutorialOverlay';
-import { studyAPI, dictionaryAPI, quizAPI } from './api/services';
+import { studyAPI, dictionaryAPI } from './api/services';
 import { t } from './locales';
 
 const getInitialPath = (lang) => [
@@ -32,10 +31,6 @@ function App() {
     const [dictionarySearchTerm, setDictionarySearchTerm] = useState('');
     const [language, setLanguage] = useState('ko');
     const [expandedSidebarExpert, setExpandedSidebarExpert] = useState(null);
-
-    const [showQuiz, setShowQuiz] = useState(false);
-    const [showPostQuiz, setShowPostQuiz] = useState(false);
-    const [quizQuestions, setQuizQuestions] = useState([]);
 
     const [missionConcepts, setMissionConcepts] = useState([]);
     const [isLoadingMissions, setIsLoadingMissions] = useState(true);
@@ -454,8 +449,6 @@ function App() {
         setSelectedMission(mission.id);
         setActiveNodeId('strategic');
         setHoveredMission(null);
-        setShowPostQuiz(false);
-        setQuizQuestions([]);
         setIsEndSuggested(false);
         
         // Hide initial question and show only loading state
@@ -472,26 +465,8 @@ function App() {
             setSessionId(data.session_id);
             setIsResumePending(data.resume_available || false);
             
-            // Populate messages only after the session is ready
-            if (data.resume_available) {
-                setShowQuiz(false);
-            } else {
-                setShowQuiz(true);
-            }
-            
-            // Fetch Quiz Questions
-            try {
-                const quizRes = await quizAPI.getQuestions(mission.id);
-                if (quizRes.data && quizRes.data.length > 0) {
-                    setQuizQuestions(quizRes.data);
-                } else {
-                    alert(`[DB 알림] '${mission.id}'에 대한 퀴즈 데이터가 비어있습니다. (빈 배열 반환)`);
-                    setShowQuiz(false); // Fallback
-                }
-            } catch (qError) {
-                console.error("Quiz API Error:", qError);
-                const errorDetail = qError.response?.data?.detail || qError.message;
-                alert(`[API 에러] 퀴즈를 불러오지 못했습니다.\n이유: ${errorDetail}`);
+            if (!data.resume_available) {
+                setShowChatTutorial(true);
             }
 
             // Populate messages only after the session is ready
@@ -538,7 +513,7 @@ function App() {
             setMessages(prev => [...prev, { id: Date.now(), sender: 'user', text: decision === 'resume' ? t(language, 'resumeSession') : t(language, 'startFresh') }]);
             
             if (decision === 'fresh') {
-                setShowQuiz(true);
+                setShowChatTutorial(true);
             }
             
             // Add the real initial question/resumed question
@@ -619,7 +594,7 @@ function App() {
                 <div className="header-left">
                     <div
                         className="logo-section"
-                        onClick={() => { setSelectedMission(null); setHoveredMission(null); setShowQuiz(false); setShowPostQuiz(false); setIsSummaryModalOpen(false); }}
+                        onClick={() => { setSelectedMission(null); setHoveredMission(null); setIsSummaryModalOpen(false); }}
                         style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', gap: '10px' }}
                     >
                         <img 
@@ -642,9 +617,16 @@ function App() {
                         <option value="en">English</option>
                     </select>
                     {selectedMission && (
-                        <button className="summary-btn" onClick={() => {
-                            // 원래는 여기서 endSession하고 SummaryModal을 바로 띄웠으나, 사후 퀴즈로 연결
-                            setShowPostQuiz(true);
+                        <button className="summary-btn" onClick={async () => {
+                            if (sessionId) {
+                                try {
+                                    const response = await studyAPI.endSession({ session_id: sessionId, language });
+                                    setReportData(response.data);
+                                } catch (error) {
+                                    console.error("End session failed", error);
+                                }
+                            }
+                            setIsSummaryModalOpen(true);
                         }}>
                             <CheckCircle size={16} />
                             <span className="hide-mobile">{t(language, 'endSession')}</span>
@@ -661,8 +643,7 @@ function App() {
             </header>
 
             <div className="main-content">
-                {!(selectedMission && (showQuiz || showPostQuiz)) && (
-                    <aside className="sidebar glass-panel open">
+                <aside className="sidebar glass-panel open">
                         {!selectedMission ? (
                             <div className="welcome-sidebar-content" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', padding: '20px', textAlign: 'center' }}>
                                 <div style={{ position: 'relative', marginbottom: '20px' }}>
@@ -722,7 +703,6 @@ function App() {
                             </div>
                         )}
                     </aside>
-                )}
 
                 {!selectedMission ? (
                     <section className="mission-selection-container glass-panel">
@@ -757,39 +737,6 @@ function App() {
                             </div>
                         </div>
                     </section>
-                ) : showQuiz ? (
-                    <QuizScreen 
-                        questions={quizQuestions}
-                        sessionId={sessionId}
-                        concept={selectedMission}
-                        userId={userName}
-                        language={language}
-                        onComplete={() => {
-                            setShowQuiz(false);
-                            setShowChatTutorial(true);
-                        }}
-                    />
-                ) : showPostQuiz ? (
-                    <QuizScreen 
-                        questions={quizQuestions}
-                        sessionId={sessionId}
-                        concept={selectedMission}
-                        userId={userName}
-                        language={language}
-                        isPostTest={true}
-                        onComplete={async () => {
-                            if (sessionId) {
-                                try {
-                                    const response = await studyAPI.endSession({ session_id: sessionId, language });
-                                    setReportData(response.data);
-                                } catch (error) {
-                                    console.error("End session failed", error);
-                                }
-                            }
-                            setIsSummaryModalOpen(true);
-                            setShowPostQuiz(false);
-                        }}
-                    />
                 ) : (
                     <section className="chat-container glass-panel">
                         <div className="chat-history">
@@ -854,9 +801,17 @@ function App() {
                                                 {language === 'ko' ? '계속 학습하기' : 'Continue'}
                                             </button>
                                             <button 
-                                                onClick={() => {
+                                                onClick={async () => {
                                                     setIsEndSuggested(false);
-                                                    setShowPostQuiz(true);
+                                                    if (sessionId) {
+                                                        try {
+                                                            const response = await studyAPI.endSession({ session_id: sessionId, language });
+                                                            setReportData(response.data);
+                                                        } catch (error) {
+                                                            console.error("End session failed", error);
+                                                        }
+                                                    }
+                                                    setIsSummaryModalOpen(true);
                                                 }}
                                                 style={{ 
                                                     padding: '8px 16px', 
@@ -976,7 +931,7 @@ function App() {
                     </section>
                 )}
 
-                {!(selectedMission && (showQuiz || showPostQuiz)) && (
+                {!(selectedMission && false) && (
                     <aside className="expert-panel glass-panel" style={!selectedMission ? { width: '280px', alignItems: 'flex-start', padding: '24px' } : {}}>
                         {!selectedMission ? (
                             <div className="expert-team-container">
@@ -1098,7 +1053,7 @@ function App() {
             {/* Summary Modal에 차트 전달 */}
             <SummaryModal
                 isOpen={isSummaryModalOpen}
-                onClose={() => { setSelectedMission(null); setHoveredMission(null); setShowQuiz(false); setShowPostQuiz(false); setIsSummaryModalOpen(false); }}
+                onClose={() => { setSelectedMission(null); setHoveredMission(null); setIsSummaryModalOpen(false); }}
                 helpCountLevel1={helpCountLevel1}
                 helpCountLevel2={helpCountLevel2}
                 helpCountLevel3={helpCountLevel3}
