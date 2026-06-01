@@ -57,9 +57,9 @@ def _load_encoder():
     if _encoder_ready:
         return
     try:
-        # Render Standard/Starter 메모리 환경 안정성을 위해 시맨틱 캐시(임베딩 모델) 비활성화
-        print("⚠️ [SemanticCache] 메모리 안정성(OOM 방지)을 위해 임베딩 캐시 기능을 비활성화합니다.", flush=True)
-        _encoder = None
+        from sentence_transformers import SentenceTransformer
+        _encoder = SentenceTransformer("all-MiniLM-L6-v2")
+        print("✅ [SemanticCache] 임베딩 모델(all-MiniLM-L6-v2) 로드 완료.", flush=True)
         _encoder_ready = True
     except Exception as e:
         print(f"⚠️ [SemanticCache] 오류: {e}", flush=True)

@@ -1176,7 +1176,7 @@ async def websocket_chat(websocket: WebSocket):
                 if chunk.content:
                     recovery_text += chunk.content
                     filtered = think_filter.feed(chunk.content)
-                    if filtered:
+                    if filtered and language == "en":
                         # 프론트엔드에서 레이블을 렌더링할 수 있도록 prefix 정보를 함께 전달
                         await websocket.send_json({"type": "stream", "chunk": filtered, "prefix": prefix})
             
@@ -1233,7 +1233,7 @@ async def websocket_chat(websocket: WebSocket):
                         chunk = event["data"]["chunk"]
                         if chunk.content:
                             filtered = think_filter.feed(chunk.content)
-                            if filtered:
+                            if filtered and language == "en":
                                 await websocket.send_json({"type": "stream", "chunk": filtered})
                 
                 elif kind == "on_chain_end":
