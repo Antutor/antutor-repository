@@ -380,27 +380,26 @@ async def chat(request: ChatRequest, background_tasks: BackgroundTasks, current_
             used_news_urls.update(urls)
 
     # ── 2. 시맨틱 캐시 조회 ──────────────────────────────────────────
-    if not is_give_up:
-        cached_response = await get_cached_response(concept_name, eval_user_answer, last_question_from_history)
-        if cached_response:
-            print(f"✅ [Chat] 시맨틱 캐시 히트! 캐시된 응답 반환", flush=True)
-            translated_cached = await translate_en_to_ko(cached_response, language)
-            return {
-                "atomic_propositions": ["(Served from semantic cache)"],
-                "expert_average_score": 0.0,
-                "is_contradiction_override": False,
-                "expert_feedback": [],
-                "is_fallback": False,
-                "from_cache": True,
-                "moderator_decision": {
-                    "status": "proceed",
-                    "lowest_performing_area": "N/A",
-                    "scaffold_plan": {
-                        "step": "Guidance Prompt",
-                        "message": translated_cached
-                    }
+    cached_response = await get_cached_response(concept_name, eval_user_answer, last_question_from_history)
+    if cached_response:
+        print(f"✅ [Chat] 시맨틱 캐시 히트! 캐시된 응답 반환", flush=True)
+        translated_cached = await translate_en_to_ko(cached_response, language)
+        return {
+            "atomic_propositions": ["(Served from semantic cache)"],
+            "expert_average_score": 0.0,
+            "is_contradiction_override": False,
+            "expert_feedback": [],
+            "is_fallback": False,
+            "from_cache": True,
+            "moderator_decision": {
+                "status": "proceed",
+                "lowest_performing_area": "N/A",
+                "scaffold_plan": {
+                    "step": "Guidance Prompt",
+                    "message": translated_cached
                 }
             }
+        }
     
     any_fallback = False
     is_scaffold_success = False
@@ -689,7 +688,7 @@ async def chat(request: ChatRequest, background_tasks: BackgroundTasks, current_
             }
 
     # ── 3. 시맨틱 캐시 저장 ──────────────────────────────────────────
-    if not is_give_up and guidance_message:
+    if guidance_message:
         await save_to_cache(concept_name, eval_user_answer, guidance_message, last_question_from_history)
 
     chat_log_payload = {
